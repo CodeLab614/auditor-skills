@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+
+echo "Running pre-commit checks..."
+
+echo "1/3 Running lint..."
+bun run lint || exit 1
+
+echo "2/3 Running typecheck..."
+bun run typecheck || exit 1
+
+echo "3/3 Running build..."
+bun run build || exit 1
+
+echo "All checks passed!"
