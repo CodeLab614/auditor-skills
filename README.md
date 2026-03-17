@@ -1,36 +1,336 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RapidAuth - Better Auth Boilerplate
 
-## Getting Started
+A production-ready Next.js 16+ authentication boilerplate with Better Auth, designed for rapid application development.
 
-First, run the development server:
+![Next.js](https://img.shields.io/badge/Next.js-16.1.6-black?style=flat-square&logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?style=flat-square&logo=typescript)
+![Better Auth](https://img.shields.io/badge/Better_Auth-1.5.5-purple?style=flat-square)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.x-38B2AC?style=flat-square&logo=tailwind-css)
+![Prisma](https://img.shields.io/badge/Prisma-7.5.0-2D3748?style=flat-square&logo=prisma)
+
+## Features
+
+### Authentication
+- Email/Password authentication with strong password validation
+- OAuth integration (Google & GitHub)
+- Email verification with Resend
+- Two-Factor Authentication (TOTP) with backup codes
+- Password recovery flow
+- Session management with IP & User Agent tracking
+
+### Dashboard
+- Admin user management (CRUD)
+- Activity logging & monitoring
+- Profile management
+- Active sessions management
+- Role-based access control (admin, moderator, user)
+
+### Developer Experience
+- Interactive setup wizard (`bun run init:setup`)
+- TypeScript strict mode
+- ESLint with zero warnings policy
+- Husky git hooks
+- shadcn/ui components
+
+## Quick Start
+
+### Prerequisites
+
+- [Bun](https://bun.sh/) (recommended) or Node.js 18+
+- PostgreSQL database ([Neon](https://neon.tech) recommended)
+- [Resend](https://resend.com) account for emails
+- OAuth credentials (optional)
+
+### Installation
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Clone the repository
+git clone https://github.com/yourusername/rapidauth-better-auth.git
+cd rapidauth-better-auth
+
+# Install dependencies
+bun install
+
+# Run the interactive setup wizard
+bun run init:setup
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The setup wizard will guide you through:
+1. Database connection
+2. Better Auth configuration
+3. Email service setup
+4. OAuth providers (optional)
+5. Database migration
+6. Admin user creation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Default Admin Credentials
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+After setup, you can log in with:
+- **Email:** admin@admin.com
+- **Password:** Admin123!
 
-## Learn More
+## Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+| Category | Technology |
+|----------|------------|
+| Framework | Next.js 16+ (App Router, Server Actions) |
+| Language | TypeScript 5.x |
+| Auth | Better Auth 1.5.5 |
+| Database | PostgreSQL + Prisma 7.5.0 |
+| UI | shadcn/ui + Tailwind CSS 4.x |
+| Forms | React Hook Form + Zod |
+| Email | Resend + React Email |
+| Runtime | Bun |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+rapidauth-better-auth/
+├── app/                    # Next.js App Router
+│   ├── api/auth/           # Better Auth API routes
+│   ├── auth/               # Authentication pages
+│   │   ├── login/
+│   │   ├── register/
+│   │   ├── forgot-password/
+│   │   ├── reset-password/
+│   │   ├── verify-email/
+│   │   └── two-factor/
+│   └── dashboard/          # Protected dashboard
+│       ├── profile/
+│       ├── activity/
+│       └── users/          # Admin only
+├── actions/                # Server Actions
+│   ├── auth/               # Auth actions
+│   ├── dashboard.ts
+│   ├── profile.ts
+│   ├── sessions.ts
+│   ├── activity.ts
+│   └── users.ts            # Admin CRUD
+├── components/
+│   ├── auth/               # Auth components
+│   ├── dashboard/          # Dashboard components
+│   └── ui/                 # shadcn/ui
+├── lib/
+│   ├── auth.ts             # Better Auth config
+│   ├── prisma.ts           # Prisma client
+│   └── email.ts            # Email functions
+├── prisma/
+│   └── schema.prisma       # Database schema
+├── validations/            # Zod schemas
+├── scripts/
+│   ├── setup.ts            # Setup wizard
+│   └── seed.ts             # Database seed
+└── middleware.ts           # Route protection
+```
 
-## Deploy on Vercel
+## Environment Variables
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+# Database
+DATABASE_URL="postgresql://user:password@host:5432/database"
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Better Auth
+BETTER_AUTH_SECRET="auto-generated"
+BETTER_AUTH_URL="http://localhost:3000"
+
+# Email (Resend)
+RESEND_API_KEY="re_xxxxxxxxxxxxx"
+FROM_EMAIL="RapidAuth <noreply@yourdomain.com>"
+
+# OAuth (Optional)
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+GITHUB_CLIENT_ID=""
+GITHUB_CLIENT_SECRET=""
+```
+
+## Available Scripts
+
+```bash
+# Development
+bun dev                 # Start dev server (with lint & typecheck)
+bun run build          # Production build
+bun run start          # Start production server
+
+# Code Quality
+bun run lint           # ESLint (zero warnings)
+bun run typecheck      # TypeScript check
+
+# Database
+bun run db:generate    # Generate Prisma Client
+bun run db:push        # Push schema to database
+bun run db:migrate     # Create migration
+bun run db:studio      # Open Prisma Studio
+bun run db:seed        # Seed database
+
+# Setup
+bun run init:setup     # Interactive setup wizard
+```
+
+## Database Schema
+
+```prisma
+model User {
+  id               String    @id @default(cuid())
+  name             String
+  email            String    @unique
+  emailVerified    Boolean   @default(false)
+  image            String?
+  role             String    @default("user")
+  status           String    @default("active")
+  twoFactorEnabled Boolean?  @default(false)
+
+  sessions         Session[]
+  accounts         Account[]
+  twoFactors       TwoFactor[]
+  activityLogs     ActivityLog[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(...)
+}
+
+model Account {
+  id         String  @id @default(cuid())
+  accountId  String
+  providerId String  // google, github, credential
+  password   String? // For email/password
+  userId     String
+  user       User    @relation(...)
+}
+
+model TwoFactor {
+  id          String @id @default(cuid())
+  secret      String
+  backupCodes String
+  userId      String
+  user        User   @relation(...)
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String   // login, logout, register, etc.
+  details   String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User     @relation(...)
+}
+```
+
+## Authentication Flow
+
+### Email/Password
+1. User registers with email/password
+2. Verification email sent via Resend
+3. User verifies email
+4. User can log in
+
+### OAuth
+1. User clicks Google/GitHub button
+2. Redirected to provider
+3. Account linked/created automatically
+4. User logged in
+
+### Two-Factor Authentication
+1. User enables 2FA in profile
+2. QR code generated for authenticator app
+3. Backup codes provided
+4. On login, TOTP code required
+
+## Route Protection
+
+The middleware automatically protects routes:
+
+| Route | Access |
+|-------|--------|
+| `/auth/*` | Public (redirects if logged in) |
+| `/dashboard/*` | Authenticated users |
+| `/dashboard/users` | Admin only |
+
+## Server Actions
+
+All mutations use Next.js Server Actions with consistent return types:
+
+```typescript
+type ActionResponse<T = void> = {
+  response: 'success' | 'error';
+  message: string;
+  data?: T;
+};
+```
+
+## Customization
+
+### Adding OAuth Providers
+
+Edit `lib/auth.ts`:
+
+```typescript
+socialProviders: {
+  google: { ... },
+  github: { ... },
+  // Add more providers here
+}
+```
+
+### Modifying Roles
+
+Edit the User model and update:
+- `prisma/schema.prisma`
+- `validations/users.ts`
+- `components/dashboard/users/`
+
+### Email Templates
+
+Edit templates in `emails/`:
+- `verification-email.tsx`
+
+## Deployment
+
+### Vercel (Recommended)
+
+1. Push to GitHub
+2. Import in Vercel
+3. Add environment variables
+4. Deploy
+
+### Docker
+
+```dockerfile
+FROM oven/bun:1 as base
+WORKDIR /app
+COPY package.json bun.lockb ./
+RUN bun install --frozen-lockfile
+COPY . .
+RUN bun run build
+EXPOSE 3000
+CMD ["bun", "run", "start"]
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Author
+
+**Jorge Trejo** - [@jotredev](https://github.com/jotredev)
+
+---
+
+Built with [Better Auth](https://better-auth.com), [Next.js](https://nextjs.org), and [shadcn/ui](https://ui.shadcn.com).
