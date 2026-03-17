@@ -1,8 +1,24 @@
 #!/usr/bin/env node
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 import * as crypto from "node:crypto";
+import dotenv from "dotenv";
 
-const prisma = new PrismaClient();
+// Load environment variables
+dotenv.config({ path: ".env" });
+dotenv.config({ path: ".env.local", override: true });
+
+// Create Prisma client with pg adapter (same as lib/prisma.ts)
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL!,
+  ssl: {
+    rejectUnauthorized: true,
+  },
+});
+
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 // ============================================================================
 // COLORS
@@ -110,4 +126,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end();
   });
