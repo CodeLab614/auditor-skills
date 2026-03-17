@@ -79,13 +79,7 @@ const ENV_VARIABLES: EnvVariable[] = [
       return true;
     },
   },
-  {
-    key: 'FROM_EMAIL',
-    description: 'Email sender address',
-    placeholder: 'RapidAuth <noreply@yourdomain.com>',
-    required: true,
-    category: 'email',
-  },
+  // FROM_EMAIL is handled separately in askEmailConfig()
   // Google OAuth
   {
     key: 'GOOGLE_CLIENT_ID',
@@ -405,6 +399,147 @@ async function runSeed(): Promise<void> {
 }
 
 // ============================================================================
+// EMAIL TESTING
+// ============================================================================
+
+async function sendTestEmail(
+  apiKey: string,
+  fromEmail: string,
+  toEmail: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: [toEmail],
+        subject: 'RapidAuth - Test Email',
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #0ea5e9;">RapidAuth Setup</h1>
+            <p>This is a test email to verify your Resend configuration.</p>
+            <p style="color: #22c55e; font-weight: bold;">Email configuration is working correctly!</p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+            <p style="color: #6b7280; font-size: 12px;">
+              This email was sent during the RapidAuth setup wizard.
+            </p>
+          </div>
+        `,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        error: errorData.message || `HTTP ${response.status}`,
+      };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+async function askEmailConfig(): Promise<{ fromEmail: string; testEmail: string }> {
+  println(`  ${icons.email} ${colors.bold}FROM_EMAIL${colors.reset} ${colors.red}*${colors.reset}`);
+  println(`     ${colors.dim}Email sender address${colors.reset}`);
+  println();
+
+  // Ask if user has a custom domain
+  println(`     ${colors.yellow}Do you have a custom domain configured in Resend?${colors.reset}`);
+  println(`     ${colors.dim}If not, you'll use the test email: onboarding@resend.dev${colors.reset}`);
+  println(`     ${colors.dim}(With onboarding@resend.dev you can only send to your verified email)${colors.reset}`);
+  println();
+
+  const hasDomain = await question(
+    `     ${colors.yellow}${icons.arrow}${colors.reset} ${colors.dim}(y/n)${colors.reset}: `,
+  );
+
+  let fromEmail: string;
+
+  if (hasDomain.toLowerCase() === 'y' || hasDomain.toLowerCase() === 'yes') {
+    // User has custom domain
+    println();
+    println(`     ${colors.cyan}Enter your FROM_EMAIL:${colors.reset}`);
+    println(`     ${colors.dim}Format: Name <email@yourdomain.com>${colors.reset}`);
+
+    let validEmail = false;
+    fromEmail = '';
+
+    while (!validEmail) {
+      fromEmail = await question(
+        `     ${colors.yellow}${icons.arrow}${colors.reset} ${colors.dim}(RapidAuth <noreply@yourdomain.com>)${colors.reset}: `,
+      );
+
+      if (!fromEmail) {
+        println(`     ${colors.red}${icons.error} This field is required${colors.reset}`);
+        continue;
+      }
+
+      validEmail = true;
+    }
+  } else {
+    // Use onboarding email
+    fromEmail = 'RapidAuth <onboarding@resend.dev>';
+    println();
+    println(`     ${colors.green}${icons.success} Using: ${fromEmail}${colors.reset}`);
+    println();
+    println(`     ${colors.yellow}${icons.warning} Important:${colors.reset}`);
+    println(`     ${colors.dim}With onboarding@resend.dev you can ONLY send emails${colors.reset}`);
+    println(`     ${colors.dim}to the email address verified in your Resend account.${colors.reset}`);
+  }
+
+  println();
+  println(`     ${colors.green}${icons.success} FROM_EMAIL set${colors.reset}`);
+  println();
+
+  // Now ask for test email
+  println(`  ${icons.email} ${colors.bold}Email Verification Test${colors.reset}`);
+  println(`     ${colors.dim}We'll send a test email to verify your configuration.${colors.reset}`);
+
+  if (hasDomain.toLowerCase() !== 'y' && hasDomain.toLowerCase() !== 'yes') {
+    println(`     ${colors.yellow}${icons.warning} Enter the email verified in your Resend account${colors.reset}`);
+  }
+
+  println();
+
+  let testEmail = '';
+  let validTestEmail = false;
+
+  while (!validTestEmail) {
+    testEmail = await question(
+      `     ${colors.yellow}${icons.arrow}${colors.reset} ${colors.dim}Test email address${colors.reset}: `,
+    );
+
+    if (!testEmail) {
+      println(`     ${colors.red}${icons.error} Please enter an email to test${colors.reset}`);
+      continue;
+    }
+
+    // Basic email validation
+    if (!testEmail.includes('@') || !testEmail.includes('.')) {
+      println(`     ${colors.red}${icons.error} Please enter a valid email address${colors.reset}`);
+      continue;
+    }
+
+    validTestEmail = true;
+  }
+
+  println();
+
+  return { fromEmail, testEmail };
+}
+
+// ============================================================================
 // FILE OPERATIONS
 // ============================================================================
 
@@ -447,6 +582,19 @@ function loadExistingEnv(): Record<string, string> {
 function writeEnvFile(envVars: Record<string, string>): void {
   const envPath = path.join(process.cwd(), '.env');
 
+  // Define the order and sections for env variables
+  const variableToSection: Record<string, string> = {
+    DATABASE_URL: 'database',
+    BETTER_AUTH_SECRET: 'auth',
+    BETTER_AUTH_URL: 'auth',
+    RESEND_API_KEY: 'email',
+    FROM_EMAIL: 'email',
+    GOOGLE_CLIENT_ID: 'oauth',
+    GOOGLE_CLIENT_SECRET: 'oauth',
+    GITHUB_CLIENT_ID: 'oauth',
+    GITHUB_CLIENT_SECRET: 'oauth',
+  };
+
   const sections: Record<string, string[]> = {
     database: ['# Database'],
     auth: ['# Better Auth'],
@@ -454,10 +602,11 @@ function writeEnvFile(envVars: Record<string, string>): void {
     oauth: ['# OAuth Providers'],
   };
 
-  for (const variable of ENV_VARIABLES) {
-    const value = envVars[variable.key];
+  // Add all env variables to their sections
+  for (const [key, value] of Object.entries(envVars)) {
     if (value) {
-      sections[variable.category].push(`${variable.key}="${value}"`);
+      const section = variableToSection[key] || 'oauth';
+      sections[section].push(`${key}="${value}"`);
     }
   }
 
@@ -509,14 +658,114 @@ async function runSetup() {
     printHeader();
     printStep(stepNumber, totalSteps, category.title);
 
-    const categoryVars = ENV_VARIABLES.filter(
-      (v) => v.category === category.key,
-    );
+    if (category.key === 'email') {
+      // Handle email category specially
+      const categoryVars = ENV_VARIABLES.filter(
+        (v) => v.category === 'email',
+      );
 
-    for (const variable of categoryVars) {
-      const value = await askVariable(variable, existingEnv[variable.key]);
-      if (value) {
-        newEnv[variable.key] = value;
+      // First ask for RESEND_API_KEY
+      for (const variable of categoryVars) {
+        const value = await askVariable(variable, existingEnv[variable.key]);
+        if (value) {
+          newEnv[variable.key] = value;
+        }
+      }
+
+      // Then ask for FROM_EMAIL with domain check
+      const { fromEmail, testEmail } = await askEmailConfig();
+      newEnv['FROM_EMAIL'] = fromEmail;
+
+      // Send test email
+      println(`  ${icons.email} ${colors.bold}Sending test email...${colors.reset}`);
+      println();
+
+      let emailSuccess = false;
+      let retryCount = 0;
+      const maxRetries = 3;
+
+      while (!emailSuccess && retryCount < maxRetries) {
+        const result = await sendTestEmail(
+          newEnv['RESEND_API_KEY'],
+          fromEmail,
+          testEmail,
+        );
+
+        if (result.success) {
+          println(`     ${colors.green}${icons.success} Test email sent successfully to ${testEmail}${colors.reset}`);
+          println(`     ${colors.dim}Please check your inbox (and spam folder)${colors.reset}`);
+          println();
+
+          const confirmed = await question(
+            `     ${colors.yellow}${icons.arrow}${colors.reset} ${colors.dim}Did you receive the email? (y/n)${colors.reset}: `,
+          );
+
+          if (confirmed.toLowerCase() === 'y' || confirmed.toLowerCase() === 'yes') {
+            emailSuccess = true;
+            println();
+            println(`     ${colors.green}${icons.success} Email configuration verified!${colors.reset}`);
+          } else {
+            println();
+            println(`     ${colors.yellow}${icons.warning} Email might be in spam folder or delayed${colors.reset}`);
+            const continueAnyway = await question(
+              `     ${colors.yellow}${icons.arrow}${colors.reset} ${colors.dim}Continue anyway? (y/n)${colors.reset}: `,
+            );
+            if (continueAnyway.toLowerCase() === 'y' || continueAnyway.toLowerCase() === 'yes') {
+              emailSuccess = true;
+            } else {
+              retryCount++;
+              if (retryCount < maxRetries) {
+                println();
+                println(`     ${colors.cyan}Let's try again...${colors.reset}`);
+                const retryConfig = await askEmailConfig();
+                newEnv['FROM_EMAIL'] = retryConfig.fromEmail;
+              }
+            }
+          }
+        } else {
+          println(`     ${colors.red}${icons.error} Failed to send test email: ${result.error}${colors.reset}`);
+          println();
+
+          if (result.error?.includes('not verified') || result.error?.includes('not allowed')) {
+            println(`     ${colors.yellow}${icons.warning} This error usually means:${colors.reset}`);
+            println(`     ${colors.dim}  - The recipient email is not verified in Resend${colors.reset}`);
+            println(`     ${colors.dim}  - You're using onboarding@resend.dev with wrong recipient${colors.reset}`);
+            println();
+          }
+
+          retryCount++;
+          if (retryCount < maxRetries) {
+            const retry = await question(
+              `     ${colors.yellow}${icons.arrow}${colors.reset} ${colors.dim}Try again? (y/n)${colors.reset}: `,
+            );
+            if (retry.toLowerCase() !== 'y' && retry.toLowerCase() !== 'yes') {
+              break;
+            }
+            println();
+            const retryConfig2 = await askEmailConfig();
+            newEnv['FROM_EMAIL'] = retryConfig2.fromEmail;
+          }
+        }
+      }
+
+      if (!emailSuccess) {
+        println();
+        println(`     ${colors.yellow}${icons.warning} Continuing without email verification${colors.reset}`);
+        println(`     ${colors.dim}You may need to fix email configuration manually${colors.reset}`);
+      }
+
+      println();
+    } else {
+      // Normal category handling
+      const categoryVars = ENV_VARIABLES.filter(
+        (v) => v.category === category.key,
+      );
+
+      for (const variable of categoryVars) {
+        const value = await askVariable(variable, existingEnv[variable.key]);
+        if (value) {
+          newEnv[variable.key] = value;
+        }
       }
     }
 
