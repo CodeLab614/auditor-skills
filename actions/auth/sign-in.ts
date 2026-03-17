@@ -38,11 +38,29 @@ export const signInAction = async (
 
     const responseData = await result.json();
 
+    // Check if the response indicates an error
+    if (!result.ok || responseData.error || responseData.code) {
+      return {
+        response: 'error',
+        message: 'Invalid credentials',
+        data: null,
+      };
+    }
+
     if (responseData.twoFactorRedirect) {
       return {
         response: 'success',
         message: 'Two-factor authentication required',
         data: { twoFactorRequired: true },
+      };
+    }
+
+    // Verify we actually got a valid session/user back
+    if (!responseData.user && !responseData.session) {
+      return {
+        response: 'error',
+        message: 'Invalid credentials',
+        data: null,
       };
     }
 

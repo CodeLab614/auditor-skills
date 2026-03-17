@@ -6,8 +6,13 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+// Note: sslmode is set via connection string, not ssl object
+const connectionString = process.env.DATABASE_URL!.includes('sslmode=')
+  ? process.env.DATABASE_URL!
+  : `${process.env.DATABASE_URL!}${process.env.DATABASE_URL!.includes('?') ? '&' : '?'}sslmode=verify-full`;
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL!,
+  connectionString,
   ssl: {
     rejectUnauthorized: true,
   },

@@ -49,21 +49,7 @@ const ENV_VARIABLES: EnvVariable[] = [
     category: 'auth',
     autoGenerate: () => crypto.randomBytes(32).toString('hex'),
   },
-  {
-    key: 'BETTER_AUTH_URL',
-    description: 'Base URL of your application',
-    placeholder: 'http://localhost:3000',
-    required: true,
-    category: 'auth',
-    validate: (value) => {
-      try {
-        new URL(value);
-        return true;
-      } catch {
-        return 'Must be a valid URL';
-      }
-    },
-  },
+  // BETTER_AUTH_URL is handled separately in askAuthUrl()
   // Email
   {
     key: 'RESEND_API_KEY',
@@ -540,6 +526,124 @@ async function askEmailConfig(): Promise<{ fromEmail: string; testEmail: string 
 }
 
 // ============================================================================
+// AUTH URL SELECTION
+// ============================================================================
+
+async function askAuthUrl(): Promise<string> {
+  const DEFAULT_URL = 'http://localhost:3000';
+  const options = ['Default (http://localhost:3000)', 'Custom URL'];
+  let selectedIndex = 0;
+
+  println(`  ${icons.globe} ${colors.bold}BETTER_AUTH_URL${colors.reset} ${colors.red}*${colors.reset}`);
+  println(`     ${colors.dim}Base URL of your application${colors.reset}`);
+  println();
+
+  // Enable raw mode for arrow key input
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+  }
+  process.stdin.resume();
+
+  const renderOptions = () => {
+    // Move cursor up to rewrite options
+    process.stdout.write('\x1b[2A\x1b[J');
+    for (let i = 0; i < options.length; i++) {
+      if (i === selectedIndex) {
+        println(`     ${colors.cyan}${icons.arrow} ${options[i]}${colors.reset}`);
+      } else {
+        println(`       ${colors.dim}${options[i]}${colors.reset}`);
+      }
+    }
+  };
+
+  // Initial render
+  for (let i = 0; i < options.length; i++) {
+    if (i === selectedIndex) {
+      println(`     ${colors.cyan}${icons.arrow} ${options[i]}${colors.reset}`);
+    } else {
+      println(`       ${colors.dim}${options[i]}${colors.reset}`);
+    }
+  }
+
+  println(`     ${colors.dim}Use ↑↓ arrows to select, Enter to confirm${colors.reset}`);
+
+  const selectedOption = await new Promise<number>((resolve) => {
+    const onKeypress = (key: Buffer) => {
+      const keyStr = key.toString();
+
+      // Up arrow
+      if (keyStr === '\x1b[A' || keyStr === 'k') {
+        selectedIndex = selectedIndex > 0 ? selectedIndex - 1 : options.length - 1;
+        renderOptions();
+        println(`     ${colors.dim}Use ↑↓ arrows to select, Enter to confirm${colors.reset}`);
+      }
+      // Down arrow
+      else if (keyStr === '\x1b[B' || keyStr === 'j') {
+        selectedIndex = selectedIndex < options.length - 1 ? selectedIndex + 1 : 0;
+        renderOptions();
+        println(`     ${colors.dim}Use ↑↓ arrows to select, Enter to confirm${colors.reset}`);
+      }
+      // Enter
+      else if (keyStr === '\r' || keyStr === '\n') {
+        process.stdin.removeListener('data', onKeypress);
+        if (process.stdin.isTTY) {
+          process.stdin.setRawMode(false);
+        }
+        resolve(selectedIndex);
+      }
+      // Ctrl+C
+      else if (keyStr === '\x03') {
+        process.stdin.removeListener('data', onKeypress);
+        if (process.stdin.isTTY) {
+          process.stdin.setRawMode(false);
+        }
+        process.exit(0);
+      }
+    };
+
+    process.stdin.on('data', onKeypress);
+  });
+
+  println();
+
+  let selectedUrl = DEFAULT_URL;
+
+  if (selectedOption === 1) {
+    // Custom URL
+    println(`     ${colors.cyan}Enter your custom URL:${colors.reset}`);
+
+    // Restore normal input mode for question
+    process.stdin.pause();
+
+    let validUrl = false;
+    while (!validUrl) {
+      const customUrl = await question(
+        `     ${colors.yellow}${icons.arrow}${colors.reset} ${colors.dim}(https://yourdomain.com)${colors.reset}: `,
+      );
+
+      if (!customUrl) {
+        println(`     ${colors.red}${icons.error} URL is required${colors.reset}`);
+        continue;
+      }
+
+      try {
+        new URL(customUrl);
+        selectedUrl = customUrl;
+        validUrl = true;
+      } catch {
+        println(`     ${colors.red}${icons.error} Must be a valid URL${colors.reset}`);
+      }
+    }
+  }
+
+  println();
+  println(`     ${colors.green}${icons.success} URL set: ${selectedUrl}${colors.reset}`);
+  println();
+
+  return selectedUrl;
+}
+
+// ============================================================================
 // FILE OPERATIONS
 // ============================================================================
 
@@ -658,7 +762,24 @@ async function runSetup() {
     printHeader();
     printStep(stepNumber, totalSteps, category.title);
 
-    if (category.key === 'email') {
+    if (category.key === 'auth') {
+      // Handle auth category specially
+      const categoryVars = ENV_VARIABLES.filter(
+        (v) => v.category === 'auth',
+      );
+
+      // First ask for BETTER_AUTH_SECRET (auto-generated)
+      for (const variable of categoryVars) {
+        const value = await askVariable(variable, existingEnv[variable.key]);
+        if (value) {
+          newEnv[variable.key] = value;
+        }
+      }
+
+      // Then ask for BETTER_AUTH_URL with options
+      const authUrl = await askAuthUrl();
+      newEnv['BETTER_AUTH_URL'] = authUrl;
+    } else if (category.key === 'email') {
       // Handle email category specially
       const categoryVars = ENV_VARIABLES.filter(
         (v) => v.category === 'email',

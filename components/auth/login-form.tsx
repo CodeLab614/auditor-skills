@@ -66,7 +66,6 @@ export function LoginForm() {
         return;
       }
 
-      toast.success(result.message);
       router.push('/dashboard');
     });
   };
