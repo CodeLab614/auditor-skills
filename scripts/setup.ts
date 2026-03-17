@@ -780,11 +780,11 @@ async function runSetup() {
     writeEnvFile(newEnv);
   });
 
-  // Test database connection
+  // Load the newly written env file into process.env for Prisma
   println();
-  await spinner('Testing database connection...', async () => {
-    // Just a delay to simulate testing
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  await spinner('Loading environment variables...', async () => {
+    const dotenv = await import('dotenv');
+    dotenv.config({ path: path.join(process.cwd(), '.env') });
   });
 
   // Run Prisma commands
