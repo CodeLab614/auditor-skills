@@ -109,7 +109,7 @@ export function ChangeRoleDialog({
     });
   };
 
-  // eslint-disable-next-line react-hooks/incompatible-library
+   
   const selectedRole = form.watch('role') as Role;
   const currentRoleConfig = roleConfig[selectedRole];
   const CurrentIcon = currentRoleConfig.icon;

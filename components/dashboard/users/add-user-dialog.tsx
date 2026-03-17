@@ -88,7 +88,7 @@ export function AddUserDialog({
     onOpenChange(newOpen);
   };
 
-  // eslint-disable-next-line react-hooks/incompatible-library
+   
   const selectedRole = form.watch('role');
 
   const getRoleDescription = (role: string) => {

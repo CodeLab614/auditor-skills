@@ -15,6 +15,13 @@ const eslintConfig = defineConfig([
     // Ignore agent skills templates
     ".agents/**",
   ]),
+  {
+    rules: {
+      // Disable React Compiler incompatible library warnings for React Hook Form
+      // This is a false positive - form.watch() works fine
+      "react-hooks/incompatible-library": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
