@@ -4,6 +4,7 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ThemeProvider } from '@/components/theme-provider';
+import { Toaster } from 'sonner';
 
 const nunitoSans = Nunito_Sans({ variable: '--font-sans', subsets: ['latin'] });
 
@@ -43,6 +44,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <TooltipProvider>{children}</TooltipProvider>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              className: 'rounded-none',
+            }}
+          />
         </ThemeProvider>
       </body>
     </html>

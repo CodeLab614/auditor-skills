@@ -1,77 +1,43 @@
-import { DashboardContent } from "@/components/dashboard";
-
-// This would come from your database in a real app
-async function getDashboardData() {
-  const metrics = {
-    totalUsers: 2847,
-    totalUsersChange: 12.5,
-    activeUsers: 2134,
-    activeUsersChange: 8.2,
-    inactiveUsers: 713,
-    inactiveUsersChange: 3.1,
-    newThisMonth: 156,
-    newThisMonthChange: 24.3,
-  };
-
-  const chartData = [
-    120, 145, 132, 178, 165, 198,
-    210, 245, 220, 267, 234, 289,
-  ];
-
-  const recentUsers = [
-    {
-      id: "1",
-      name: "Elena Rostova",
-      email: "elena@example.com",
-      role: "admin",
-      status: "active",
-      createdAt: "Mar 14, 2025",
-    },
-    {
-      id: "2",
-      name: "Marcus Chen",
-      email: "marcus@example.com",
-      role: "user",
-      status: "active",
-      createdAt: "Mar 14, 2025",
-    },
-    {
-      id: "3",
-      name: "Sarah Jenkins",
-      email: "sarah@example.com",
-      role: "user",
-      status: "pending",
-      createdAt: "Mar 13, 2025",
-    },
-    {
-      id: "4",
-      name: "David O'Connor",
-      email: "david@example.com",
-      role: "user",
-      status: "inactive",
-      createdAt: "Mar 12, 2025",
-    },
-    {
-      id: "5",
-      name: "Ana Martinez",
-      email: "ana@example.com",
-      role: "moderator",
-      status: "active",
-      createdAt: "Mar 11, 2025",
-    },
-  ];
-
-  return { metrics, chartData, recentUsers };
-}
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
+import { getDashboardMetrics, getUserData } from "@/actions/dashboard";
+import { DashboardContent, UserWelcome } from "@/components/dashboard";
 
 export default async function DashboardPage() {
-  const { metrics, chartData, recentUsers } = await getDashboardData();
+  const session = await getSession();
 
-  return (
-    <DashboardContent
-      metrics={metrics}
-      chartData={chartData}
-      recentUsers={recentUsers}
-    />
-  );
+  if (!session) {
+    redirect("/auth/login");
+  }
+
+  const isAdmin = session.user.role === "admin";
+
+  if (isAdmin) {
+    const result = await getDashboardMetrics();
+
+    if (result.response === 'error' || !result.data) {
+      return (
+        <div className="flex items-center justify-center p-8">
+          <p className="text-muted-foreground">{result.message}</p>
+        </div>
+      );
+    }
+
+    return (
+      <DashboardContent
+        metrics={result.data.metrics}
+        chartData={result.data.chartData}
+        recentUsers={result.data.recentUsers}
+      />
+    );
+  }
+
+  // For non-admin users, show welcome page
+  const result = await getUserData(session.user.id);
+
+  if (result.response === 'error' || !result.data) {
+    redirect("/auth/login");
+  }
+
+  return <UserWelcome user={result.data} />;
 }

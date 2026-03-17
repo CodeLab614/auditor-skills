@@ -25,14 +25,30 @@ export { DashboardShell } from "./dashboard-shell";
 
 // Page Content Components (Client)
 export { DashboardContent } from "./dashboard-content";
-export { UsersContent, type User, type AuthProvider } from "./users-content";
+export { UserWelcome } from "./user-welcome";
 export { ProfileContent } from "./profile-content";
+export { TwoFactorStatus } from "./two-factor-setup";
+export { ActivityLog, type ActivityLogEntry } from "./activity-log";
+export { ActiveSessions, type SessionData } from "./active-sessions";
+export { ActivityLogsContent } from "./activity-logs-content";
 
-// User Management Dialogs
-export { AddUserDialog, type NewUserData } from "./add-user-dialog";
-export { EditUserDialog } from "./edit-user-dialog";
-export { ChangeRoleDialog } from "./change-role-dialog";
-export { ResetPasswordDialog } from "./reset-password-dialog";
+// User Management (from users folder)
+export {
+  UsersContent,
+  UsersTable,
+  SearchAndFilters,
+  ActiveFilters,
+  UserActions,
+  BulkActionsBar,
+  AddUserDialog,
+  EditUserDialog,
+  ChangeRoleDialog,
+  ResetPasswordDialog,
+  type Filters,
+} from "./users";
+export type { User, AuthProvider } from "@/actions/users";
+
+// Confirm Dialog
 export { ConfirmDialog, type ConfirmDialogProps } from "./confirm-dialog";
 
 // Data Display Components

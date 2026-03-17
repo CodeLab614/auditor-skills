@@ -49,7 +49,7 @@ interface SidebarProps {
   brandName?: string;
   navigation?: NavSection[];
   user?: UserProfile;
-  onLogout?: () => void;
+  onLogout?: () => void | Promise<void>;
   className?: string;
 }
 
@@ -154,7 +154,6 @@ function SidebarContent({
                 <AvatarImage
                   src={user.avatar}
                   alt={user.name}
-                  className="grayscale opacity-80"
                 />
                 <AvatarFallback className="bg-secondary text-foreground text-xs">
                   {user.name
@@ -177,28 +176,28 @@ function SidebarContent({
             align="start"
             className="w-56 mb-2"
           >
-            <DropdownMenuLabel className="font-normal">
+            <DropdownMenuLabel className="font-normal py-3">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-normal">{user.name}</p>
-                <p className="text-xs text-muted-foreground font-light">
+                <p className="text-sm font-medium">{user.name}</p>
+                <p className="text-sm text-muted-foreground">
                   {user.email}
                 </p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
+            <DropdownMenuItem asChild className="py-2.5">
               <Link href="/dashboard/profile" className="flex items-center gap-3 cursor-pointer">
                 <User className="h-4 w-4" strokeWidth={1.5} />
-                Profile
+                <span>Profile</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={onLogout}
-              className="text-destructive focus:text-destructive cursor-pointer"
+              className="text-destructive focus:text-destructive cursor-pointer py-2.5 gap-3"
             >
-              <LogOut className="h-4 w-4 mr-3" strokeWidth={1.5} />
-              Log out
+              <LogOut className="h-4 w-4" strokeWidth={1.5} />
+              <span>Log out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

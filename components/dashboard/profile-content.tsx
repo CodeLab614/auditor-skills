@@ -10,15 +10,10 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import {
-  User,
-  Mail,
-  Lock,
-  Bell,
-  Shield,
-  Camera,
-  Save,
-} from "lucide-react";
+import { User, Mail, Lock, Bell, Camera, Save, Shield, History, Monitor } from "lucide-react";
+import { TwoFactorStatus } from "./two-factor-setup";
+import { ActivityLog, type ActivityLogEntry } from "./activity-log";
+import { ActiveSessions, type SessionData } from "./active-sessions";
 
 interface ProfileData {
   name: string;
@@ -28,16 +23,25 @@ interface ProfileData {
 
 interface ProfileContentProps {
   initialProfile: ProfileData;
+  twoFactorEnabled?: boolean;
+  activityLogs?: ActivityLogEntry[];
+  sessions?: SessionData[];
+  currentSessionToken?: string;
   onSaveProfile?: (profile: ProfileData) => Promise<void>;
   onChangePassword?: (passwords: { current: string; new: string }) => Promise<void>;
 }
 
 export function ProfileContent({
   initialProfile,
+  twoFactorEnabled = false,
+  activityLogs = [],
+  sessions = [],
+  currentSessionToken,
   onSaveProfile,
   onChangePassword,
 }: ProfileContentProps) {
   const [isLoading, setIsLoading] = React.useState(false);
+  const [is2FAEnabled, setIs2FAEnabled] = React.useState(twoFactorEnabled);
 
   const [profile, setProfile] = React.useState(initialProfile);
 
@@ -94,6 +98,14 @@ export function ProfileContent({
           <TabsTrigger value="notifications" className="gap-2">
             <Bell className="h-4 w-4" strokeWidth={1.5} />
             Notifications
+          </TabsTrigger>
+          <TabsTrigger value="sessions" className="gap-2">
+            <Monitor className="h-4 w-4" strokeWidth={1.5} />
+            Sessions
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="gap-2">
+            <History className="h-4 w-4" strokeWidth={1.5} />
+            Activity
           </TabsTrigger>
         </TabsList>
 
@@ -239,15 +251,10 @@ export function ProfileContent({
               Add an extra layer of security to your account.
             </p>
 
-            <div className="flex items-center justify-between max-w-md">
-              <div className="space-y-0.5">
-                <p className="text-sm font-medium">Enable 2FA</p>
-                <p className="text-xs text-muted-foreground">
-                  Require a verification code when signing in.
-                </p>
-              </div>
-              <Switch />
-            </div>
+            <TwoFactorStatus
+              enabled={is2FAEnabled}
+              onStatusChange={setIs2FAEnabled}
+            />
           </Card>
         </TabsContent>
 
@@ -326,6 +333,14 @@ export function ProfileContent({
               </div>
             </div>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="sessions" className="space-y-6">
+          <ActiveSessions sessions={sessions} currentSessionToken={currentSessionToken} />
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-6">
+          <ActivityLog activities={activityLogs} />
         </TabsContent>
       </Tabs>
     </>

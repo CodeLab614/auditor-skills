@@ -1308,7 +1308,7 @@ const form = useForm({
 
 ## Known Issues Prevention
 
-This skill prevents **12** documented issues:
+This skill prevents **13** documented issues:
 
 ### Issue #1: Zod v4 Type Inference Errors
 **Error**: Type inference doesn't work correctly with Zod v4
@@ -1383,6 +1383,169 @@ This skill prevents **12** documented issues:
 **Why It Happens**: Trying to use multiple validation libraries
 **Prevention**: Use single resolver (zodResolver), combine schemas if needed
 
+### Issue #13: Using Form Action Attribute with RHF
+**Error**: Form validation bypassed, no type safety, no loading states
+**Source**: Project-specific rule
+**Why It Happens**: Using `<form action={serverAction}>` instead of `onSubmit`
+**Prevention**: ALWAYS use `<form onSubmit={form.handleSubmit(onSubmit)}>`. Use `useTransition` for pending state. Server actions must accept typed data, not FormData.
+
+---
+
+## Next.js Server Actions Pattern (CRITICAL)
+
+### ❌ NEVER Use Form Action Attribute
+
+Forms must NEVER use the `action` attribute. This is a strict project rule.
+
+```typescript
+// ❌ WRONG - NEVER DO THIS
+<form action={serverAction}>
+  <input name="email" />
+  <button type="submit">Submit</button>
+</form>
+
+// ❌ WRONG - NEVER use useActionState
+const [state, formAction] = useActionState(serverAction, initialState);
+<form action={formAction}>
+
+// ❌ WRONG - Server actions accepting FormData
+async function serverAction(formData: FormData) {
+  const email = formData.get("email");
+}
+```
+
+### ✅ ALWAYS Use This Pattern
+
+```typescript
+'use client';
+
+import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import * as z from 'zod';
+
+// 1. Schema in validations/*.ts
+const loginSchema = z.object({
+  email: z.string().email('Invalid email'),
+  password: z.string().min(1, 'Required'),
+});
+
+// 2. Server action accepts typed data and returns standard response
+type SignInData = {
+  twoFactorRequired?: boolean;
+};
+
+const signInAction = async (
+  values: z.infer<typeof loginSchema>
+): Promise<{
+  response: 'success' | 'error';
+  message: string;
+  data: SignInData | null;
+}> => {
+  'use server';
+
+  const { success, data } = loginSchema.safeParse(values);
+  if (!success) {
+    return {
+      response: 'error',
+      message: 'Invalid fields',
+      data: null,
+    };
+  }
+
+  // ... auth logic
+
+  return {
+    response: 'success',
+    message: 'Login successful',
+    data: null,
+  };
+};
+
+// 3. Form component
+function LoginForm() {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  const form = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' },
+  });
+
+  const onSubmit = (values: z.infer<typeof loginSchema>) => {
+    startTransition(async () => {
+      const result = await signInAction(values);
+
+      if (result.response === 'error') {
+        toast.error(result.message);
+        return;
+      }
+
+      toast.success(result.message);
+      router.push('/dashboard');
+    });
+  };
+
+  return (
+    <Form {...form}>
+      {/* ✅ CORRECT: onSubmit with handleSubmit */}
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input disabled={isPending} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        {/* ... more fields */}
+        <Button disabled={isPending}>
+          {isPending ? 'Loading...' : 'Submit'}
+        </Button>
+      </form>
+    </Form>
+  );
+}
+```
+
+### Server Action Pattern Rules
+
+| Component | Rule |
+|-----------|------|
+| Form element | `onSubmit={form.handleSubmit(onSubmit)}` NEVER `action={...}` |
+| Pending state | `useTransition` NEVER `useActionState` |
+| Server action | Accept `z.infer<typeof schema>` NEVER `FormData` |
+| Response type | `{ response: 'success' \| 'error', message: string, data: T \| null }` |
+| Validation | Client: `zodResolver()` + Server: `schema.safeParse()` |
+| Error handling | `if (result.response === 'error') toast.error(result.message)` |
+| Success handling | `toast.success(result.message)` then `router.push()` |
+
+### Complete File Structure
+
+```
+validations/
+└── auth.ts              # Schemas + types
+
+actions/
+└── auth/
+    ├── index.ts         # Barrel exports
+    ├── sign-in.ts       # signIn(data: LoginFormData)
+    ├── sign-up.ts       # signUp(data: RegisterFormData)
+    └── password.ts      # forgotPassword(), resetPassword()
+
+components/
+└── auth/
+    ├── login-form.tsx   # useForm + useTransition
+    └── register-form.tsx
+```
+
 ---
 
 ## Templates
@@ -1397,7 +1560,8 @@ See the `templates/` directory for working examples:
 6. **dynamic-fields.tsx** - useFieldArray for adding/removing items
 7. **multi-step-form.tsx** - Wizard with per-step validation
 8. **custom-error-display.tsx** - Custom error formatting
-9. **package.json** - Complete dependencies
+9. **auth-form-with-server-actions.tsx** - **Complete auth form pattern with Next.js server actions**
+10. **package.json** - Complete dependencies
 
 ---
 

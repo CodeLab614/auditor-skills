@@ -3,5 +3,5 @@ export { LoginForm } from "./login-form";
 export { RegisterForm } from "./register-form";
 export { ForgotPasswordForm } from "./forgot-password-form";
 export { ResetPasswordForm } from "./reset-password-form";
-export { VerifyEmailForm, EmailVerified } from "./verify-email-form";
+export { VerifyEmailForm } from "./verify-email-form";
 export { TwoFactorForm, TwoFactorBackupForm } from "./two-factor-form";

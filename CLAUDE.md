@@ -14,35 +14,42 @@ This is a **RapidAuth Boilerplate** - a Next.js 16+ application with Better Auth
 
 ---
 
-## MANDATORY: Always Use Skills
+## CRITICAL: Auto-Invoke Skills
 
-**BEFORE writing any code, you MUST invoke the relevant skill(s).**
+**Skills MUST be invoked automatically based on context. DO NOT wait for user to ask.**
 
-### When to Use Each Skill:
+### Automatic Skill Triggers
 
-| Task | Skill to Invoke |
-|------|-----------------|
-| UI components, pages, layouts | `frontend-design` |
-| shadcn components | `shadcn` |
-| Tailwind styling, design tokens | `tailwind-design-system` |
-| UI/UX patterns, color palettes | `ui-ux-pro-max` |
-| Authentication setup | `better-auth-best-practices` |
-| Database schema, queries | `prisma-expert` |
-| Database connection, Neon features | `neon-postgres` |
-| Form validation | `react-hook-form-zod` |
-| Payment integration | `stripe-best-practices` |
-| Email sending | `resend` |
-| Animations | `gsap` |
-| React/Next.js performance | `vercel-react-best-practices` |
+| When you detect... | Auto-invoke skill |
+|-------------------|-------------------|
+| Creating/editing files in `actions/`, using `prisma.`, data fetching, mutations | `server-actions-patterns` |
+| Database queries, schema changes, migrations | `prisma-expert` |
+| Forms, `useActionState`, `formData`, validation | `react-hook-form-zod` |
+| `auth.api.`, Better Auth, sessions, login, register, 2FA | `better-auth-best-practices` |
+| Creating UI components, pages, layouts | `shadcn` + `frontend-design` |
+| `<Button>`, `<Input>`, `<Card>`, any shadcn component | `shadcn` |
+| Tailwind classes, styling, responsive design | `tailwind-design-system` |
+| Colors, spacing, typography, UX decisions | `ui-ux-pro-max` |
+| Neon, DATABASE_URL, connection pooling | `neon-postgres` |
+| Stripe, payments, subscriptions, checkout | `stripe-best-practices` |
+| Sending emails, Resend | `resend` |
+| Animations, transitions, GSAP | `gsap` |
+| Performance issues, optimization, React patterns | `vercel-react-best-practices` |
 
-### Example Workflow:
+### Examples
+
 ```
-User: "Create a login form"
+User: "Create a page to list products"
+→ Auto-invoke: `server-actions-patterns` + `shadcn`
 
-1. Invoke `shadcn` skill for form components
-2. Invoke `react-hook-form-zod` for form handling
-3. Invoke `better-auth-best-practices` for auth integration
-4. Then implement the feature
+User: "Add a contact form"
+→ Auto-invoke: `server-actions-patterns` + `react-hook-form-zod` + `shadcn`
+
+User: "Fix the login"
+→ Auto-invoke: `better-auth-best-practices` + `server-actions-patterns`
+
+User: "Query users from database"
+→ Auto-invoke: `server-actions-patterns` + `prisma-expert`
 ```
 
 ---
@@ -51,127 +58,62 @@ User: "Create a login form"
 
 ### Server vs Client Components
 
-#### Pages are ALWAYS Server Components
-```typescript
-// app/dashboard/page.tsx - Server Component (NO "use client")
-import { ClientComponent } from "@/components/dashboard";
-
-async function getData() {
-  // Fetch from database here
-  return { users: [...] };
-}
-
-export default async function Page() {
-  const data = await getData();
-  return <ClientComponent data={data} />;
-}
-```
-
-#### Interactive Components are Client Components
-```typescript
-// components/dashboard/client-component.tsx
-"use client";
-
-import { useState } from "react";
-
-export function ClientComponent({ data }) {
-  const [state, setState] = useState();
-  // Interactive logic here
-}
-```
-
-### Key Rules:
-1. **Pages (`app/**/page.tsx`)**: Always Server Components - fetch data here
+1. **Pages (`app/**/page.tsx`)**: Always Server Components - call server actions here
 2. **Layouts (`app/**/layout.tsx`)**: Server Components when possible
 3. **UI Components**: Client Components only when needed (state, effects, events)
 4. **Never pass functions as props** from Server to Client Components
 5. **Icons**: Import Lucide icons inside Client Components, not in Server Components
 
-### Data Flow Pattern:
+### Data Flow Pattern
 ```
 Server Component (page.tsx)
-    ↓ fetches data
-    ↓ passes serializable props (objects, arrays, strings, numbers)
+    ↓ calls server action
+    ↓ passes serializable props
 Client Component
     ↓ handles interactivity
-    ↓ manages local state
+    ↓ uses router.refresh() after mutations
 ```
+
+---
+
+## Server Actions
+
+> **Always invoke `server-actions-patterns` skill when working with server actions.**
+
+The skill contains all rules for:
+- File location (`actions/` folder)
+- Try-catch patterns
+- Return types (`{ success, data }` or `{ success, error }`)
+- Form actions with `useActionState`
+- Integration with pages and components
 
 ---
 
 ## Component Structure
 
-### Dashboard Components Location
 ```
 components/
 ├── dashboard/
-│   ├── index.ts              # Barrel exports
-│   ├── dashboard-shell.tsx   # Client - main layout wrapper
-│   ├── dashboard-content.tsx # Client - dashboard page content
-│   ├── users-content.tsx     # Client - users page content
-│   ├── profile-content.tsx   # Client - profile page content
-│   ├── sidebar.tsx           # Client - navigation
-│   ├── header.tsx            # Client - top bar
-│   ├── metric-card.tsx       # Client - KPI cards
-│   ├── data-table.tsx        # Client - tables
-│   └── ...
+│   ├── index.ts              # Barrel exports - ALWAYS export new components here
+│   ├── page-header.tsx       # Page titles
+│   ├── data-table.tsx        # Tables
+│   ├── confirm-dialog.tsx    # Confirmations
+│   └── *-content.tsx         # Page content components
+├── auth/
+│   └── *-form.tsx            # Auth forms
 └── ui/                       # shadcn components
-```
-
-### Creating New Pages
-
-1. Create the page as Server Component:
-```typescript
-// app/dashboard/new-page/page.tsx
-import { NewPageContent } from "@/components/dashboard";
-
-async function getData() {
-  // Fetch data
-}
-
-export default async function NewPage() {
-  const data = await getData();
-  return <NewPageContent data={data} />;
-}
-```
-
-2. Create the Client Component:
-```typescript
-// components/dashboard/new-page-content.tsx
-"use client";
-
-export function NewPageContent({ data }) {
-  // Interactive UI
-}
-```
-
-3. Export from index:
-```typescript
-// components/dashboard/index.ts
-export { NewPageContent } from "./new-page-content";
 ```
 
 ---
 
-## shadcn/ui Usage
+## Dashboard UI Patterns
 
-### Always use shadcn components
-- Never create custom components when shadcn has one
-- Customize via CSS variables in `globals.css`
-- Extend components in `components/ui/` if needed
+> **Always invoke `shadcn` skill for UI components.**
 
-### Installing Components
-```bash
-bunx shadcn@latest add [component-name]
-```
-
-### Theme (AETHER Dark)
-The project uses a custom dark theme defined in `app/globals.css`:
-- Background: `#0c0c0b`
-- Surface: `#111110`
-- Border: `#1a1a19`
-- Text: `#dcdacb`
-- Muted: `#8a8981`
+- **Page titles**: Use `PageHeader` component
+- **Tables**: Use `DataTable` component
+- **Details view**: Use `Sheet` (slides from right)
+- **Confirmations**: Use `ConfirmDialog`
 
 ---
 
@@ -180,52 +122,39 @@ The project uses a custom dark theme defined in `app/globals.css`:
 ### Imports Order
 ```typescript
 // 1. React/Next
-import * as React from "react";
-import { useRouter } from "next/navigation";
-
-// 2. Components
-import { Button } from "@/components/ui/button";
-import { DashboardContent } from "@/components/dashboard";
-
-// 3. Utils/Types
-import { cn } from "@/lib/utils";
-import type { User } from "@/types";
-
-// 4. Icons (only in Client Components)
-import { Users, Settings } from "lucide-react";
+// 2. Dashboard components
+// 3. UI components (shadcn)
+// 4. Actions
+// 5. Utils/Types
+// 6. Icons (only in Client Components)
 ```
 
 ### Naming Conventions
-- **Pages**: `page.tsx` (Next.js convention)
-- **Client Components**: `*-content.tsx`, `*-form.tsx`, `*-shell.tsx`
-- **Types**: PascalCase, suffix with `Props` for component props
+- **Pages**: `page.tsx`
+- **Client Components**: `*-content.tsx`, `*-form.tsx`
+- **Server Actions**: verb + noun (`getUsers`, `deleteUser`)
 
 ---
 
 ## Commands
 
 ```bash
-# Development
-bun dev
-
-# Build
-bun run build
-
-# Add shadcn component
-bunx shadcn@latest add [component]
-
-# Database
-bunx prisma generate
-bunx prisma db push
-bunx prisma studio
+bun dev                        # Development
+bun run build                  # Build
+bun run typecheck              # Type check
+bunx shadcn@latest add [name]  # Add shadcn component
+bunx prisma generate           # Generate Prisma client
+bunx prisma db push            # Push schema to database
 ```
 
 ---
 
 ## Remember
 
-1. **Skills First**: Always invoke relevant skills before implementing
-2. **Server by Default**: Pages are Server Components
-3. **Client When Needed**: Only use "use client" for interactivity
-4. **shadcn Always**: Use shadcn components, don't reinvent
-5. **Data Down**: Fetch in Server, pass to Client as props
+1. **Auto-invoke skills** - Detect context, invoke skills automatically
+2. **Server by Default** - Pages are Server Components
+3. **Client When Needed** - Only use "use client" for interactivity
+4. **shadcn Always** - Use shadcn components, don't reinvent
+5. **Actions in `actions/`** - Never in `lib/` or page files
+6. **Export from index** - Always add new components to barrel exports
+7. **router.refresh()** - Reload server data after mutations
