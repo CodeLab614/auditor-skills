@@ -4,17 +4,7 @@ import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/dashboard/confirm-dialog";
 import {
   Monitor,
   Smartphone,
@@ -58,7 +48,6 @@ function getDeviceInfo(userAgent: string | null): {
 
   const ua = userAgent.toLowerCase();
 
-  // Detect device type
   let type: "desktop" | "mobile" | "tablet" = "desktop";
   if (ua.includes("mobile") || ua.includes("android") || ua.includes("iphone")) {
     type = "mobile";
@@ -66,7 +55,6 @@ function getDeviceInfo(userAgent: string | null): {
     type = "tablet";
   }
 
-  // Detect browser
   let browser = "Unknown";
   if (ua.includes("chrome") && !ua.includes("edg")) browser = "Chrome";
   else if (ua.includes("safari") && !ua.includes("chrome")) browser = "Safari";
@@ -74,7 +62,6 @@ function getDeviceInfo(userAgent: string | null): {
   else if (ua.includes("edg")) browser = "Edge";
   else if (ua.includes("opera") || ua.includes("opr")) browser = "Opera";
 
-  // Detect OS
   let os = "Unknown";
   if (ua.includes("windows")) os = "Windows";
   else if (ua.includes("mac")) os = "macOS";
@@ -105,6 +92,7 @@ function SessionItem({
   onRevoke: (sessionId: string) => Promise<void>;
   isRevoking: boolean;
 }) {
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
   const deviceInfo = getDeviceInfo(session.userAgent);
   const isExpired = new Date(session.expiresAt) < new Date();
 
@@ -172,40 +160,32 @@ function SessionItem({
       </div>
 
       {!session.isCurrent && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              disabled={isRevoking}
-            >
-              {isRevoking ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <LogOut className="h-4 w-4" strokeWidth={1.5} />
-              )}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Cerrar sesión remota</AlertDialogTitle>
-              <AlertDialogDescription>
-                ¿Estás seguro de que deseas cerrar esta sesión? El dispositivo
-                será desconectado inmediatamente.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => onRevoke(session.id)}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Cerrar sesión
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            disabled={isRevoking}
+            onClick={() => setConfirmOpen(true)}
+          >
+            {isRevoking ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <LogOut className="h-4 w-4" strokeWidth={1.5} />
+            )}
+          </Button>
+
+          <ConfirmDialog
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            title="Cerrar sesión remota"
+            description="¿Estás seguro de que deseas cerrar esta sesión? El dispositivo será desconectado inmediatamente."
+            confirmLabel="Cerrar sesión"
+            cancelLabel="Cancelar"
+            variant="destructive"
+            onConfirm={() => onRevoke(session.id)}
+          />
+        </>
       )}
     </div>
   );
@@ -219,6 +199,7 @@ export function ActiveSessions({
   const [isLoading, setIsLoading] = React.useState(false);
   const [revokingId, setRevokingId] = React.useState<string | null>(null);
   const [localSessions, setLocalSessions] = React.useState(sessions);
+  const [confirmAllOpen, setConfirmAllOpen] = React.useState(false);
 
   React.useEffect(() => {
     setLocalSessions(sessions);
@@ -273,42 +254,33 @@ export function ActiveSessions({
           </p>
         </div>
         {otherSessionsCount > 0 && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <ShieldAlert className="h-4 w-4 mr-2" strokeWidth={1.5} />
-                )}
-                Cerrar otras sesiones
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Cerrar todas las otras sesiones</AlertDialogTitle>
-                <AlertDialogDescription>
-                  ¿Estás seguro de que deseas cerrar todas las sesiones excepto la
-                  actual? Esto desconectará {otherSessionsCount}{" "}
-                  {otherSessionsCount === 1 ? "dispositivo" : "dispositivos"}.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleRevokeAllOtherSessions}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Cerrar todas
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive border-destructive/30 hover:bg-destructive/10"
+              disabled={isLoading}
+              onClick={() => setConfirmAllOpen(true)}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <ShieldAlert className="h-4 w-4 mr-2" strokeWidth={1.5} />
+              )}
+              Cerrar otras sesiones
+            </Button>
+
+            <ConfirmDialog
+              open={confirmAllOpen}
+              onOpenChange={setConfirmAllOpen}
+              title="Cerrar todas las otras sesiones"
+              description={`¿Estás seguro de que deseas cerrar todas las sesiones excepto la actual? Esto desconectará ${otherSessionsCount} ${otherSessionsCount === 1 ? "dispositivo" : "dispositivos"}.`}
+              confirmLabel="Cerrar todas"
+              cancelLabel="Cancelar"
+              variant="destructive"
+              onConfirm={handleRevokeAllOtherSessions}
+            />
+          </>
         )}
       </div>
 

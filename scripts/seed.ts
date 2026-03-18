@@ -2,7 +2,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import * as crypto from "node:crypto";
+import { hashPassword } from "better-auth/crypto";
 import dotenv from "dotenv";
 
 // Load environment variables
@@ -42,18 +42,6 @@ const icons = {
   info: "ℹ",
   arrow: "→",
 };
-
-// ============================================================================
-// PASSWORD HASHING (Better Auth compatible)
-// ============================================================================
-
-async function hashPassword(password: string): Promise<string> {
-  // Better Auth uses Scrypt by default
-  // We'll use a compatible hash format
-  const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
-}
 
 // ============================================================================
 // SEED DATA

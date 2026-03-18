@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { twoFactor } from "better-auth/plugins";
+import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/lib/prisma";
 import { sendVerificationEmail } from "@/lib/email";
 import { headers } from "next/headers";
@@ -99,6 +100,7 @@ export const auth = betterAuth({
     twoFactor({
       issuer: "RapidAuth",
     }),
+    nextCookies(),
   ],
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days

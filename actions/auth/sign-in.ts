@@ -33,34 +33,13 @@ export const signInAction = async (
     const result = await auth.api.signInEmail({
       body: { email, password },
       headers: await headers(),
-      asResponse: true,
     });
 
-    const responseData = await result.json();
-
-    // Check if the response indicates an error
-    if (!result.ok || responseData.error || responseData.code) {
-      return {
-        response: 'error',
-        message: 'Invalid credentials',
-        data: null,
-      };
-    }
-
-    if (responseData.twoFactorRedirect) {
+    if ('twoFactorRedirect' in result && result.twoFactorRedirect) {
       return {
         response: 'success',
         message: 'Two-factor authentication required',
         data: { twoFactorRequired: true },
-      };
-    }
-
-    // Verify we actually got a valid session/user back
-    if (!responseData.user && !responseData.session) {
-      return {
-        response: 'error',
-        message: 'Invalid credentials',
-        data: null,
       };
     }
 
@@ -71,7 +50,7 @@ export const signInAction = async (
     };
   } catch (error) {
     if (error instanceof APIError) {
-      console.error('Sign in error:', error.message);
+      console.error('Sign in error:', error.message, error.status);
       return {
         response: 'error',
         message: error.message ?? 'Invalid credentials',
