@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono, Nunito_Sans } from 'next/font/google';
+import { Geist, Geist_Mono, Nunito_Sans, Instrument_Serif } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -7,6 +7,13 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from 'sonner';
 
 const nunitoSans = Nunito_Sans({ variable: '--font-sans', subsets: ['latin'] });
+
+const instrumentSerif = Instrument_Serif({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-serif',
+  display: 'swap',
+});
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -32,7 +39,7 @@ export default function RootLayout({
     <html
       suppressHydrationWarning
       lang='en'
-      className={cn('font-sans', nunitoSans.variable)}
+      className={cn('font-sans', nunitoSans.variable, instrumentSerif.variable)}
     >
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
