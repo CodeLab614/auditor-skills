@@ -627,17 +627,20 @@ async function handleGitHubTheme(theme: RegistryTheme): Promise<void> {
     const mappings = resolveScopeMappings(themeDir, config);
 
     // 4. Show summary of what will be changed
-    clack.log.info('This theme will modify:');
-    const allScopes = ['auth', 'dashboard', 'landing', 'styles', 'layout'];
-    for (const scope of allScopes) {
-      const active = scopeNames.includes(scope);
-      const label = scope.charAt(0).toUpperCase() + scope.slice(1);
-      if (active) {
-        clack.log.success(`  ${label}`);
-      } else {
-        clack.log.message(`  ${label} — not modified`);
-      }
-    }
+    const scopeDescriptions: Record<string, string> = {
+      auth: 'Login, register, and auth pages (app/auth/, components/auth/)',
+      dashboard: 'Dashboard pages and components (app/dashboard/, components/dashboard/)',
+      landing: 'Landing page (app/page.tsx)',
+      styles: 'Global styles and CSS variables (app/globals.css)',
+      layout: 'Root layout and fonts (app/layout.tsx)',
+    };
+
+    clack.note(
+      scopeNames
+        .map((scope) => `● ${scopeDescriptions[scope] ?? scope}`)
+        .join('\n'),
+      `"${config.name}" will modify`
+    );
 
     // 5. Check dependencies
     const missingDeps = config.dependencies
@@ -658,7 +661,7 @@ async function handleGitHubTheme(theme: RegistryTheme): Promise<void> {
 
     if (clack.isCancel(shouldContinue) || !shouldContinue) {
       clack.cancel('No changes made.');
-      process.exit(0);
+      return;
     }
 
     // 7. Install scopes
@@ -693,11 +696,6 @@ async function handleGitHubTheme(theme: RegistryTheme): Promise<void> {
     // 10. Clear cache
     clearNextCache();
     clack.log.success('Cleared .next/ cache');
-
-    // 11. Preview
-    if (theme.preview) {
-      clack.log.info(`Preview: ${theme.preview}`);
-    }
 
     clack.outro(
       `Done! "${theme.name}" theme installed. Run \`bun dev\` to see your auth pages.`
@@ -738,6 +736,11 @@ async function main() {
   }
 
   const theme = registry.themes.find((t) => t.id === selectedId)!;
+
+  // Show preview URL so the user can check the theme before installing
+  if (theme.preview) {
+    clack.log.info(`Preview: ${theme.preview}`);
+  }
 
   if (theme.source === 'local') {
     await handleClassicInstall();
