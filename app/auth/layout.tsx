@@ -13,7 +13,7 @@ export default function AuthLayout({
           href='/'
           className='text-lg tracking-[0.15em] font-medium uppercase'
         >
-          R A P I D
+          RapidAuth
         </Link>
 
         <div className='space-y-6'>
@@ -26,7 +26,7 @@ export default function AuthLayout({
         </div>
 
         <p className='text-xs text-muted-foreground'>
-          &copy; {new Date().getFullYear()} Rapid. All rights reserved.
+          &copy; {new Date().getFullYear()} RapidAuth. All rights reserved.
         </p>
       </div>
 
@@ -39,7 +39,7 @@ export default function AuthLayout({
               href='/'
               className='text-lg tracking-[0.15em] font-medium uppercase'
             >
-              R A P I D
+              RapidAuth
             </Link>
           </div>
 

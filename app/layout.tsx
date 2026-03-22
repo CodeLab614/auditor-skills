@@ -26,8 +26,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'AETHER | Dashboard',
-  description: 'Analytics Dashboard',
+  title: 'RapidAuth',
+  description: 'Authentication Boilerplate',
 };
 
 export default function RootLayout({

@@ -738,7 +738,7 @@ async function runSetup() {
   ] as const;
 
   let stepNumber = 1;
-  const totalSteps = categories.length + 2; // +2 for database setup and final
+  const totalSteps = categories.length + 3; // +3 for database setup, theme selection, and final
 
   // Welcome screen
   printHeader();
@@ -964,6 +964,40 @@ async function runSetup() {
     );
   }
 
+  stepNumber++;
+
+  // Theme selection
+  printHeader();
+  printStep(stepNumber, totalSteps, 'Auth Theme');
+
+  println(`  🎨 ${colors.bold}Choose your auth theme${colors.reset}`);
+  println(`     ${colors.dim}Select a visual theme for your login, register, and auth pages.${colors.reset}`);
+  println(`     ${colors.dim}You can change this later with: bun run theme:select${colors.reset}`);
+  println();
+
+  const wantsTheme = await question(
+    `     ${colors.yellow}${icons.arrow}${colors.reset} ${colors.dim}Configure auth theme now? (y/n)${colors.reset}: `,
+  );
+
+  if (wantsTheme.toLowerCase() === 'y' || wantsTheme.toLowerCase() === 'yes') {
+    println();
+    println(`  ${colors.cyan}${icons.arrow} Launching theme selector...${colors.reset}`);
+    println();
+
+    try {
+      rl.close();
+      showCursor();
+      execSync('bun run scripts/select-theme.ts', { stdio: 'inherit' });
+    } catch {
+      println(`  ${colors.yellow}${icons.warning} Theme selection skipped${colors.reset}`);
+    }
+  } else {
+    println();
+    println(`     ${colors.green}${icons.success} Using Classic theme (default)${colors.reset}`);
+    println(`     ${colors.dim}Change anytime with: bun run theme:select${colors.reset}`);
+  }
+
+  println();
   stepNumber++;
 
   // Final screen

@@ -1,0 +1,20 @@
+{
+  "themes": [
+    {
+      "id": "classic",
+      "name": "Classic",
+      "description": "Two-column split layout with branding panel and form",
+      "preview": "https://rapidauth.dev/themes/classic",
+      "source": "local",
+      "requiresToken": false
+    },
+    {
+      "id": "aurora",
+      "name": "Aurora",
+      "description": "Vibrant gradient panel with floating orbs and clean modern form",
+      "preview": "https://rapidauth.dev/themes/aurora",
+      "source": "github:OWNER/rapidauth-theme-aurora",
+      "requiresToken": true
+    }
+  ]
+}
