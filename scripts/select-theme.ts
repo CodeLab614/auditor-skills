@@ -16,7 +16,7 @@ import * as clack from '@clack/prompts';
 // TYPES
 // ============================================================================
 
-interface Theme {
+interface RegistryTheme {
   id: string;
   name: string;
   description: string;
@@ -26,10 +26,11 @@ interface Theme {
 }
 
 interface Registry {
-  themes: Theme[];
+  themes: RegistryTheme[];
 }
 
-interface ThemeJson {
+/** theme.json v1 — legacy format (Aurora <= 1.0.0) */
+interface ThemeJsonV1 {
   name: string;
   description: string;
   version: string;
@@ -40,10 +41,44 @@ interface ThemeJson {
     globals?: string;
     layout?: string;
   };
-  assets?: Array<{
-    source: string;
-    destination: string;
-  }>;
+  assets?: Asset[];
+}
+
+/** theme.json v2 — scopes + dependencies */
+interface ThemeJsonV2 {
+  name: string;
+  description: string;
+  version: string;
+  preview?: string;
+  schema: 2;
+  scopes: {
+    auth?: { pages: string; components: string };
+    dashboard?: { pages: string; components: string };
+    landing?: { page: string; components?: string };
+    styles?: { globals: string };
+    layout?: { root: string };
+  };
+  dependencies?: Record<string, string>;
+  assets?: Asset[];
+}
+
+interface Asset {
+  source: string;
+  destination: string;
+}
+
+type ThemeJson = ThemeJsonV1 | ThemeJsonV2;
+
+interface ScopeMapping {
+  label: string;
+  sources: { src: string; dest: string; type: 'dir' | 'file' }[];
+}
+
+interface BackupManifest {
+  previousTheme: string;
+  installedAt: string;
+  scopesBacked: string[];
+  backedFiles: string[];
 }
 
 // ============================================================================
@@ -53,13 +88,49 @@ interface ThemeJson {
 const ROOT_DIR = path.resolve(import.meta.dirname, '..');
 const REGISTRY_PATH = path.join(ROOT_DIR, 'themes', 'registry.json');
 const CLASSIC_BACKUP_DIR = path.join(ROOT_DIR, 'themes', 'classic');
+const AUTO_BACKUP_DIR = path.join(ROOT_DIR, 'themes', '.backup');
+const BACKUP_MANIFEST_PATH = path.join(AUTO_BACKUP_DIR, 'manifest.json');
 const ENV_LOCAL_PATH = path.join(ROOT_DIR, '.env.local');
-const APP_AUTH_DIR = path.join(ROOT_DIR, 'app', 'auth');
-const COMPONENTS_AUTH_DIR = path.join(ROOT_DIR, 'components', 'auth');
-const GLOBALS_CSS_PATH = path.join(ROOT_DIR, 'app', 'globals.css');
-const ROOT_LAYOUT_PATH = path.join(ROOT_DIR, 'app', 'layout.tsx');
 const TEMP_DIR = path.join(ROOT_DIR, '.theme-temp');
 const NEXT_CACHE_DIR = path.join(ROOT_DIR, '.next');
+const PACKAGE_JSON_PATH = path.join(ROOT_DIR, 'package.json');
+
+// Scope target paths (where files live in the CLI project)
+const SCOPE_TARGETS: Record<string, { dirs: string[]; files: string[] }> = {
+  auth: {
+    dirs: [
+      path.join(ROOT_DIR, 'app', 'auth'),
+      path.join(ROOT_DIR, 'components', 'auth'),
+    ],
+    files: [],
+  },
+  dashboard: {
+    dirs: [
+      path.join(ROOT_DIR, 'app', 'dashboard'),
+      path.join(ROOT_DIR, 'components', 'dashboard'),
+    ],
+    files: [],
+  },
+  landing: {
+    dirs: [],
+    files: [
+      path.join(ROOT_DIR, 'app', 'page.tsx'),
+      path.join(ROOT_DIR, 'components', 'landing-content.tsx'),
+    ],
+  },
+  styles: {
+    dirs: [],
+    files: [
+      path.join(ROOT_DIR, 'app', 'globals.css'),
+    ],
+  },
+  layout: {
+    dirs: [],
+    files: [
+      path.join(ROOT_DIR, 'app', 'layout.tsx'),
+    ],
+  },
+};
 
 // ============================================================================
 // UTILITIES
@@ -83,12 +154,10 @@ function saveEnvValue(key: string, value: string): void {
     content = readFileSync(ENV_LOCAL_PATH, 'utf-8');
   }
 
-  // Check if key already exists
   const regex = new RegExp(`^${key}=.*$`, 'm');
   if (regex.test(content)) {
     content = content.replace(regex, `${key}="${value}"`);
   } else {
-    // Add with a blank line separator if content exists
     if (content.length > 0 && !content.endsWith('\n')) {
       content += '\n';
     }
@@ -99,14 +168,10 @@ function saveEnvValue(key: string, value: string): void {
 }
 
 function parseGitHubSource(source: string): { owner: string; repo: string } {
-  // source format: "github:OWNER/REPO"
   const parts = source.replace('github:', '').split('/');
   return { owner: parts[0], repo: parts[1] };
 }
 
-/**
- * Recursively copy a directory, creating parent dirs as needed.
- */
 function copyDirRecursive(src: string, dest: string): void {
   if (!existsSync(src)) return;
   mkdirSync(dest, { recursive: true });
@@ -120,16 +185,12 @@ function copyDirRecursive(src: string, dest: string): void {
     if (stat.isDirectory()) {
       copyDirRecursive(srcPath, destPath);
     } else {
-      // Ensure parent dir exists
       mkdirSync(path.dirname(destPath), { recursive: true });
       cpSync(srcPath, destPath);
     }
   }
 }
 
-/**
- * Count files recursively in a directory.
- */
 function countFiles(dir: string): number {
   if (!existsSync(dir)) return 0;
   let count = 0;
@@ -144,6 +205,361 @@ function countFiles(dir: string): number {
     }
   }
   return count;
+}
+
+function listFilesRecursive(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  const files: string[] = [];
+  const entries = readdirSync(dir);
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry);
+    const stat = statSync(fullPath);
+    if (stat.isDirectory()) {
+      files.push(...listFilesRecursive(fullPath));
+    } else {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+// ============================================================================
+// THEME.JSON PARSING (v1 → v2 compatibility)
+// ============================================================================
+
+function isV2(config: ThemeJson): config is ThemeJsonV2 {
+  return 'schema' in config && config.schema === 2;
+}
+
+/** Convert v1 theme.json to v2 format for uniform handling */
+function normalizeThemeConfig(config: ThemeJson): ThemeJsonV2 {
+  if (isV2(config)) return config;
+
+  // Convert v1 → v2
+  const v2: ThemeJsonV2 = {
+    name: config.name,
+    description: config.description,
+    version: config.version,
+    preview: config.preview,
+    schema: 2,
+    scopes: {
+      auth: {
+        pages: config.files.app,
+        components: config.files.components,
+      },
+    },
+    assets: config.assets,
+  };
+
+  // Add styles scope if globals is defined
+  if (config.files.globals) {
+    v2.scopes.styles = {
+      globals: config.files.globals,
+    };
+  }
+
+  // Add layout scope if layout is defined
+  if (config.files.layout) {
+    v2.scopes.layout = {
+      root: config.files.layout,
+    };
+  }
+
+  return v2;
+}
+
+// ============================================================================
+// SCOPE RESOLUTION
+// ============================================================================
+
+/** Build a mapping of what to copy from theme dir to project, per scope */
+function resolveScopeMappings(
+  themeDir: string,
+  config: ThemeJsonV2
+): Map<string, ScopeMapping> {
+  const mappings = new Map<string, ScopeMapping>();
+
+  if (config.scopes.auth) {
+    mappings.set('auth', {
+      label: 'Auth pages & components',
+      sources: [
+        {
+          src: path.join(themeDir, config.scopes.auth.pages),
+          dest: path.join(ROOT_DIR, 'app', 'auth'),
+          type: 'dir',
+        },
+        {
+          src: path.join(themeDir, config.scopes.auth.components),
+          dest: path.join(ROOT_DIR, 'components', 'auth'),
+          type: 'dir',
+        },
+      ],
+    });
+  }
+
+  if (config.scopes.dashboard) {
+    mappings.set('dashboard', {
+      label: 'Dashboard pages & components',
+      sources: [
+        {
+          src: path.join(themeDir, config.scopes.dashboard.pages),
+          dest: path.join(ROOT_DIR, 'app', 'dashboard'),
+          type: 'dir',
+        },
+        {
+          src: path.join(themeDir, config.scopes.dashboard.components),
+          dest: path.join(ROOT_DIR, 'components', 'dashboard'),
+          type: 'dir',
+        },
+      ],
+    });
+  }
+
+  if (config.scopes.landing) {
+    const sources: ScopeMapping['sources'] = [
+      {
+        src: path.join(themeDir, config.scopes.landing.page),
+        dest: path.join(ROOT_DIR, 'app', 'page.tsx'),
+        type: 'file',
+      },
+    ];
+    if (config.scopes.landing.components) {
+      sources.push({
+        src: path.join(themeDir, config.scopes.landing.components),
+        dest: path.join(ROOT_DIR, 'components', 'landing-content.tsx'),
+        type: 'file',
+      });
+    }
+    mappings.set('landing', {
+      label: 'Landing page',
+      sources,
+    });
+  }
+
+  if (config.scopes.styles) {
+    mappings.set('styles', {
+      label: 'Global styles',
+      sources: [
+        {
+          src: path.join(themeDir, config.scopes.styles.globals),
+          dest: path.join(ROOT_DIR, 'app', 'globals.css'),
+          type: 'file',
+        },
+      ],
+    });
+  }
+
+  if (config.scopes.layout) {
+    mappings.set('layout', {
+      label: 'Root layout',
+      sources: [
+        {
+          src: path.join(themeDir, config.scopes.layout.root),
+          dest: path.join(ROOT_DIR, 'app', 'layout.tsx'),
+          type: 'file',
+        },
+      ],
+    });
+  }
+
+  return mappings;
+}
+
+// ============================================================================
+// BACKUP SYSTEM
+// ============================================================================
+
+function backupScopes(scopeNames: string[], themeName: string): void {
+  // Clean previous backup
+  if (existsSync(AUTO_BACKUP_DIR)) {
+    rmSync(AUTO_BACKUP_DIR, { recursive: true });
+  }
+  mkdirSync(AUTO_BACKUP_DIR, { recursive: true });
+
+  const backedFiles: string[] = [];
+
+  for (const scope of scopeNames) {
+    const targets = SCOPE_TARGETS[scope];
+    if (!targets) continue;
+
+    const scopeBackupDir = path.join(AUTO_BACKUP_DIR, scope);
+    mkdirSync(scopeBackupDir, { recursive: true });
+
+    // Backup directories
+    for (const dir of targets.dirs) {
+      if (!existsSync(dir)) continue;
+      const dirName = path.relative(ROOT_DIR, dir);
+      const backupDest = path.join(scopeBackupDir, dirName);
+      copyDirRecursive(dir, backupDest);
+      backedFiles.push(...listFilesRecursive(dir).map((f) => path.relative(ROOT_DIR, f)));
+    }
+
+    // Backup individual files
+    for (const file of targets.files) {
+      if (!existsSync(file)) continue;
+      const relativePath = path.relative(ROOT_DIR, file);
+      const backupDest = path.join(scopeBackupDir, relativePath);
+      mkdirSync(path.dirname(backupDest), { recursive: true });
+      cpSync(file, backupDest);
+      backedFiles.push(relativePath);
+    }
+  }
+
+  // Write manifest
+  const manifest: BackupManifest = {
+    previousTheme: themeName,
+    installedAt: new Date().toISOString(),
+    scopesBacked: scopeNames,
+    backedFiles,
+  };
+  writeFileSync(BACKUP_MANIFEST_PATH, JSON.stringify(manifest, null, 2));
+}
+
+function restoreFromBackup(): { restored: boolean; scopeCount: number; fileCount: number } {
+  if (!existsSync(BACKUP_MANIFEST_PATH)) {
+    return { restored: false, scopeCount: 0, fileCount: 0 };
+  }
+
+  const manifest: BackupManifest = JSON.parse(
+    readFileSync(BACKUP_MANIFEST_PATH, 'utf-8')
+  );
+
+  let totalFiles = 0;
+
+  for (const scope of manifest.scopesBacked) {
+    const scopeBackupDir = path.join(AUTO_BACKUP_DIR, scope);
+    if (!existsSync(scopeBackupDir)) continue;
+
+    const targets = SCOPE_TARGETS[scope];
+    if (!targets) continue;
+
+    // Clean current directories
+    for (const dir of targets.dirs) {
+      if (existsSync(dir)) rmSync(dir, { recursive: true });
+    }
+
+    // Restore directories
+    for (const dir of targets.dirs) {
+      const dirName = path.relative(ROOT_DIR, dir);
+      const backupSrc = path.join(scopeBackupDir, dirName);
+      if (existsSync(backupSrc)) {
+        copyDirRecursive(backupSrc, dir);
+        totalFiles += countFiles(dir);
+      }
+    }
+
+    // Restore individual files
+    for (const file of targets.files) {
+      const relativePath = path.relative(ROOT_DIR, file);
+      const backupSrc = path.join(scopeBackupDir, relativePath);
+      if (existsSync(backupSrc)) {
+        mkdirSync(path.dirname(file), { recursive: true });
+        cpSync(backupSrc, file);
+        totalFiles++;
+      }
+    }
+  }
+
+  return {
+    restored: true,
+    scopeCount: manifest.scopesBacked.length,
+    fileCount: totalFiles,
+  };
+}
+
+// ============================================================================
+// INSTALLATION
+// ============================================================================
+
+function cleanScopes(scopeNames: string[]): void {
+  for (const scope of scopeNames) {
+    const targets = SCOPE_TARGETS[scope];
+    if (!targets) continue;
+
+    for (const dir of targets.dirs) {
+      if (existsSync(dir)) rmSync(dir, { recursive: true });
+    }
+    // Individual files are overwritten by copy, no need to delete
+  }
+}
+
+function installScopes(
+  mappings: Map<string, ScopeMapping>
+): { scope: string; fileCount: number }[] {
+  const results: { scope: string; fileCount: number }[] = [];
+
+  for (const [scope, mapping] of mappings) {
+    let fileCount = 0;
+
+    for (const { src, dest, type } of mapping.sources) {
+      if (!existsSync(src)) continue;
+
+      if (type === 'dir') {
+        copyDirRecursive(src, dest);
+        fileCount += countFiles(dest);
+      } else {
+        mkdirSync(path.dirname(dest), { recursive: true });
+        cpSync(src, dest);
+        fileCount++;
+      }
+    }
+
+    results.push({ scope, fileCount });
+  }
+
+  return results;
+}
+
+function installAssets(themeDir: string, assets?: Asset[]): number {
+  if (!assets || assets.length === 0) return 0;
+
+  let count = 0;
+  for (const asset of assets) {
+    const src = path.join(themeDir, asset.source);
+    const dest = path.join(ROOT_DIR, asset.destination);
+
+    if (existsSync(src)) {
+      mkdirSync(path.dirname(dest), { recursive: true });
+      cpSync(src, dest);
+      count++;
+    }
+  }
+  return count;
+}
+
+// ============================================================================
+// DEPENDENCY MANAGEMENT
+// ============================================================================
+
+function getInstalledDependencies(): Record<string, string> {
+  if (!existsSync(PACKAGE_JSON_PATH)) return {};
+  const pkg = JSON.parse(readFileSync(PACKAGE_JSON_PATH, 'utf-8'));
+  return { ...pkg.dependencies, ...pkg.devDependencies };
+}
+
+function findMissingDependencies(
+  required: Record<string, string>
+): { name: string; version: string }[] {
+  const installed = getInstalledDependencies();
+  const missing: { name: string; version: string }[] = [];
+
+  for (const [name, version] of Object.entries(required)) {
+    if (!installed[name]) {
+      missing.push({ name, version });
+    }
+  }
+
+  return missing;
+}
+
+async function installDependencies(
+  deps: { name: string; version: string }[]
+): Promise<void> {
+  if (deps.length === 0) return;
+
+  const packages = deps.map((d) => `${d.name}@${d.version}`).join(' ');
+  const { execSync } = await import('node:child_process');
+  execSync(`bun add ${packages}`, { cwd: ROOT_DIR, stdio: 'pipe' });
 }
 
 // ============================================================================
@@ -182,22 +598,18 @@ async function downloadAndExtractTarball(
     );
   }
 
-  // Clean up any previous temp directory
   if (existsSync(TEMP_DIR)) {
     rmSync(TEMP_DIR, { recursive: true });
   }
   mkdirSync(TEMP_DIR, { recursive: true });
 
-  // Write the tarball to a temp file and extract
   const arrayBuffer = await response.arrayBuffer();
   const tarballPath = path.join(TEMP_DIR, 'theme.tar.gz');
   writeFileSync(tarballPath, Buffer.from(arrayBuffer));
 
-  // Extract using tar command (available on macOS/Linux)
   const { execSync } = await import('node:child_process');
   execSync(`tar -xzf "${tarballPath}" -C "${TEMP_DIR}"`, { stdio: 'pipe' });
 
-  // Find the extracted directory (GitHub adds a prefix like "owner-repo-hash/")
   const extracted = readdirSync(TEMP_DIR).filter((f) => {
     const fullPath = path.join(TEMP_DIR, f);
     return statSync(fullPath).isDirectory();
@@ -211,89 +623,8 @@ async function downloadAndExtractTarball(
 }
 
 // ============================================================================
-// THEME INSTALLATION
+// CACHE & CLEANUP
 // ============================================================================
-
-function cleanAuthDirs(): void {
-  // Remove all contents of app/auth/ and components/auth/
-  if (existsSync(APP_AUTH_DIR)) {
-    rmSync(APP_AUTH_DIR, { recursive: true });
-  }
-  if (existsSync(COMPONENTS_AUTH_DIR)) {
-    rmSync(COMPONENTS_AUTH_DIR, { recursive: true });
-  }
-}
-
-function installFromLocal(themeDir: string, themeConfig?: ThemeJson | null): { appFiles: number; componentFiles: number; globalsReplaced: boolean; layoutReplaced: boolean } {
-  const srcApp = path.join(themeDir, 'app', 'auth');
-  const srcComponents = path.join(themeDir, 'components', 'auth');
-
-  copyDirRecursive(srcApp, APP_AUTH_DIR);
-  copyDirRecursive(srcComponents, COMPONENTS_AUTH_DIR);
-
-  // Copy globals.css if the theme includes one
-  let globalsReplaced = false;
-  const globalsFile = themeConfig?.files?.globals;
-  if (globalsFile) {
-    const srcGlobals = path.join(themeDir, globalsFile);
-    if (existsSync(srcGlobals)) {
-      cpSync(srcGlobals, GLOBALS_CSS_PATH);
-      globalsReplaced = true;
-    }
-  } else {
-    // Check default location
-    const defaultGlobals = path.join(themeDir, 'app', 'globals.css');
-    if (existsSync(defaultGlobals)) {
-      cpSync(defaultGlobals, GLOBALS_CSS_PATH);
-      globalsReplaced = true;
-    }
-  }
-
-  // Copy layout.tsx if the theme includes one
-  let layoutReplaced = false;
-  const layoutFile = themeConfig?.files?.layout;
-  if (layoutFile) {
-    const srcLayout = path.join(themeDir, layoutFile);
-    if (existsSync(srcLayout)) {
-      cpSync(srcLayout, ROOT_LAYOUT_PATH);
-      layoutReplaced = true;
-    }
-  } else {
-    // Check default location
-    const defaultLayout = path.join(themeDir, 'app', 'layout.tsx');
-    if (existsSync(defaultLayout)) {
-      cpSync(defaultLayout, ROOT_LAYOUT_PATH);
-      layoutReplaced = true;
-    }
-  }
-
-  return {
-    appFiles: countFiles(APP_AUTH_DIR),
-    componentFiles: countFiles(COMPONENTS_AUTH_DIR),
-    globalsReplaced,
-    layoutReplaced,
-  };
-}
-
-function installAssets(
-  themeDir: string,
-  assets: ThemeJson['assets']
-): number {
-  if (!assets || assets.length === 0) return 0;
-
-  let count = 0;
-  for (const asset of assets) {
-    const src = path.join(themeDir, asset.source);
-    const dest = path.join(ROOT_DIR, asset.destination);
-
-    if (existsSync(src)) {
-      mkdirSync(path.dirname(dest), { recursive: true });
-      cpSync(src, dest);
-      count++;
-    }
-  }
-  return count;
-}
 
 function clearNextCache(): void {
   if (existsSync(NEXT_CACHE_DIR)) {
@@ -308,66 +639,109 @@ function cleanup(): void {
 }
 
 // ============================================================================
-// MAIN
+// CLASSIC THEME (local restore)
 // ============================================================================
 
-async function main() {
-  clack.intro('RapidAuth Theme Selector');
-
-  // 1. Read registry
-  const registry = readRegistry();
-
-  // 2. Select theme
-  const selectedId = await clack.select({
-    message: 'Select an auth theme',
-    options: registry.themes.map((theme) => ({
-      value: theme.id,
-      label: `${theme.name}${theme.requiresToken ? '' : ' (default)'}`,
-      hint: theme.description,
-    })),
+async function handleClassicRestore(): Promise<void> {
+  const shouldRestore = await clack.confirm({
+    message:
+      'Restore Classic theme? This will replace current auth files with the Classic default.',
   });
 
-  if (clack.isCancel(selectedId)) {
-    clack.cancel('Theme selection cancelled.');
+  if (clack.isCancel(shouldRestore) || !shouldRestore) {
+    clack.cancel('No changes made.');
     process.exit(0);
   }
 
-  const theme = registry.themes.find((t) => t.id === selectedId)!;
+  const s = clack.spinner();
 
-  // 3. Handle Classic (local) theme
-  if (theme.source === 'local') {
-    const shouldRestore = await clack.confirm({
-      message:
-        'Restore Classic theme? This will replace current auth files with the Classic default.',
-    });
+  // Read classic theme.json if it exists, otherwise assume auth + styles
+  const classicThemeJsonPath = path.join(CLASSIC_BACKUP_DIR, 'theme.json');
+  let config: ThemeJsonV2;
 
-    if (clack.isCancel(shouldRestore) || !shouldRestore) {
-      clack.cancel('No changes made.');
-      process.exit(0);
-    }
+  if (existsSync(classicThemeJsonPath)) {
+    const raw = JSON.parse(readFileSync(classicThemeJsonPath, 'utf-8')) as ThemeJson;
+    config = normalizeThemeConfig(raw);
+  } else {
+    // Default: classic has auth + styles + layout scopes
+    config = {
+      name: 'Classic',
+      description: 'Default theme',
+      version: '1.0.0',
+      schema: 2,
+      scopes: {
+        auth: { pages: 'app/auth', components: 'components/auth' },
+        styles: { globals: 'app/globals.css' },
+        layout: { root: 'app/layout.tsx' },
+      },
+    };
+  }
 
-    const s = clack.spinner();
-    s.start('Restoring Classic theme...');
+  const scopeNames = Object.keys(config.scopes);
+  const mappings = resolveScopeMappings(CLASSIC_BACKUP_DIR, config);
 
-    cleanAuthDirs();
-    const { appFiles, componentFiles, globalsReplaced, layoutReplaced } = installFromLocal(CLASSIC_BACKUP_DIR);
+  // Backup current state before restoring
+  s.start('Backing up current theme...');
+  backupScopes(scopeNames, 'pre-classic-restore');
+  s.stop('Current theme backed up.');
 
-    s.stop('Classic theme restored.');
-    clack.log.success(`Replaced app/auth/ (${appFiles} files)`);
-    clack.log.success(`Replaced components/auth/ (${componentFiles} files)`);
-    if (globalsReplaced) {
-      clack.log.success('Restored globals.css');
-    }
-    if (layoutReplaced) {
-      clack.log.success('Restored app/layout.tsx');
-    }
-    clearNextCache();
-    clack.log.success('Cleared .next/ cache');
-    clack.outro('Done! Run `bun dev` to see your auth pages.');
+  // Install classic
+  s.start('Restoring Classic theme...');
+  cleanScopes(scopeNames);
+  const scopeResults = installScopes(mappings);
+  s.stop('Classic theme restored.');
+
+  for (const { scope, fileCount } of scopeResults) {
+    const mapping = mappings.get(scope);
+    clack.log.success(`${mapping?.label ?? scope} (${fileCount} files)`);
+  }
+
+  clearNextCache();
+  clack.log.success('Cleared .next/ cache');
+  clack.outro('Done! Run `bun dev` to see your auth pages.');
+}
+
+// ============================================================================
+// RESTORE FROM BACKUP
+// ============================================================================
+
+async function handleRestoreBackup(): Promise<void> {
+  if (!existsSync(BACKUP_MANIFEST_PATH)) {
+    clack.log.warn('No backup found. Nothing to restore.');
     return;
   }
 
-  // 4. Handle GitHub theme — get token
+  const manifest: BackupManifest = JSON.parse(
+    readFileSync(BACKUP_MANIFEST_PATH, 'utf-8')
+  );
+
+  const shouldRestore = await clack.confirm({
+    message: `Restore previous state? (backed up before installing, ${manifest.scopesBacked.length} scope(s), ${manifest.backedFiles.length} files)`,
+  });
+
+  if (clack.isCancel(shouldRestore) || !shouldRestore) {
+    clack.cancel('No changes made.');
+    process.exit(0);
+  }
+
+  const s = clack.spinner();
+  s.start('Restoring from backup...');
+  const { scopeCount, fileCount } = restoreFromBackup();
+  s.stop('Restored from backup.');
+
+  clack.log.success(`Restored ${scopeCount} scope(s), ${fileCount} files`);
+
+  clearNextCache();
+  clack.log.success('Cleared .next/ cache');
+  clack.outro('Done! Run `bun dev` to see your changes.');
+}
+
+// ============================================================================
+// GITHUB THEME INSTALLATION
+// ============================================================================
+
+async function handleGitHubTheme(theme: RegistryTheme): Promise<void> {
+  // 1. Get token
   let token = getEnvValue('GITHUB_TOKEN');
   let isNewToken = false;
 
@@ -399,17 +773,7 @@ async function main() {
     clack.log.info('Using GitHub token from .env.local');
   }
 
-  // 5. Confirm before overwriting
-  const shouldContinue = await clack.confirm({
-    message: `Install "${theme.name}" theme? This will replace all files in app/auth/ and components/auth/.`,
-  });
-
-  if (clack.isCancel(shouldContinue) || !shouldContinue) {
-    clack.cancel('No changes made.');
-    process.exit(0);
-  }
-
-  // 6. Download from GitHub
+  // 2. Download
   const { owner, repo } = parseGitHubSource(theme.source);
   const s = clack.spinner();
 
@@ -418,52 +782,96 @@ async function main() {
     const themeDir = await downloadAndExtractTarball(owner, repo, token);
     s.stop('Downloaded theme files.');
 
-    // Save token only after successful download
     if (isNewToken) {
       saveEnvValue('GITHUB_TOKEN', token);
       clack.log.success('Token saved to .env.local');
     }
 
-    // 7. Read theme.json from downloaded theme
+    // 3. Read and normalize theme.json
     const themeJsonPath = path.join(themeDir, 'theme.json');
-    let themeConfig: ThemeJson | null = null;
-
-    if (existsSync(themeJsonPath)) {
-      themeConfig = JSON.parse(
-        readFileSync(themeJsonPath, 'utf-8')
-      ) as ThemeJson;
+    if (!existsSync(themeJsonPath)) {
+      throw new Error('Theme is missing theme.json. Cannot install.');
     }
 
-    // 8. Clean and copy files
-    s.start('Installing theme files...');
-    cleanAuthDirs();
-    const { appFiles, componentFiles, globalsReplaced, layoutReplaced } = installFromLocal(themeDir, themeConfig);
-    s.stop('Theme files installed.');
+    const rawConfig = JSON.parse(readFileSync(themeJsonPath, 'utf-8')) as ThemeJson;
+    const config = normalizeThemeConfig(rawConfig);
+    const scopeNames = Object.keys(config.scopes);
+    const mappings = resolveScopeMappings(themeDir, config);
 
-    clack.log.success(`Replaced app/auth/ (${appFiles} files)`);
-    clack.log.success(
-      `Replaced components/auth/ (${componentFiles} files)`
-    );
-    if (globalsReplaced) {
-      clack.log.success('Replaced globals.css with theme styles');
-    }
-    if (layoutReplaced) {
-      clack.log.success('Replaced app/layout.tsx with theme layout');
-    }
-
-    // 9. Copy assets if any
-    if (themeConfig?.assets && themeConfig.assets.length > 0) {
-      const assetCount = installAssets(themeDir, themeConfig.assets);
-      if (assetCount > 0) {
-        clack.log.success(`Copied ${assetCount} asset(s) to public/`);
+    // 4. Show summary of what will be changed
+    clack.log.info('This theme will modify:');
+    const allScopes = ['auth', 'dashboard', 'landing', 'styles', 'layout'];
+    for (const scope of allScopes) {
+      const active = scopeNames.includes(scope);
+      const label = scope.charAt(0).toUpperCase() + scope.slice(1);
+      if (active) {
+        clack.log.success(`  ${label}`);
+      } else {
+        clack.log.message(`  ${label} — not modified`);
       }
     }
 
-    // 10. Clear Next.js cache
+    // 5. Check dependencies
+    const missingDeps = config.dependencies
+      ? findMissingDependencies(config.dependencies)
+      : [];
+
+    if (missingDeps.length > 0) {
+      clack.log.info('New dependencies to install:');
+      for (const dep of missingDeps) {
+        clack.log.message(`  ${dep.name}@${dep.version}`);
+      }
+    }
+
+    // 6. Confirm
+    const shouldContinue = await clack.confirm({
+      message: `Install "${theme.name}" theme?`,
+    });
+
+    if (clack.isCancel(shouldContinue) || !shouldContinue) {
+      clack.cancel('No changes made.');
+      process.exit(0);
+    }
+
+    // 7. Backup current state
+    s.start('Backing up current files...');
+    backupScopes(scopeNames, theme.name);
+    s.stop('Backup created.');
+
+    // 8. Install scopes
+    s.start('Installing theme files...');
+    cleanScopes(scopeNames);
+    const scopeResults = installScopes(mappings);
+    s.stop('Theme files installed.');
+
+    for (const { scope, fileCount } of scopeResults) {
+      const mapping = mappings.get(scope);
+      clack.log.success(`${mapping?.label ?? scope} (${fileCount} files)`);
+    }
+
+    // 9. Install assets
+    if (config.assets && config.assets.length > 0) {
+      const assetCount = installAssets(themeDir, config.assets);
+      if (assetCount > 0) {
+        clack.log.success(`Copied ${assetCount} asset(s)`);
+      }
+    }
+
+    // 10. Install dependencies
+    if (missingDeps.length > 0) {
+      s.start(`Installing ${missingDeps.length} dependencie(s)...`);
+      await installDependencies(missingDeps);
+      s.stop('Dependencies installed.');
+      for (const dep of missingDeps) {
+        clack.log.success(`Added ${dep.name}@${dep.version}`);
+      }
+    }
+
+    // 11. Clear cache
     clearNextCache();
     clack.log.success('Cleared .next/ cache');
 
-    // 11. Preview URL
+    // 12. Preview
     if (theme.preview) {
       clack.log.info(`Preview: ${theme.preview}`);
     }
@@ -481,6 +889,59 @@ async function main() {
   } finally {
     cleanup();
   }
+}
+
+// ============================================================================
+// MAIN
+// ============================================================================
+
+async function main() {
+  clack.intro('RapidAuth Theme Selector');
+
+  // 1. Read registry
+  const registry = readRegistry();
+
+  // 2. Build options
+  const hasBackup = existsSync(BACKUP_MANIFEST_PATH);
+  const options = registry.themes.map((theme) => ({
+    value: theme.id,
+    label: `${theme.name}${theme.requiresToken ? '' : ' (default)'}`,
+    hint: theme.description,
+  }));
+
+  if (hasBackup) {
+    options.push({
+      value: '__restore_backup__',
+      label: 'Restore previous',
+      hint: 'Undo last theme installation',
+    });
+  }
+
+  // 3. Select theme
+  const selectedId = await clack.select({
+    message: 'Select a theme',
+    options,
+  });
+
+  if (clack.isCancel(selectedId)) {
+    clack.cancel('Theme selection cancelled.');
+    process.exit(0);
+  }
+
+  // 4. Handle selection
+  if (selectedId === '__restore_backup__') {
+    await handleRestoreBackup();
+    return;
+  }
+
+  const theme = registry.themes.find((t) => t.id === selectedId)!;
+
+  if (theme.source === 'local') {
+    await handleClassicRestore();
+    return;
+  }
+
+  await handleGitHubTheme(theme);
 }
 
 main().catch((error) => {
