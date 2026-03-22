@@ -59,6 +59,7 @@ const COMPONENTS_AUTH_DIR = path.join(ROOT_DIR, 'components', 'auth');
 const GLOBALS_CSS_PATH = path.join(ROOT_DIR, 'app', 'globals.css');
 const ROOT_LAYOUT_PATH = path.join(ROOT_DIR, 'app', 'layout.tsx');
 const TEMP_DIR = path.join(ROOT_DIR, '.theme-temp');
+const NEXT_CACHE_DIR = path.join(ROOT_DIR, '.next');
 
 // ============================================================================
 // UTILITIES
@@ -294,6 +295,12 @@ function installAssets(
   return count;
 }
 
+function clearNextCache(): void {
+  if (existsSync(NEXT_CACHE_DIR)) {
+    rmSync(NEXT_CACHE_DIR, { recursive: true });
+  }
+}
+
 function cleanup(): void {
   if (existsSync(TEMP_DIR)) {
     rmSync(TEMP_DIR, { recursive: true });
@@ -354,6 +361,8 @@ async function main() {
     if (layoutReplaced) {
       clack.log.success('Restored app/layout.tsx');
     }
+    clearNextCache();
+    clack.log.success('Cleared .next/ cache');
     clack.outro('Done! Run `bun dev` to see your auth pages.');
     return;
   }
@@ -450,7 +459,11 @@ async function main() {
       }
     }
 
-    // 10. Preview URL
+    // 10. Clear Next.js cache
+    clearNextCache();
+    clack.log.success('Cleared .next/ cache');
+
+    // 11. Preview URL
     if (theme.preview) {
       clack.log.info(`Preview: ${theme.preview}`);
     }
