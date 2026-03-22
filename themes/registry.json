@@ -13,7 +13,7 @@
       "name": "Aurora",
       "description": "Vibrant gradient panel with floating orbs and clean modern form",
       "preview": "https://rapidauth.dev/themes/aurora",
-      "source": "github:OWNER/rapidauth-theme-aurora",
+      "source": "github:jotredev/rapidauth-v2-theme-aurora",
       "requiresToken": true
     }
   ]
