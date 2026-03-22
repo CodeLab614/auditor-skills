@@ -38,6 +38,7 @@ interface ThemeJson {
     app: string;
     components: string;
     globals?: string;
+    layout?: string;
   };
   assets?: Array<{
     source: string;
@@ -56,6 +57,7 @@ const ENV_LOCAL_PATH = path.join(ROOT_DIR, '.env.local');
 const APP_AUTH_DIR = path.join(ROOT_DIR, 'app', 'auth');
 const COMPONENTS_AUTH_DIR = path.join(ROOT_DIR, 'components', 'auth');
 const GLOBALS_CSS_PATH = path.join(ROOT_DIR, 'app', 'globals.css');
+const ROOT_LAYOUT_PATH = path.join(ROOT_DIR, 'app', 'layout.tsx');
 const TEMP_DIR = path.join(ROOT_DIR, '.theme-temp');
 
 // ============================================================================
@@ -221,7 +223,7 @@ function cleanAuthDirs(): void {
   }
 }
 
-function installFromLocal(themeDir: string, themeConfig?: ThemeJson | null): { appFiles: number; componentFiles: number; globalsReplaced: boolean } {
+function installFromLocal(themeDir: string, themeConfig?: ThemeJson | null): { appFiles: number; componentFiles: number; globalsReplaced: boolean; layoutReplaced: boolean } {
   const srcApp = path.join(themeDir, 'app', 'auth');
   const srcComponents = path.join(themeDir, 'components', 'auth');
 
@@ -246,10 +248,29 @@ function installFromLocal(themeDir: string, themeConfig?: ThemeJson | null): { a
     }
   }
 
+  // Copy layout.tsx if the theme includes one
+  let layoutReplaced = false;
+  const layoutFile = themeConfig?.files?.layout;
+  if (layoutFile) {
+    const srcLayout = path.join(themeDir, layoutFile);
+    if (existsSync(srcLayout)) {
+      cpSync(srcLayout, ROOT_LAYOUT_PATH);
+      layoutReplaced = true;
+    }
+  } else {
+    // Check default location
+    const defaultLayout = path.join(themeDir, 'app', 'layout.tsx');
+    if (existsSync(defaultLayout)) {
+      cpSync(defaultLayout, ROOT_LAYOUT_PATH);
+      layoutReplaced = true;
+    }
+  }
+
   return {
     appFiles: countFiles(APP_AUTH_DIR),
     componentFiles: countFiles(COMPONENTS_AUTH_DIR),
     globalsReplaced,
+    layoutReplaced,
   };
 }
 
@@ -322,7 +343,7 @@ async function main() {
     s.start('Restoring Classic theme...');
 
     cleanAuthDirs();
-    const { appFiles, componentFiles, globalsReplaced } = installFromLocal(CLASSIC_BACKUP_DIR);
+    const { appFiles, componentFiles, globalsReplaced, layoutReplaced } = installFromLocal(CLASSIC_BACKUP_DIR);
 
     s.stop('Classic theme restored.');
     clack.log.success(`Replaced app/auth/ (${appFiles} files)`);
@@ -330,12 +351,16 @@ async function main() {
     if (globalsReplaced) {
       clack.log.success('Restored globals.css');
     }
+    if (layoutReplaced) {
+      clack.log.success('Restored app/layout.tsx');
+    }
     clack.outro('Done! Run `bun dev` to see your auth pages.');
     return;
   }
 
   // 4. Handle GitHub theme — get token
   let token = getEnvValue('GITHUB_TOKEN');
+  let isNewToken = false;
 
   if (!token) {
     const tokenInput = await clack.text({
@@ -360,10 +385,7 @@ async function main() {
     }
 
     token = tokenInput as string;
-
-    // Save token to .env.local
-    saveEnvValue('GITHUB_TOKEN', token);
-    clack.log.success('Token saved to .env.local');
+    isNewToken = true;
   } else {
     clack.log.info('Using GitHub token from .env.local');
   }
@@ -387,6 +409,12 @@ async function main() {
     const themeDir = await downloadAndExtractTarball(owner, repo, token);
     s.stop('Downloaded theme files.');
 
+    // Save token only after successful download
+    if (isNewToken) {
+      saveEnvValue('GITHUB_TOKEN', token);
+      clack.log.success('Token saved to .env.local');
+    }
+
     // 7. Read theme.json from downloaded theme
     const themeJsonPath = path.join(themeDir, 'theme.json');
     let themeConfig: ThemeJson | null = null;
@@ -400,7 +428,7 @@ async function main() {
     // 8. Clean and copy files
     s.start('Installing theme files...');
     cleanAuthDirs();
-    const { appFiles, componentFiles, globalsReplaced } = installFromLocal(themeDir, themeConfig);
+    const { appFiles, componentFiles, globalsReplaced, layoutReplaced } = installFromLocal(themeDir, themeConfig);
     s.stop('Theme files installed.');
 
     clack.log.success(`Replaced app/auth/ (${appFiles} files)`);
@@ -409,6 +437,9 @@ async function main() {
     );
     if (globalsReplaced) {
       clack.log.success('Replaced globals.css with theme styles');
+    }
+    if (layoutReplaced) {
+      clack.log.success('Replaced app/layout.tsx with theme layout');
     }
 
     // 9. Copy assets if any
