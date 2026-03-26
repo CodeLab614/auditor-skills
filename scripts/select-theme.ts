@@ -57,6 +57,7 @@ interface ThemeJsonV2 {
     landing?: { page: string; components?: string };
     styles?: { globals: string };
     layout?: { root: string };
+    ui?: { components: string };
   };
   dependencies?: Record<string, string>;
   assets?: Asset[];
@@ -120,6 +121,12 @@ const SCOPE_TARGETS: Record<string, { dirs: string[]; files: string[] }> = {
     files: [
       path.join(ROOT_DIR, 'app', 'layout.tsx'),
     ],
+  },
+  ui: {
+    dirs: [
+      path.join(ROOT_DIR, 'components', 'ui'),
+    ],
+    files: [],
   },
 };
 
@@ -335,6 +342,19 @@ function resolveScopeMappings(
     });
   }
 
+  if (config.scopes.ui) {
+    mappings.set('ui', {
+      label: 'UI components (shadcn)',
+      sources: [
+        {
+          src: path.join(themeDir, config.scopes.ui.components),
+          dest: path.join(ROOT_DIR, 'components', 'ui'),
+          type: 'dir',
+        },
+      ],
+    });
+  }
+
   return mappings;
 }
 
@@ -509,23 +529,11 @@ function cleanup(): void {
 }
 
 // ============================================================================
-// CLASSIC THEME (local install)
+// CLASSIC RESTORE (reusable)
 // ============================================================================
 
-async function handleClassicInstall(): Promise<void> {
-  const shouldRestore = await clack.confirm({
-    message:
-      'Install Classic theme? This will replace current files with the Classic default.',
-  });
-
-  if (clack.isCancel(shouldRestore) || !shouldRestore) {
-    clack.cancel('No changes made.');
-    process.exit(0);
-  }
-
-  const s = clack.spinner();
-
-  // Read classic theme.json if it exists
+/** Restore all scopes to Classic defaults. Used before installing any theme. */
+function restoreClassic(): void {
   const classicThemeJsonPath = path.join(CLASSIC_BACKUP_DIR, 'theme.json');
   let config: ThemeJsonV2;
 
@@ -548,16 +556,30 @@ async function handleClassicInstall(): Promise<void> {
 
   const scopeNames = Object.keys(config.scopes);
   const mappings = resolveScopeMappings(CLASSIC_BACKUP_DIR, config);
-
-  s.start('Installing Classic theme...');
   cleanScopes(scopeNames);
-  const scopeResults = installScopes(mappings);
-  s.stop('Classic theme installed.');
+  installScopes(mappings);
+}
 
-  for (const { scope, fileCount } of scopeResults) {
-    const mapping = mappings.get(scope);
-    clack.log.success(`${mapping?.label ?? scope} (${fileCount} files)`);
+// ============================================================================
+// CLASSIC THEME (local install)
+// ============================================================================
+
+async function handleClassicInstall(): Promise<void> {
+  const shouldRestore = await clack.confirm({
+    message:
+      'Install Classic theme? This will replace current files with the Classic default.',
+  });
+
+  if (clack.isCancel(shouldRestore) || !shouldRestore) {
+    clack.cancel('No changes made.');
+    process.exit(0);
   }
+
+  const s = clack.spinner();
+
+  s.start('Restoring Classic theme...');
+  restoreClassic();
+  s.stop('Classic theme installed.');
 
   clearNextCache();
   clack.log.success('Cleared .next/ cache');
@@ -633,6 +655,7 @@ async function handleGitHubTheme(theme: RegistryTheme): Promise<void> {
       landing: 'Landing page (app/page.tsx)',
       styles: 'Global styles and CSS variables (app/globals.css)',
       layout: 'Root layout and fonts (app/layout.tsx)',
+      ui: 'UI components — shadcn (components/ui/)',
     };
 
     clack.note(
@@ -664,7 +687,12 @@ async function handleGitHubTheme(theme: RegistryTheme): Promise<void> {
       return;
     }
 
-    // 7. Install scopes
+    // 7. Restore Classic first (clean slate)
+    s.start('Restoring defaults...');
+    restoreClassic();
+    s.stop('Defaults restored.');
+
+    // 8. Install theme scopes
     s.start('Installing theme files...');
     cleanScopes(scopeNames);
     const scopeResults = installScopes(mappings);

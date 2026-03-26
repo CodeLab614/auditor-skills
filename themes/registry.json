@@ -15,6 +15,14 @@
       "preview": "https://rapidauth.dev/themes/aurora",
       "source": "github:jotredev/rapidauth-v2-theme-aurora",
       "requiresToken": true
+    },
+    {
+      "id": "nexus",
+      "name": "Nexus",
+      "description": "Futuristic tech theme with grid backgrounds, corner brackets, and cyan accents",
+      "preview": "https://rapidauth.dev/themes/nexus",
+      "source": "github:jotredev/rapidauth-v2-theme-nexus",
+      "requiresToken": true
     }
   ]
 }

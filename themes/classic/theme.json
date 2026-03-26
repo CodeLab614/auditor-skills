@@ -21,6 +21,9 @@
     },
     "layout": {
       "root": "app/layout.tsx"
+    },
+    "ui": {
+      "components": "components/ui"
     }
   },
   "assets": []
