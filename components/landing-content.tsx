@@ -4,6 +4,17 @@ import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
+import { signOut } from "@/actions/auth";
+import { useTheme } from "next-themes";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LayoutDashboard, UserCircle, LogOut, Sun, Moon } from "lucide-react";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -61,8 +72,15 @@ const TECH = [
 const MARQUEE_TEXT =
   "SECURE \u00B7 FAST \u00B7 SIMPLE \u00B7 MODERN \u00B7 OPEN SOURCE \u00B7 PRODUCTION-READY \u00B7 ";
 
+interface LandingUser {
+  name: string;
+  email: string;
+  image?: string;
+}
+
 /* ─── Component ─── */
-export function LandingContent() {
+export function LandingContent({ user }: { user?: LandingUser | null }) {
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const cursorDotRef = useRef<HTMLDivElement>(null);
@@ -411,7 +429,7 @@ export function LandingContent() {
   return (
     <div
       ref={containerRef}
-      className="relative overflow-x-hidden bg-[#0c0c0b] text-[#dcdacb] selection:bg-[#dcdacb] selection:text-[#0c0c0b]"
+      className="relative overflow-x-hidden bg-background text-foreground selection:bg-foreground selection:text-background"
     >
       {/* ─── Grain Overlay ─── */}
       <div
@@ -425,64 +443,113 @@ export function LandingContent() {
       {/* ─── Custom Cursor ─── */}
       <div
         ref={cursorRef}
-        className="pointer-events-none fixed -left-5 -top-5 z-[9998] hidden h-10 w-10 rounded-full border border-[#dcdacb]/50 mix-blend-difference md:block"
+        className="pointer-events-none fixed -left-5 -top-5 z-[9998] hidden h-10 w-10 rounded-full border border-foreground/50 mix-blend-difference md:block"
       />
       <div
         ref={cursorDotRef}
-        className="pointer-events-none fixed -left-[3px] -top-[3px] z-[9998] hidden h-1.5 w-1.5 rounded-full bg-[#dcdacb] md:block"
+        className="pointer-events-none fixed -left-[3px] -top-[3px] z-[9998] hidden h-1.5 w-1.5 rounded-full bg-foreground md:block"
       />
 
       {/* ─── Loader ─── */}
-      <div className="loader fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0c0c0b]">
+      <div className="loader fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background">
         <span
-          className="loader-text opacity-0 font-serif text-2xl tracking-[0.3em] text-[#dcdacb] sm:text-3xl"
+          className="loader-text opacity-0 font-serif text-2xl tracking-[0.3em] text-foreground sm:text-3xl"
         >
           RAPID
         </span>
-        <div className="loader-line mt-4 h-px w-16 origin-left scale-x-0 bg-[#dcdacb]/40" />
+        <div className="loader-line mt-4 h-px w-16 origin-left scale-x-0 bg-foreground/40" />
       </div>
 
       {/* ─── Navigation ─── */}
       <nav className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-6 py-5 sm:px-10">
         <Link
           href="/"
-          className="nav-item font-serif text-lg tracking-[0.2em] text-[#dcdacb] transition-opacity hover:opacity-70"
+          className="nav-item font-serif text-lg tracking-[0.2em] text-foreground transition-opacity hover:opacity-70"
         >
           RAPID
         </Link>
         <div className="hidden items-center gap-8 md:flex">
           <a
             href="#features"
-            className="nav-item text-sm tracking-wide text-[#8a8981] transition-colors hover:text-[#dcdacb]"
+            className="nav-item text-sm tracking-wide text-muted-foreground transition-colors hover:text-foreground"
           >
             Features
           </a>
           <a
             href="#stack"
-            className="nav-item text-sm tracking-wide text-[#8a8981] transition-colors hover:text-[#dcdacb]"
+            className="nav-item text-sm tracking-wide text-muted-foreground transition-colors hover:text-foreground"
           >
             Stack
           </a>
           <a
             href="#pricing"
-            className="nav-item text-sm tracking-wide text-[#8a8981] transition-colors hover:text-[#dcdacb]"
+            className="nav-item text-sm tracking-wide text-muted-foreground transition-colors hover:text-foreground"
           >
             Pricing
           </a>
         </div>
         <div className="flex items-center gap-4">
-          <Link
-            href="/auth/login"
-            className="nav-item text-sm tracking-wide text-[#8a8981] transition-colors hover:text-[#dcdacb]"
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="nav-item text-muted-foreground transition-colors hover:text-foreground"
           >
-            Sign In
-          </Link>
-          <Link
-            href="/auth/register"
-            className="nav-item border border-[#dcdacb]/20 px-5 py-2 text-sm tracking-wide text-[#dcdacb] transition-all hover:border-[#dcdacb]/50 hover:bg-[#dcdacb]/5"
-          >
-            Get Started
-          </Link>
+            {resolvedTheme === "dark" ? (
+              <Sun className="h-5 w-5" strokeWidth={1.5} />
+            ) : (
+              <Moon className="h-5 w-5" strokeWidth={1.5} />
+            )}
+          </button>
+          {user ? (
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger className="nav-item inline-flex items-center gap-2 text-sm tracking-wide text-foreground transition-colors hover:text-foreground outline-none cursor-pointer select-none">
+                <Avatar className="h-8 w-8 border border-foreground/20">
+                  <AvatarImage src={user.image} alt={user.name} />
+                  <AvatarFallback className="bg-foreground/10 text-foreground text-xs">
+                    {user.name.split(" ").map((n) => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden sm:inline">{user.name}</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild className="gap-2 py-2.5">
+                  <Link href="/dashboard">
+                    <LayoutDashboard className="h-4 w-4" strokeWidth={1.5} />
+                    Dashboard
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="gap-2 py-2.5">
+                  <Link href="/dashboard/profile">
+                    <UserCircle className="h-4 w-4" strokeWidth={1.5} />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  className="gap-2 py-2.5"
+                  onClick={async () => await signOut()}
+                >
+                  <LogOut className="h-4 w-4" strokeWidth={1.5} />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <>
+              <Link
+                href="/auth/login"
+                className="nav-item text-sm tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/auth/register"
+                className="nav-item border border-foreground/20 px-5 py-2 text-sm tracking-wide text-foreground transition-all hover:border-foreground/50 hover:bg-foreground/5"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
@@ -508,12 +575,12 @@ export function LandingContent() {
         <div className="relative text-center">
           {/* Main text */}
           <div className="overflow-hidden">
-            <h1 className="hero-line font-serif text-[clamp(4rem,15vw,14rem)] leading-[0.85] tracking-[-0.02em] text-[#dcdacb]">
+            <h1 className="hero-line font-serif text-[clamp(4rem,15vw,14rem)] leading-[0.85] tracking-[-0.02em] text-foreground">
               RAPID
             </h1>
           </div>
           <div className="overflow-hidden mt-2">
-            <p className="hero-line font-serif text-[clamp(1.8rem,5vw,5rem)] leading-[0.95] tracking-[0.05em] text-[#8a8981]/80 font-normal italic">
+            <p className="hero-line font-serif text-[clamp(1.8rem,5vw,5rem)] leading-[0.95] tracking-[0.05em] text-muted-foreground/80 font-normal italic">
               auth
             </p>
           </div>
@@ -522,7 +589,7 @@ export function LandingContent() {
           <div className="hero-line-deco mx-auto my-8 h-px w-32 origin-left bg-gradient-to-r from-transparent via-[#dcdacb]/30 to-transparent sm:w-48" />
 
           {/* Subtitle */}
-          <p className="hero-sub mx-auto max-w-md text-base leading-relaxed text-[#8a8981] sm:max-w-lg sm:text-lg">
+          <p className="hero-sub mx-auto max-w-md text-base leading-relaxed text-muted-foreground sm:max-w-lg sm:text-lg">
             Production-ready authentication for the modern web.
             <br className="hidden sm:block" />
             Email, OAuth, 2FA, and sessions — everything you need to ship.
@@ -532,7 +599,7 @@ export function LandingContent() {
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-5">
             <Link
               href="/auth/register"
-              className="hero-cta group relative inline-flex items-center gap-2 bg-[#dcdacb] px-8 py-3.5 text-sm font-medium tracking-wide text-[#0c0c0b] transition-all hover:bg-[#e8e6d7]"
+              className="hero-cta group relative inline-flex items-center gap-2 bg-foreground px-8 py-3.5 text-sm font-medium tracking-wide text-background transition-all hover:bg-foreground/90"
               data-hover
             >
               Start Building
@@ -552,7 +619,7 @@ export function LandingContent() {
             </Link>
             <Link
               href="/dashboard"
-              className="hero-cta inline-flex items-center gap-2 border border-[#dcdacb]/15 px-8 py-3.5 text-sm tracking-wide text-[#dcdacb]/80 transition-all hover:border-[#dcdacb]/30 hover:text-[#dcdacb]"
+              className="hero-cta inline-flex items-center gap-2 border border-foreground/15 px-8 py-3.5 text-sm tracking-wide text-foreground/80 transition-all hover:border-foreground/30 hover:text-foreground"
               data-hover
             >
               View Demo
@@ -562,11 +629,11 @@ export function LandingContent() {
 
         {/* Scroll indicator */}
         <div className="scroll-indicator absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-          <span className="text-[10px] uppercase tracking-[0.3em] text-[#8a8981]/60">
+          <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/60">
             Scroll
           </span>
-          <div className="flex h-7 w-4 items-start justify-center rounded-full border border-[#8a8981]/30 pt-1">
-            <div className="h-1.5 w-0.5 animate-bounce rounded-full bg-[#dcdacb]/60" />
+          <div className="flex h-7 w-4 items-start justify-center rounded-full border border-muted-foreground/30 pt-1">
+            <div className="h-1.5 w-0.5 animate-bounce rounded-full bg-foreground/60" />
           </div>
         </div>
       </section>
@@ -574,7 +641,7 @@ export function LandingContent() {
       {/* ════════════════════════════════════════════
           MARQUEE SECTION
       ════════════════════════════════════════════ */}
-      <section className="marquee-section relative overflow-hidden border-y border-[#1a1a19] py-5 sm:py-6">
+      <section className="marquee-section relative overflow-hidden border-y border-border py-5 sm:py-6">
         <div
           className="marquee-track flex whitespace-nowrap"
           style={{ animation: "marquee 30s linear infinite" }}
@@ -582,7 +649,7 @@ export function LandingContent() {
           {[...Array(4)].map((_, i) => (
             <span
               key={i}
-              className="mx-0 text-sm font-light tracking-[0.25em] text-[#8a8981]/60 sm:text-base"
+              className="mx-0 text-sm font-light tracking-[0.25em] text-muted-foreground/60 sm:text-base"
             >
               {MARQUEE_TEXT}
             </span>
@@ -595,13 +662,13 @@ export function LandingContent() {
       ════════════════════════════════════════════ */}
       <section id="features" className="py-24 sm:py-32">
         <div className="features-header px-6 sm:px-10 mb-16 sm:mb-0">
-          <p className="text-[11px] uppercase tracking-[0.3em] text-[#8a8981]">
+          <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
             What&apos;s Included
           </p>
-          <h2 className="mt-3 font-serif text-3xl sm:text-5xl leading-tight text-[#dcdacb]">
+          <h2 className="mt-3 font-serif text-3xl sm:text-5xl leading-tight text-foreground">
             Everything you need.
             <br />
-            <span className="text-[#8a8981]/70">Nothing you don&apos;t.</span>
+            <span className="text-muted-foreground/70">Nothing you don&apos;t.</span>
           </h2>
         </div>
 
@@ -611,22 +678,22 @@ export function LandingContent() {
               {FEATURES.map((f) => (
                 <div
                   key={f.num}
-                  className="feature-card group relative flex w-full flex-col justify-between border border-[#1a1a19] bg-[#0c0c0b] p-6 transition-all duration-500 hover:border-[#2a2a29] hover:bg-[#111110] sm:w-[380px] sm:min-h-[420px] sm:p-8 md:w-[420px]"
+                  className="feature-card group relative flex w-full flex-col justify-between border border-border bg-background p-6 transition-all duration-500 hover:border-accent hover:bg-card sm:w-[380px] sm:min-h-[420px] sm:p-8 md:w-[420px]"
                 >
                   {/* Number */}
                   <div>
-                    <span className="text-[11px] tracking-[0.2em] text-[#8a8981]/50">
+                    <span className="text-[11px] tracking-[0.2em] text-muted-foreground/50">
                       {f.num}
                     </span>
                     {/* Decorative corner */}
-                    <div className="absolute right-6 top-6 h-3 w-3 border-r border-t border-[#8a8981]/20 transition-all duration-500 group-hover:h-5 group-hover:w-5 group-hover:border-[#dcdacb]/30" />
+                    <div className="absolute right-6 top-6 h-3 w-3 border-r border-t border-muted-foreground/20 transition-all duration-500 group-hover:h-5 group-hover:w-5 group-hover:border-foreground/30" />
                   </div>
 
                   <div className="mt-auto pt-10 sm:pt-0">
-                    <h3 className="font-serif text-xl sm:text-2xl text-[#dcdacb] mb-4">
+                    <h3 className="font-serif text-xl sm:text-2xl text-foreground mb-4">
                       {f.title}
                     </h3>
-                    <p className="text-sm leading-relaxed text-[#8a8981]">
+                    <p className="text-sm leading-relaxed text-muted-foreground">
                       {f.desc}
                     </p>
                   </div>
@@ -643,24 +710,24 @@ export function LandingContent() {
       {/* ════════════════════════════════════════════
           STATS
       ════════════════════════════════════════════ */}
-      <section id="pricing" className="stats-section border-y border-[#1a1a19] py-20 sm:py-28">
+      <section id="pricing" className="stats-section border-y border-border py-20 sm:py-28">
         <div className="mx-auto grid max-w-6xl grid-cols-2 gap-10 px-6 sm:px-10 md:grid-cols-4 md:gap-6">
           {STATS.map((stat, i) => (
             <div key={i} className="stat-item text-center md:text-left">
               <div className="flex items-baseline justify-center gap-1 md:justify-start">
                 <span
-                  className="stat-number font-serif text-5xl sm:text-6xl md:text-7xl text-[#dcdacb]"
+                  className="stat-number font-serif text-5xl sm:text-6xl md:text-7xl text-foreground"
                   data-value={stat.value}
                 >
                   0
                 </span>
                 {stat.suffix && (
-                  <span className="font-serif text-2xl sm:text-3xl text-[#8a8981]">
+                  <span className="font-serif text-2xl sm:text-3xl text-muted-foreground">
                     {stat.suffix}
                   </span>
                 )}
               </div>
-              <p className="mt-2 text-xs uppercase tracking-[0.2em] text-[#8a8981]/70 sm:text-sm">
+              <p className="mt-2 text-xs uppercase tracking-[0.2em] text-muted-foreground/70 sm:text-sm">
                 {stat.label}
               </p>
             </div>
@@ -674,24 +741,24 @@ export function LandingContent() {
       <section className="relative py-24 sm:py-32">
         <div className="mx-auto max-w-5xl px-6 sm:px-10">
           <div className="fade-in mb-12 sm:mb-16">
-            <p className="text-[11px] uppercase tracking-[0.3em] text-[#8a8981]">
+            <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
               Developer Experience
             </p>
-            <h2 className="mt-3 font-serif text-3xl sm:text-5xl text-[#dcdacb]">
+            <h2 className="mt-3 font-serif text-3xl sm:text-5xl text-foreground">
               Ship in minutes.
             </h2>
           </div>
 
           {/* Code block */}
-          <div className="fade-in relative overflow-hidden border border-[#1a1a19] bg-[#0a0a09]">
+          <div className="fade-in relative overflow-hidden border border-border bg-background">
             {/* Tab bar */}
-            <div className="flex items-center gap-0 border-b border-[#1a1a19] px-4 py-2.5">
+            <div className="flex items-center gap-0 border-b border-border px-4 py-2.5">
               <div className="flex gap-1.5 mr-6">
                 <div className="h-2.5 w-2.5 rounded-full bg-[#f43f5e]/40" />
                 <div className="h-2.5 w-2.5 rounded-full bg-[#fbbf24]/40" />
                 <div className="h-2.5 w-2.5 rounded-full bg-[#34d399]/40" />
               </div>
-              <span className="text-[11px] tracking-wider text-[#8a8981]/60">
+              <span className="text-[11px] tracking-wider text-muted-foreground/60">
                 auth.ts
               </span>
             </div>
@@ -699,59 +766,59 @@ export function LandingContent() {
             {/* Code content */}
             <pre className="overflow-x-auto p-6 text-xs leading-relaxed sm:p-8 sm:text-sm">
               <code>
-                <span className="text-[#8a8981]/50">{"// lib/auth.ts"}</span>
+                <span className="text-muted-foreground/50">{"// lib/auth.ts"}</span>
                 {"\n"}
                 <span className="text-[#c9a87c]">import</span>
-                <span className="text-[#dcdacb]">{" { betterAuth } "}</span>
+                <span className="text-foreground">{" { betterAuth } "}</span>
                 <span className="text-[#c9a87c]">from</span>
-                <span className="text-[#8a8981]">
+                <span className="text-muted-foreground">
                   {' "better-auth"'}
                 </span>
                 {"\n"}
                 <span className="text-[#c9a87c]">import</span>
-                <span className="text-[#dcdacb]">
+                <span className="text-foreground">
                   {" { prismaAdapter } "}
                 </span>
                 <span className="text-[#c9a87c]">from</span>
-                <span className="text-[#8a8981]">
+                <span className="text-muted-foreground">
                   {' "better-auth/adapters/prisma"'}
                 </span>
                 {"\n"}
                 <span className="text-[#c9a87c]">import</span>
-                <span className="text-[#dcdacb]">
+                <span className="text-foreground">
                   {" { twoFactor } "}
                 </span>
                 <span className="text-[#c9a87c]">from</span>
-                <span className="text-[#8a8981]">
+                <span className="text-muted-foreground">
                   {' "better-auth/plugins"'}
                 </span>
                 {"\n\n"}
                 <span className="text-[#c9a87c]">export const</span>
-                <span className="text-[#dcdacb]"> auth </span>
+                <span className="text-foreground"> auth </span>
                 <span className="text-[#c9a87c]">=</span>
-                <span className="text-[#dcdacb]"> betterAuth</span>
-                <span className="text-[#8a8981]">{"({"}</span>
+                <span className="text-foreground"> betterAuth</span>
+                <span className="text-muted-foreground">{"({"}</span>
                 {"\n"}
-                <span className="text-[#dcdacb]">{"  database: "}</span>
-                <span className="text-[#dcdacb]">{"prismaAdapter(prisma),"}</span>
+                <span className="text-foreground">{"  database: "}</span>
+                <span className="text-foreground">{"prismaAdapter(prisma),"}</span>
                 {"\n"}
-                <span className="text-[#dcdacb]">
+                <span className="text-foreground">
                   {"  plugins: [twoFactor()],"}
                 </span>
                 {"\n"}
-                <span className="text-[#dcdacb]">
+                <span className="text-foreground">
                   {"  emailAndPassword: { enabled: "}
                 </span>
                 <span className="text-[#34d399]">true</span>
-                <span className="text-[#dcdacb]">{" },"}</span>
+                <span className="text-foreground">{" },"}</span>
                 {"\n"}
-                <span className="text-[#dcdacb]">
+                <span className="text-foreground">
                   {"  socialProviders: { google: { ... } },"}
                 </span>
                 {"\n"}
-                <span className="text-[#8a8981]">{"})"}</span>
+                <span className="text-muted-foreground">{"})"}</span>
                 {"\n\n"}
-                <span className="text-[#8a8981]/50">
+                <span className="text-muted-foreground/50">
                   {"// That's it. You're done. ✓"}
                 </span>
               </code>
@@ -769,13 +836,13 @@ export function LandingContent() {
       <section id="stack" className="py-24 sm:py-32">
         <div className="mx-auto max-w-5xl px-6 sm:px-10">
           <div className="fade-in mb-14">
-            <p className="text-[11px] uppercase tracking-[0.3em] text-[#8a8981]">
+            <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
               Built With
             </p>
-            <h2 className="mt-3 font-serif text-3xl sm:text-5xl text-[#dcdacb]">
+            <h2 className="mt-3 font-serif text-3xl sm:text-5xl text-foreground">
               Modern stack.
               <br />
-              <span className="text-[#8a8981]/70">Zero compromise.</span>
+              <span className="text-muted-foreground/70">Zero compromise.</span>
             </h2>
           </div>
 
@@ -783,10 +850,10 @@ export function LandingContent() {
             {TECH.map((name) => (
               <div
                 key={name}
-                className="tech-item group flex items-center justify-center border border-[#1a1a19] bg-[#0c0c0b] py-5 text-center transition-all duration-500 hover:border-[#2a2a29] hover:bg-[#111110] sm:py-7"
+                className="tech-item group flex items-center justify-center border border-border bg-background py-5 text-center transition-all duration-500 hover:border-accent hover:bg-card sm:py-7"
                 data-hover
               >
-                <span className="text-sm tracking-wider text-[#8a8981] transition-colors duration-500 group-hover:text-[#dcdacb]">
+                <span className="text-sm tracking-wider text-muted-foreground transition-colors duration-500 group-hover:text-foreground">
                   {name}
                 </span>
               </div>
@@ -805,15 +872,15 @@ export function LandingContent() {
         </div>
 
         <div className="relative mx-auto max-w-4xl px-6 text-center sm:px-10">
-          <h2 className="cta-text font-serif text-4xl leading-tight sm:text-6xl md:text-7xl lg:text-8xl text-[#dcdacb]">
+          <h2 className="cta-text font-serif text-4xl leading-tight sm:text-6xl md:text-7xl lg:text-8xl text-foreground">
             Start building
             <br />
-            <span className="italic text-[#8a8981]/60">today.</span>
+            <span className="italic text-muted-foreground/60">today.</span>
           </h2>
           <div className="mt-10 sm:mt-14">
             <Link
               href="/auth/register"
-              className="cta-button group relative inline-flex items-center gap-3 bg-[#dcdacb] px-10 py-4 text-sm font-medium tracking-wider text-[#0c0c0b] transition-all hover:bg-[#e8e6d7]"
+              className="cta-button group relative inline-flex items-center gap-3 bg-foreground px-10 py-4 text-sm font-medium tracking-wider text-background transition-all hover:bg-foreground/90"
               data-hover
             >
               GET STARTED FREE
@@ -832,7 +899,7 @@ export function LandingContent() {
               </svg>
             </Link>
           </div>
-          <p className="mt-6 text-xs tracking-wide text-[#8a8981]/50">
+          <p className="mt-6 text-xs tracking-wide text-muted-foreground/50">
             No credit card required. Deploy in under 5 minutes.
           </p>
         </div>
@@ -841,38 +908,38 @@ export function LandingContent() {
       {/* ════════════════════════════════════════════
           FOOTER
       ════════════════════════════════════════════ */}
-      <footer className="landing-footer border-t border-[#1a1a19]">
+      <footer className="landing-footer border-t border-border">
         <div className="footer-content mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 py-10 sm:flex-row sm:px-10">
           <div className="flex items-center gap-8">
-            <span className="font-serif text-sm tracking-[0.2em] text-[#dcdacb]/60">
+            <span className="font-serif text-sm tracking-[0.2em] text-foreground/60">
               RAPID
             </span>
-            <span className="text-xs text-[#8a8981]/40">
+            <span className="text-xs text-muted-foreground/40">
               &copy; {new Date().getFullYear()}
             </span>
           </div>
           <div className="flex items-center gap-6">
             <a
               href="#features"
-              className="text-xs tracking-wide text-[#8a8981]/50 transition-colors hover:text-[#dcdacb]/70"
+              className="text-xs tracking-wide text-muted-foreground/50 transition-colors hover:text-foreground/70"
             >
               Features
             </a>
             <a
               href="#stack"
-              className="text-xs tracking-wide text-[#8a8981]/50 transition-colors hover:text-[#dcdacb]/70"
+              className="text-xs tracking-wide text-muted-foreground/50 transition-colors hover:text-foreground/70"
             >
               Stack
             </a>
             <Link
               href="/auth/login"
-              className="text-xs tracking-wide text-[#8a8981]/50 transition-colors hover:text-[#dcdacb]/70"
+              className="text-xs tracking-wide text-muted-foreground/50 transition-colors hover:text-foreground/70"
             >
               Sign In
             </Link>
             <Link
               href="/dashboard"
-              className="text-xs tracking-wide text-[#8a8981]/50 transition-colors hover:text-[#dcdacb]/70"
+              className="text-xs tracking-wide text-muted-foreground/50 transition-colors hover:text-foreground/70"
             >
               Dashboard
             </Link>
