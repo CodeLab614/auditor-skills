@@ -29,3 +29,6 @@ export { signInWithGoogle, signInWithGithub } from './social';
 
 // Profile
 export { updateProfileAction } from './profile';
+
+// Avatar
+export { uploadAvatarAction } from './avatar';

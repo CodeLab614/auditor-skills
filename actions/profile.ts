@@ -36,6 +36,7 @@ export interface SessionData {
 export interface ProfilePageData {
   profile: ProfileData;
   twoFactorEnabled: boolean;
+  isOAuthUser: boolean;
   activityLogs: ActivityLogEntry[];
   sessions: SessionData[];
   currentSessionToken?: string;
@@ -58,10 +59,14 @@ export const getProfileData = async (
     const currentSessionToken = cookieStore.get('better-auth.session_token')?.value;
 
     // Get user's 2FA status, image, activity logs, and sessions from database
-    const [user, activityLogs, sessions] = await Promise.all([
+    const [user, oauthAccounts, activityLogs, sessions] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
         select: { name: true, email: true, twoFactorEnabled: true, image: true },
+      }),
+      prisma.account.findMany({
+        where: { userId, providerId: { not: 'credential' } },
+        select: { providerId: true },
       }),
       prisma.activityLog.findMany({
         where: { userId },
@@ -119,6 +124,7 @@ export const getProfileData = async (
       data: {
         profile,
         twoFactorEnabled: user.twoFactorEnabled ?? false,
+        isOAuthUser: oauthAccounts.length > 0,
         activityLogs: parsedActivityLogs,
         sessions: formattedSessions,
         currentSessionToken,

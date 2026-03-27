@@ -24,6 +24,7 @@ export default async function ProfilePage() {
     <ProfileContent
       initialProfile={result.data.profile}
       twoFactorEnabled={result.data.twoFactorEnabled}
+      isOAuthUser={result.data.isOAuthUser}
       activityLogs={result.data.activityLogs}
       sessions={result.data.sessions}
       currentSessionToken={result.data.currentSessionToken}

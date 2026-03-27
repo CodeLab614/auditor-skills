@@ -215,8 +215,21 @@ export const editUserAction = async (
       };
     }
 
-    // Check if email is being changed to one that already exists
+    // Check if user is OAuth — cannot change email
     if (email !== user.email) {
+      const oauthAccount = await prisma.account.findFirst({
+        where: { userId, providerId: { not: 'credential' } },
+      });
+
+      if (oauthAccount) {
+        return {
+          response: 'error',
+          message: 'Cannot change email for OAuth users. Email is managed by the authentication provider.',
+          data: null,
+        };
+      }
+
+      // Check if email is being changed to one that already exists
       const existingUser = await prisma.user.findUnique({
         where: { email },
       });

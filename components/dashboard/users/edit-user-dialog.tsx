@@ -119,11 +119,15 @@ export function EditUserDialog({
                   <FormLabel className='text-sm font-normal'>
                     Email Address
                   </FormLabel>
+                  {user?.provider !== 'email' && (
+                    <p className='text-xs text-muted-foreground'>Managed by {user?.provider}. Cannot be changed.</p>
+                  )}
                   <FormControl>
                     <Input
                       {...field}
                       type='email'
                       className='bg-background border-border'
+                      disabled={user?.provider !== 'email'}
                     />
                   </FormControl>
                   <FormMessage />

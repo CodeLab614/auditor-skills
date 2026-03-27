@@ -14,6 +14,9 @@ import { User, Mail, Lock, Bell, Camera, Save, Shield, History, Monitor } from "
 import { TwoFactorStatus } from "./two-factor-setup";
 import { ActivityLog, type ActivityLogEntry } from "./activity-log";
 import { ActiveSessions, type SessionData } from "./active-sessions";
+import { updateProfileAction, uploadAvatarAction } from "@/actions/auth";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface ProfileData {
   name: string;
@@ -24,20 +27,20 @@ interface ProfileData {
 interface ProfileContentProps {
   initialProfile: ProfileData;
   twoFactorEnabled?: boolean;
+  isOAuthUser?: boolean;
   activityLogs?: ActivityLogEntry[];
   sessions?: SessionData[];
   currentSessionToken?: string;
-  onSaveProfile?: (profile: ProfileData) => Promise<void>;
   onChangePassword?: (passwords: { current: string; new: string }) => Promise<void>;
 }
 
 export function ProfileContent({
   initialProfile,
   twoFactorEnabled = false,
+  isOAuthUser = false,
   activityLogs = [],
   sessions = [],
   currentSessionToken,
-  onSaveProfile,
   onChangePassword,
 }: ProfileContentProps) {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -58,10 +61,18 @@ export function ProfileContent({
     security: true,
   });
 
+  const router = useRouter();
+
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
-      await onSaveProfile?.(profile);
+      const result = await updateProfileAction({ name: profile.name });
+      if (result.response === 'error') {
+        toast.error(result.message);
+      } else {
+        toast.success(result.message);
+        router.refresh();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -91,10 +102,12 @@ export function ProfileContent({
             <User className="h-4 w-4" strokeWidth={1.5} />
             General
           </TabsTrigger>
-          <TabsTrigger value="security" className="gap-2">
-            <Lock className="h-4 w-4" strokeWidth={1.5} />
-            Security
-          </TabsTrigger>
+          {!isOAuthUser && (
+            <TabsTrigger value="security" className="gap-2">
+              <Lock className="h-4 w-4" strokeWidth={1.5} />
+              Security
+            </TabsTrigger>
+          )}
           <TabsTrigger value="notifications" className="gap-2">
             <Bell className="h-4 w-4" strokeWidth={1.5} />
             Notifications
@@ -127,12 +140,50 @@ export function ProfileContent({
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col gap-2">
-                <Button variant="outline" size="sm" className="gap-2">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="hidden"
+                  id="avatar-upload"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+
+                    if (file.size > 4 * 1024 * 1024) {
+                      toast.error('File too large. Maximum size is 4MB.');
+                      return;
+                    }
+
+                    setIsLoading(true);
+                    const formData = new FormData();
+                    formData.append('avatar', file);
+
+                    const result = await uploadAvatarAction(formData);
+                    if (result.response === 'error') {
+                      toast.error(result.message);
+                    } else {
+                      toast.success(result.message);
+                      if (result.data?.imageUrl) {
+                        setProfile({ ...profile, avatar: result.data.imageUrl });
+                      }
+                      router.refresh();
+                    }
+                    setIsLoading(false);
+                    e.target.value = '';
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  disabled={isLoading}
+                  onClick={() => document.getElementById('avatar-upload')?.click()}
+                >
                   <Camera className="h-4 w-4" strokeWidth={1.5} />
-                  Change Photo
+                  {isLoading ? 'Uploading...' : 'Change Photo'}
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  JPG, PNG or GIF. Max 2MB.
+                  JPG, PNG, GIF or WEBP. Max 4MB.
                 </p>
               </div>
             </div>
@@ -156,6 +207,9 @@ export function ProfileContent({
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
+                {isOAuthUser && (
+                  <p className="text-xs text-muted-foreground">Managed by your authentication provider. Cannot be changed.</p>
+                )}
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                   <Input
@@ -165,6 +219,7 @@ export function ProfileContent({
                     onChange={(e) => setProfile({ ...profile, email: e.target.value })}
                     className="pl-10"
                     placeholder="your@email.com"
+                    disabled={isOAuthUser}
                   />
                 </div>
               </div>
@@ -181,70 +236,69 @@ export function ProfileContent({
           </Card>
         </TabsContent>
 
-        <TabsContent value="security" className="space-y-6">
+        {!isOAuthUser && <TabsContent value="security" className="space-y-6">
           <Card className="p-6">
-            <h3 className="text-lg font-medium mb-1">Change Password</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              Update your password to keep your account secure.
-            </p>
+              <h3 className="text-lg font-medium mb-1">Change Password</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Update your password to keep your account secure.
+              </p>
 
-            <div className="grid gap-6 max-w-md">
-              <div className="space-y-2">
-                <Label htmlFor="current-password">Current Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-                  <Input
-                    id="current-password"
-                    type="password"
-                    value={passwords.current}
-                    onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
-                    className="pl-10"
-                    placeholder="Enter current password"
-                  />
+              <div className="grid gap-6 max-w-md">
+                <div className="space-y-2">
+                  <Label htmlFor="current-password">Current Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+                    <Input
+                      id="current-password"
+                      type="password"
+                      value={passwords.current}
+                      onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
+                      className="pl-10"
+                      placeholder="Enter current password"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="new-password">New Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-                  <Input
-                    id="new-password"
-                    type="password"
-                    value={passwords.new}
-                    onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
-                    className="pl-10"
-                    placeholder="Enter new password"
-                  />
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+                    <Input
+                      id="new-password"
+                      type="password"
+                      value={passwords.new}
+                      onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
+                      className="pl-10"
+                      placeholder="Enter new password"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirm New Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    value={passwords.confirm}
-                    onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
-                    className="pl-10"
-                    placeholder="Confirm new password"
-                  />
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm New Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      value={passwords.confirm}
+                      onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
+                      className="pl-10"
+                      placeholder="Confirm new password"
+                    />
+                  </div>
                 </div>
+
+                <Button
+                  onClick={handleChangePassword}
+                  disabled={isLoading || !passwords.current || !passwords.new || passwords.new !== passwords.confirm}
+                  className="w-fit gap-2"
+                >
+                  <Shield className="h-4 w-4" strokeWidth={1.5} />
+                  {isLoading ? "Updating..." : "Update Password"}
+                </Button>
               </div>
-
-              <Button
-                onClick={handleChangePassword}
-                disabled={isLoading || !passwords.current || !passwords.new || passwords.new !== passwords.confirm}
-                className="w-fit gap-2"
-              >
-                <Shield className="h-4 w-4" strokeWidth={1.5} />
-                {isLoading ? "Updating..." : "Update Password"}
-              </Button>
-            </div>
-          </Card>
-
+            </Card>
           <Card className="p-6">
             <h3 className="text-lg font-medium mb-1">Two-Factor Authentication</h3>
             <p className="text-sm text-muted-foreground mb-6">
@@ -256,7 +310,7 @@ export function ProfileContent({
               onStatusChange={setIs2FAEnabled}
             />
           </Card>
-        </TabsContent>
+        </TabsContent>}
 
         <TabsContent value="notifications" className="space-y-6">
           <Card className="p-6">
