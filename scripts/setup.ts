@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execSync } from 'node:child_process';
-import { existsSync, writeFileSync, readFileSync } from 'node:fs';
+import { existsSync, writeFileSync, readFileSync, appendFileSync, unlinkSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
@@ -722,11 +722,56 @@ function writeEnvFile(envVars: Record<string, string>): void {
   writeFileSync(envPath, content + '\n');
 }
 
+function ensureEnvFileExists(): void {
+  const envPath = path.join(process.cwd(), '.env');
+  if (!existsSync(envPath)) {
+    writeFileSync(envPath, '');
+  }
+}
+
+function mergeEnvLocalIntoEnv(): void {
+  const envLocalPath = path.join(process.cwd(), '.env.local');
+  if (!existsSync(envLocalPath)) return;
+
+  const envPath = path.join(process.cwd(), '.env');
+  const localContent = readFileSync(envLocalPath, 'utf-8');
+
+  const envContent = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : '';
+  const existingKeys = new Set<string>();
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx !== -1) existingKeys.add(trimmed.substring(0, eqIdx));
+    }
+  }
+
+  const linesToAppend: string[] = [];
+  for (const line of localContent.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx === -1) continue;
+    const key = trimmed.substring(0, eqIdx);
+    if (!existingKeys.has(key)) linesToAppend.push(line);
+  }
+
+  if (linesToAppend.length > 0) {
+    const separator = envContent.endsWith('\n') ? '' : '\n';
+    appendFileSync(envPath, `${separator}# Other\n${linesToAppend.join('\n')}\n`);
+  }
+
+  unlinkSync(envLocalPath);
+}
+
 // ============================================================================
 // MAIN SETUP FLOW
 // ============================================================================
 
 async function runSetup() {
+  // Ensure .env exists from the start so shadcn writes there instead of .env.local
+  ensureEnvFileExists();
+
   const existingEnv = loadExistingEnv();
   const newEnv: Record<string, string> = {};
 
@@ -899,6 +944,7 @@ async function runSetup() {
 
   await spinner('Writing .env file...', async () => {
     writeEnvFile(newEnv);
+    mergeEnvLocalIntoEnv();
   });
 
   // Load the newly written env file into process.env for Prisma
