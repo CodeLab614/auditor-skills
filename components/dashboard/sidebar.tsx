@@ -81,22 +81,22 @@ function NavLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
     <Link
       href={item.href}
       className={cn(
-        "flex items-center gap-3 px-3 py-2 text-sm transition-all group",
+        "flex items-center gap-3 px-3 py-2 text-sm transition-all group rounded-md",
         isActive
           ? "bg-primary text-primary-foreground font-medium shadow-[0_0_15px_rgba(220,218,203,0.1)]"
-          : "text-muted-foreground hover:text-foreground hover:bg-card font-light"
+          : "text-muted-foreground hover:text-foreground hover:bg-accent font-light"
       )}
     >
       <item.icon
         className={cn(
-          "h-[18px] w-[18px] transition-colors",
+          "h-[18px] w-[18px] shrink-0 transition-colors",
           isActive ? "" : "group-hover:text-foreground"
         )}
         strokeWidth={1.5}
       />
       <span className="flex-1">{item.title}</span>
       {item.badge && (
-        <span className="bg-secondary text-foreground text-xs py-0.5 px-2 font-light">
+        <span className="bg-secondary text-foreground text-xs py-0.5 px-2 rounded-sm font-light">
           {item.badge}
         </span>
       )}
@@ -149,13 +149,13 @@ function SidebarContent({
       <div className="p-4 border-t border-border shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="w-full flex items-center gap-3 px-2 py-2 hover:bg-card transition-colors text-left">
-              <Avatar className="h-8 w-8 border border-accent shrink-0">
+            <button className="w-full flex items-center gap-3 px-2 py-2 hover:bg-accent transition-colors text-left rounded-md">
+              <Avatar className="h-8 w-8 rounded-full border border-accent shrink-0">
                 <AvatarImage
                   src={user.avatar}
                   alt={user.name}
                 />
-                <AvatarFallback className="bg-secondary text-foreground text-xs">
+                <AvatarFallback className="bg-secondary text-foreground text-xs rounded-full">
                   {user.name
                     .split(" ")
                     .map((n) => n[0])

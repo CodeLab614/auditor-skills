@@ -115,7 +115,7 @@ export function SearchAndFilters({
                   <button
                     key={role}
                     onClick={() => toggleRole(role)}
-                    className={`px-3 py-1.5 text-xs border capitalize transition-colors ${
+                    className={`px-3 py-1.5 text-xs border rounded-md capitalize transition-colors ${
                       filters.roles.includes(role)
                         ? ROLE_COLORS[role]
                         : 'border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground hover:bg-muted/50'
@@ -137,7 +137,7 @@ export function SearchAndFilters({
                   <button
                     key={key}
                     onClick={() => toggleStatus(key)}
-                    className={`px-3 py-1.5 text-xs border transition-colors ${
+                    className={`px-3 py-1.5 text-xs border rounded-md transition-colors ${
                       filters.statuses.includes(key)
                         ? key === 'active'
                           ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
@@ -166,7 +166,7 @@ export function SearchAndFilters({
                     <button
                       key={provider}
                       onClick={() => toggleProvider(provider)}
-                      className={`px-3 py-1.5 text-xs border transition-colors flex items-center gap-2 ${
+                      className={`px-3 py-1.5 text-xs border rounded-md transition-colors flex items-center gap-2 ${
                         filters.providers.includes(provider)
                           ? 'bg-primary/10 text-primary border-primary/20'
                           : 'border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground hover:bg-muted/50'

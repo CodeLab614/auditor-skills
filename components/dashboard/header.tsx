@@ -135,7 +135,7 @@ export function Header({
 
         {/* Search */}
         {showSearch && (
-          <div className='hidden sm:flex items-center gap-3 w-full bg-muted dark:bg-card dark:border dark:border-border px-3 py-1.5 focus-within:ring-1 focus-within:ring-ring/50 transition-colors'>
+          <div className='hidden sm:flex items-center gap-3 w-full bg-muted dark:bg-card dark:border dark:border-border px-3 py-1.5 rounded-md focus-within:ring-1 focus-within:ring-ring/50 transition-colors'>
             <Search
               className='h-4 w-4 text-muted-foreground'
               strokeWidth={1.5}
@@ -148,10 +148,10 @@ export function Header({
               className='border-0 bg-transparent p-0 h-auto text-sm placeholder:text-muted-foreground font-light focus-visible:ring-0 focus-visible:ring-offset-0'
             />
             <div className='flex items-center gap-1 text-muted-foreground text-xs font-light tracking-widest uppercase'>
-              <kbd className='bg-secondary px-1.5 py-0.5 dark:border dark:border-accent'>
+              <kbd className='bg-secondary px-1.5 py-0.5 rounded-sm dark:border dark:border-accent'>
                 ⌘
               </kbd>
-              <kbd className='bg-secondary px-1.5 py-0.5 dark:border dark:border-accent'>
+              <kbd className='bg-secondary px-1.5 py-0.5 rounded-sm dark:border dark:border-accent'>
                 K
               </kbd>
             </div>

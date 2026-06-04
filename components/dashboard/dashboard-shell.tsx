@@ -22,6 +22,7 @@ function getNavigation(isAdmin: boolean): NavSection[] {
     menuItems.push({ title: "Activity", href: "/dashboard/activity", icon: Activity });
   }
 
+
   return [
     {
       title: "Menu",

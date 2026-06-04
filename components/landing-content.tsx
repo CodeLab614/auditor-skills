@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
@@ -84,6 +84,14 @@ export function LandingContent({ user }: { user?: LandingUser | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const cursorDotRef = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = React.useState(false);
+
+  /* ─── Scroll detection ─── */
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   /* ─── Custom Cursor ─── */
   useEffect(() => {
@@ -461,7 +469,7 @@ export function LandingContent({ user }: { user?: LandingUser | null }) {
       </div>
 
       {/* ─── Navigation ─── */}
-      <nav className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-6 py-5 sm:px-10">
+      <nav className={`fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-6 py-4 sm:px-10 transition-all duration-300 ${scrolled ? "bg-background/90 backdrop-blur-md border-b border-border/60 py-3" : ""}`}>
         <Link
           href="/"
           className="nav-item font-serif text-lg tracking-[0.2em] text-foreground transition-opacity hover:opacity-70"
