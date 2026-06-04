@@ -66,38 +66,6 @@ const ENV_VARIABLES: EnvVariable[] = [
     },
   },
   // FROM_EMAIL is handled separately in askEmailConfig()
-  // Google OAuth
-  {
-    key: 'GOOGLE_CLIENT_ID',
-    description: 'Google OAuth Client ID',
-    placeholder: 'xxxxx.apps.googleusercontent.com',
-    required: false,
-    category: 'oauth',
-    helpUrl: 'https://console.cloud.google.com/apis/credentials',
-  },
-  {
-    key: 'GOOGLE_CLIENT_SECRET',
-    description: 'Google OAuth Client Secret',
-    placeholder: 'GOCSPX-xxxxxxxxxxxxx',
-    required: false,
-    category: 'oauth',
-  },
-  // GitHub OAuth
-  {
-    key: 'GITHUB_CLIENT_ID',
-    description: 'GitHub OAuth Client ID',
-    placeholder: 'Ov23liXXXXXXXX',
-    required: false,
-    category: 'oauth',
-    helpUrl: 'https://github.com/settings/developers',
-  },
-  {
-    key: 'GITHUB_CLIENT_SECRET',
-    description: 'GitHub OAuth Client Secret',
-    placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxx',
-    required: false,
-    category: 'oauth',
-  },
 ];
 
 // ============================================================================
@@ -697,6 +665,8 @@ function writeEnvFile(envVars: Record<string, string>): void {
     GOOGLE_CLIENT_SECRET: 'oauth',
     GITHUB_CLIENT_ID: 'oauth',
     GITHUB_CLIENT_SECRET: 'oauth',
+    NEXT_PUBLIC_GOOGLE_ENABLED: 'oauth',
+    NEXT_PUBLIC_GITHUB_ENABLED: 'oauth',
   };
 
   const sections: Record<string, string[]> = {
@@ -762,6 +732,166 @@ function mergeEnvLocalIntoEnv(): void {
   }
 
   unlinkSync(envLocalPath);
+}
+
+// ============================================================================
+// OAUTH PROVIDER SELECTION
+// ============================================================================
+
+type OAuthProvider = 'google' | 'github';
+
+const PROVIDER_INFO: Record<OAuthProvider, {
+  label: string;
+  vars: { key: string; description: string; placeholder: string; helpUrl?: string }[];
+}> = {
+  google: {
+    label: 'Google',
+    vars: [
+      { key: 'GOOGLE_CLIENT_ID', description: 'Google OAuth Client ID', placeholder: 'xxxxx.apps.googleusercontent.com', helpUrl: 'https://console.cloud.google.com/apis/credentials' },
+      { key: 'GOOGLE_CLIENT_SECRET', description: 'Google OAuth Client Secret', placeholder: 'GOCSPX-xxxxxxxxxxxxx' },
+    ],
+  },
+  github: {
+    label: 'GitHub',
+    vars: [
+      { key: 'GITHUB_CLIENT_ID', description: 'GitHub OAuth Client ID', placeholder: 'Ov23liXXXXXXXX', helpUrl: 'https://github.com/settings/developers' },
+      { key: 'GITHUB_CLIENT_SECRET', description: 'GitHub OAuth Client Secret', placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxx' },
+    ],
+  },
+};
+
+async function askOAuthProviders(): Promise<Set<OAuthProvider>> {
+  const providers: OAuthProvider[] = ['google', 'github'];
+  const selected = new Set<OAuthProvider>();
+  let cursorIdx = 0;
+
+  println(`  ${icons.globe} ${colors.bold}OAuth Providers${colors.reset} ${colors.dim}(optional)${colors.reset}`);
+  println(`     ${colors.dim}Select which providers you want to enable${colors.reset}`);
+  println();
+  println(`     ${colors.dim}Use ↑↓ arrows to move, Space to toggle, Enter to confirm${colors.reset}`);
+  println();
+
+  if (process.stdin.isTTY) process.stdin.setRawMode(true);
+  process.stdin.resume();
+
+  const renderOptions = () => {
+    process.stdout.write(`\x1b[${providers.length + 1}A\x1b[J`);
+
+    // "None" option at the top
+    const noneSelected = selected.size === 0;
+    if (cursorIdx === providers.length) {
+      println(`     ${colors.cyan}${icons.arrow}${colors.reset} ${noneSelected ? colors.bold : colors.dim}[ None ]${colors.reset}`);
+    } else {
+      println(`       ${colors.dim}[ None ]${colors.reset}${noneSelected ? ` ${colors.green}✓${colors.reset}` : ''}`);
+    }
+
+    providers.forEach((p, i) => {
+      const isSelected = selected.has(p);
+      const isCursor = cursorIdx === i;
+      const check = isSelected ? `${colors.green}✓${colors.reset}` : ' ';
+      const label = PROVIDER_INFO[p].label;
+      if (isCursor) {
+        println(`     ${colors.cyan}${icons.arrow}${colors.reset} [${check}] ${colors.bold}${label}${colors.reset}`);
+      } else {
+        println(`       [${check}] ${colors.dim}${label}${colors.reset}`);
+      }
+    });
+  };
+
+  // Initial render
+  println(`     ${colors.dim}[ None ]${colors.reset}`);
+  providers.forEach((p) => {
+    println(`       [ ] ${colors.dim}${PROVIDER_INFO[p].label}${colors.reset}`);
+  });
+
+  cursorIdx = providers.length; // start on "None"
+  renderOptions();
+
+  const result = await new Promise<Set<OAuthProvider>>((resolve) => {
+    const onKey = (key: Buffer) => {
+      const k = key.toString();
+
+      if (k === '\x1b[A' || k === 'k') { // up
+        cursorIdx = cursorIdx > 0 ? cursorIdx - 1 : providers.length;
+        renderOptions();
+      } else if (k === '\x1b[B' || k === 'j') { // down
+        cursorIdx = cursorIdx < providers.length ? cursorIdx + 1 : 0;
+        renderOptions();
+      } else if (k === ' ') { // space — toggle
+        if (cursorIdx === providers.length) {
+          // "None" — clear all
+          selected.clear();
+        } else {
+          const p = providers[cursorIdx];
+          if (selected.has(p)) selected.delete(p);
+          else selected.add(p);
+        }
+        renderOptions();
+      } else if (k === '\r' || k === '\n') { // enter
+        process.stdin.removeListener('data', onKey);
+        if (process.stdin.isTTY) process.stdin.setRawMode(false);
+        resolve(selected);
+      } else if (k === '\x03') { // ctrl+c
+        process.stdin.removeListener('data', onKey);
+        if (process.stdin.isTTY) process.stdin.setRawMode(false);
+        process.exit(0);
+      }
+    };
+    process.stdin.on('data', onKey);
+  });
+
+  println();
+
+  if (result.size === 0) {
+    println(`     ${colors.green}${icons.success} No OAuth providers — using email/password only${colors.reset}`);
+  } else {
+    const labels = [...result].map((p) => PROVIDER_INFO[p].label).join(', ');
+    println(`     ${colors.green}${icons.success} Selected: ${labels}${colors.reset}`);
+  }
+  println();
+
+  return result;
+}
+
+async function askProviderCredentials(
+  provider: OAuthProvider,
+  existingEnv: Record<string, string>,
+): Promise<Record<string, string>> {
+  const info = PROVIDER_INFO[provider];
+  const result: Record<string, string> = {};
+
+  println(`  ${icons.globe} ${colors.bold}${info.label} OAuth Credentials${colors.reset}`);
+  println();
+
+  for (const v of info.vars) {
+    if (v.helpUrl) {
+      println(`  ${colors.bold}${v.key}${colors.reset} ${colors.red}*${colors.reset}`);
+      println(`     ${colors.dim}${v.description}${colors.reset}`);
+      println(`     ${colors.blue}${icons.arrow} ${v.helpUrl}${colors.reset}`);
+    } else {
+      println(`  ${colors.bold}${v.key}${colors.reset} ${colors.red}*${colors.reset}`);
+      println(`     ${colors.dim}${v.description}${colors.reset}`);
+    }
+
+    let value = '';
+    let valid = false;
+    while (!valid) {
+      const existing = existingEnv[v.key];
+      const hint = existing ? ` ${colors.dim}[${existing}]${colors.reset}` : '';
+      value = await question(`     ${colors.yellow}${icons.arrow}${colors.reset}${hint} ${colors.dim}(${v.placeholder})${colors.reset}: `);
+      if (!value && existing) value = existing;
+      if (!value) {
+        println(`     ${colors.red}${icons.error} This field is required${colors.reset}`);
+        continue;
+      }
+      valid = true;
+    }
+    result[v.key] = value;
+    println(`     ${colors.green}${icons.success} Set${colors.reset}`);
+    println();
+  }
+
+  return result;
 }
 
 // ============================================================================
@@ -921,6 +1051,19 @@ async function runSetup() {
       }
 
       println();
+    } else if (category.key === 'oauth') {
+      // Dynamic provider selection
+      process.stdin.pause();
+      const selectedProviders = await askOAuthProviders();
+
+      for (const provider of selectedProviders) {
+        const creds = await askProviderCredentials(provider, existingEnv);
+        Object.assign(newEnv, creds);
+      }
+
+      // Write NEXT_PUBLIC flags for the frontend
+      newEnv['NEXT_PUBLIC_GOOGLE_ENABLED'] = selectedProviders.has('google') ? 'true' : 'false';
+      newEnv['NEXT_PUBLIC_GITHUB_ENABLED'] = selectedProviders.has('github') ? 'true' : 'false';
     } else {
       // Normal category handling
       const categoryVars = ENV_VARIABLES.filter(

@@ -85,6 +85,9 @@ export function LandingContent({ user }: { user?: LandingUser | null }) {
   const cursorRef = useRef<HTMLDivElement>(null);
   const cursorDotRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => { setMounted(true); }, []);
 
   /* ─── Scroll detection ─── */
   useEffect(() => {
@@ -501,7 +504,7 @@ export function LandingContent({ user }: { user?: LandingUser | null }) {
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="nav-item text-muted-foreground transition-colors hover:text-foreground"
           >
-            {resolvedTheme === "dark" ? (
+            {mounted && resolvedTheme === "dark" ? (
               <Sun className="h-5 w-5" strokeWidth={1.5} />
             ) : (
               <Moon className="h-5 w-5" strokeWidth={1.5} />
