@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "bun run lint && bun run typecheck && next dev --turbopack",
+    "dev": "bun run lint && concurrently -n \"next,tsc\" -c \"cyan,yellow\" \"next dev --turbopack\" \"tsc --noEmit --watch --pretty\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings 0",
@@ -15,7 +15,8 @@
     "db:migrate": "bunx prisma migrate dev",
     "db:studio": "bunx prisma studio",
     "db:seed": "bun run scripts/seed.ts",
-    "theme:select": "bun run scripts/select-theme.ts"
+    "theme:select": "bun run scripts/select-theme.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@clack/prompts": "1.1.0",
