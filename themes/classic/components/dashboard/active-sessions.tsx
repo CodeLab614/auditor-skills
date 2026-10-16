@@ -199,11 +199,13 @@ export function ActiveSessions({
   const [isLoading, setIsLoading] = React.useState(false);
   const [revokingId, setRevokingId] = React.useState<string | null>(null);
   const [localSessions, setLocalSessions] = React.useState(sessions);
+  const [prevSessions, setPrevSessions] = React.useState(sessions);
   const [confirmAllOpen, setConfirmAllOpen] = React.useState(false);
 
-  React.useEffect(() => {
+  if (sessions !== prevSessions) {
+    setPrevSessions(sessions);
     setLocalSessions(sessions);
-  }, [sessions]);
+  }
 
   const handleRevokeSession = async (sessionId: string) => {
     setRevokingId(sessionId);

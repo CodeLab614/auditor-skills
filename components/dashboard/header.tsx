@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
+import { useMounted } from '@/hooks/use-mounted';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -108,13 +109,9 @@ export function Header({
   className,
 }: HeaderProps) {
   const [searchValue, setSearchValue] = React.useState('');
-  const [mounted, setMounted] = React.useState(false);
+  const mounted = useMounted();
   const { theme, setTheme } = useTheme();
   const unreadCount = notifications.filter((n) => !n.read).length;
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;

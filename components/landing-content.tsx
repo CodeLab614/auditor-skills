@@ -5,6 +5,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
 import { signOut } from "@/actions/auth";
+import { useMounted } from "@/hooks/use-mounted";
 import { useTheme } from "next-themes";
 import {
   DropdownMenu,
@@ -85,9 +86,7 @@ export function LandingContent({ user }: { user?: LandingUser | null }) {
   const cursorRef = useRef<HTMLDivElement>(null);
   const cursorDotRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = React.useState(false);
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => { setMounted(true); }, []);
+  const mounted = useMounted();
 
   /* ─── Scroll detection ─── */
   useEffect(() => {
