@@ -143,6 +143,23 @@ GITHUB_CLIENT_ID=""
 GITHUB_CLIENT_SECRET=""
 ```
 
+## Turnstile (Optional)
+
+Set both keys to protect registration, verification email resends, and password reset. If either key is omitted, Turnstile is disabled.
+
+Cloudflare's test keys work on `localhost` and development domains:
+
+```bash
+NEXT_PUBLIC_TURNSTILE_SITE_KEY="1x00000000000000000000AA"
+TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"
+```
+
+- Always pass: site key `1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA`.
+- Always fail: site key `2x00000000000000000000AB`, secret `2x0000000000000000000000000000000AA`.
+- Duplicate-token response: secret `3x0000000000000000000000000000000AA`.
+
+Test keys are rejected in production. Create real keys in the Cloudflare dashboard for production.
+
 ## Available Scripts
 
 ```bash

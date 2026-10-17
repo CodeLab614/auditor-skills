@@ -21,6 +21,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import {
+  TurnstileWidget,
+  isTurnstileEnabled,
+} from './turnstile-widget';
+import {
   Form,
   FormControl,
   FormField,
@@ -41,6 +45,8 @@ export function LoginForm() {
     React.useState(false);
   const [isResending, setIsResending] = React.useState(false);
   const [isSocialPending, setIsSocialPending] = React.useState(false);
+  const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = React.useState(0);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -82,7 +88,12 @@ export function LoginForm() {
     }
 
     setIsResending(true);
-    const result = await resendVerificationEmailAction(email);
+    const result = await resendVerificationEmailAction(
+      email,
+      captchaToken ?? undefined
+    );
+    setCaptchaToken(null);
+    setCaptchaResetKey((key) => key + 1);
 
     if (result.response === 'error') {
       toast.error(result.message);
@@ -189,22 +200,31 @@ export function LoginForm() {
           />
 
           {showResendVerification && (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={handleResendVerification}
-              disabled={isResending}
-            >
-              {isResending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                'Resend verification email'
-              )}
-            </Button>
+            <>
+              <TurnstileWidget
+                action="resend-verification"
+                onToken={setCaptchaToken}
+                resetKey={captchaResetKey}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleResendVerification}
+                disabled={
+                  isResending || (isTurnstileEnabled && !captchaToken)
+                }
+              >
+                {isResending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Resend verification email'
+                )}
+              </Button>
+            </>
           )}
 
           <Button type="submit" className="w-full" disabled={isPending}>

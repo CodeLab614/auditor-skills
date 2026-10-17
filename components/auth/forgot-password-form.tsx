@@ -11,6 +11,10 @@ import { forgotPasswordSchema, type ForgotPasswordFormData } from '@/validations
 import { forgotPasswordAction } from '@/actions/auth';
 
 import { AuthCard, AuthLink } from "./auth-card";
+import {
+  TurnstileWidget,
+  isTurnstileEnabled,
+} from './turnstile-widget';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,6 +29,8 @@ import {
 export function ForgotPasswordForm() {
   const [isPending, startTransition] = useTransition();
   const [sentEmail, setSentEmail] = React.useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = React.useState(0);
 
   const form = useForm<ForgotPasswordFormData>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -35,7 +41,12 @@ export function ForgotPasswordForm() {
 
   const onSubmit = (values: ForgotPasswordFormData) => {
     startTransition(async () => {
-      const result = await forgotPasswordAction(values);
+      const result = await forgotPasswordAction(
+        values,
+        captchaToken ?? undefined
+      );
+      setCaptchaToken(null);
+      setCaptchaResetKey((key) => key + 1);
 
       if (result.response === 'error') {
         toast.error(result.message);
@@ -70,6 +81,11 @@ export function ForgotPasswordForm() {
         }
       >
         <div className="flex flex-col items-center py-4 space-y-4">
+          <TurnstileWidget
+            action="forgot-password"
+            onToken={setCaptchaToken}
+            resetKey={captchaResetKey}
+          />
           <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
             <CheckCircle
               className="h-6 w-6 text-emerald-400"
@@ -86,7 +102,9 @@ export function ForgotPasswordForm() {
             type="button"
             variant="outline"
             className="w-full mt-4"
-            disabled={isPending}
+            disabled={
+              isPending || (isTurnstileEnabled && !captchaToken)
+            }
             onClick={handleResend}
           >
             {isPending ? (
@@ -146,7 +164,17 @@ export function ForgotPasswordForm() {
             )}
           />
 
-          <Button type="submit" className="w-full" disabled={isPending}>
+          <TurnstileWidget
+            action="forgot-password"
+            onToken={setCaptchaToken}
+            resetKey={captchaResetKey}
+          />
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isPending || (isTurnstileEnabled && !captchaToken)}
+          >
             {isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

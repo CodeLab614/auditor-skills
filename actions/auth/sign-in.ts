@@ -6,6 +6,7 @@ import { headers } from 'next/headers';
 import { APIError } from 'better-auth/api';
 import { loginSchema } from '@/validations/auth';
 import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
+import { verifyTurnstile } from '@/lib/turnstile';
 
 type SignInData = {
   twoFactorRequired?: boolean;
@@ -82,24 +83,56 @@ export const signInAction = async (
 };
 
 export const resendVerificationEmailAction = async (
-  email: string
+  email: string,
+  captchaToken?: string
 ): Promise<{
   response: 'success' | 'error';
   message: string;
   data: null;
 }> => {
   try {
+    const emailValidation = z.string().email().safeParse(email);
+
+    if (!emailValidation.success) {
+      return {
+        response: 'error',
+        message: 'Invalid fields',
+        data: null,
+      };
+    }
+
     const clientIp = await getClientIp();
     const normalizedEmail = email.trim().toLowerCase();
-    const rateLimit = await checkRateLimit([
-      ...(clientIp ? [{ key: `verify-email:ip:${clientIp}`, window: 600, max: 5 }] : []),
+    const ipRateLimit = clientIp
+      ? await checkRateLimit([
+          { key: `verify-email:ip:${clientIp}`, window: 600, max: 5 },
+        ])
+      : null;
+
+    if (ipRateLimit?.limited) {
+      return {
+        response: 'error',
+        message: `Too many attempts. Try again in ${ipRateLimit.retryAfter} seconds.`,
+        data: null,
+      };
+    }
+
+    if (!(await verifyTurnstile(captchaToken, 'resend-verification'))) {
+      return {
+        response: 'error',
+        message: 'Captcha verification failed. Please try again.',
+        data: null,
+      };
+    }
+
+    const emailRateLimit = await checkRateLimit([
       { key: `verify-email:email:${hashKey(normalizedEmail)}`, window: 600, max: 3 },
     ]);
 
-    if (rateLimit.limited) {
+    if (emailRateLimit.limited) {
       return {
         response: 'error',
-        message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
+        message: `Too many attempts. Try again in ${emailRateLimit.retryAfter} seconds.`,
         data: null,
       };
     }

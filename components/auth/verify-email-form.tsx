@@ -7,6 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Mail, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { resendVerificationEmailAction } from '@/actions/auth';
+import {
+  TurnstileWidget,
+  isTurnstileEnabled,
+} from './turnstile-widget';
 
 interface VerifyEmailFormProps {
   email?: string;
@@ -18,6 +22,8 @@ export function VerifyEmailForm({
   const router = useRouter();
   const [isPending, setIsPending] = React.useState(false);
   const [resendCooldown, setResendCooldown] = React.useState(0);
+  const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = React.useState(0);
 
   React.useEffect(() => {
     if (resendCooldown > 0) {
@@ -34,7 +40,12 @@ export function VerifyEmailForm({
 
     setIsPending(true);
 
-    const result = await resendVerificationEmailAction(email);
+    const result = await resendVerificationEmailAction(
+      email,
+      captchaToken ?? undefined
+    );
+    setCaptchaToken(null);
+    setCaptchaResetKey((key) => key + 1);
 
     if (result.response === 'error') {
       toast.error(result.message);
@@ -73,11 +84,20 @@ export function VerifyEmailForm({
         </div>
 
         <div className="w-full space-y-3">
+          <TurnstileWidget
+            action="resend-verification"
+            onToken={setCaptchaToken}
+            resetKey={captchaResetKey}
+          />
           <Button
             variant="outline"
             className="w-full"
             onClick={handleResend}
-            disabled={isPending || resendCooldown > 0}
+            disabled={
+              isPending ||
+              resendCooldown > 0 ||
+              (isTurnstileEnabled && !captchaToken)
+            }
           >
             {isPending ? (
               <>

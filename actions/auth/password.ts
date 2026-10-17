@@ -11,13 +11,15 @@ import {
   resetPasswordSchema,
 } from '@/validations/auth';
 import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
+import { verifyTurnstile } from '@/lib/turnstile';
 
 type ForgotPasswordData = {
   email: string;
 };
 
 export const forgotPasswordAction = async (
-  values: z.infer<typeof forgotPasswordSchema>
+  values: z.infer<typeof forgotPasswordSchema>,
+  captchaToken?: string
 ): Promise<{
   response: 'success' | 'error';
   message: string;
@@ -37,15 +39,36 @@ export const forgotPasswordAction = async (
     const { email } = data;
     const clientIp = await getClientIp();
     const normalizedEmail = email.trim().toLowerCase();
-    const rateLimit = await checkRateLimit([
-      ...(clientIp ? [{ key: `reset:ip:${clientIp}`, window: 600, max: 5 }] : []),
+    const ipRateLimit = clientIp
+      ? await checkRateLimit([
+          { key: `reset:ip:${clientIp}`, window: 600, max: 5 },
+        ])
+      : null;
+
+    if (ipRateLimit?.limited) {
+      return {
+        response: 'error',
+        message: `Too many attempts. Try again in ${ipRateLimit.retryAfter} seconds.`,
+        data: null,
+      };
+    }
+
+    if (!(await verifyTurnstile(captchaToken, 'forgot-password'))) {
+      return {
+        response: 'error',
+        message: 'Captcha verification failed. Please try again.',
+        data: null,
+      };
+    }
+
+    const emailRateLimit = await checkRateLimit([
       { key: `reset:email:${hashKey(normalizedEmail)}`, window: 600, max: 3 },
     ]);
 
-    if (rateLimit.limited) {
+    if (emailRateLimit.limited) {
       return {
         response: 'error',
-        message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
+        message: `Too many attempts. Try again in ${emailRateLimit.retryAfter} seconds.`,
         data: null,
       };
     }

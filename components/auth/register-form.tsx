@@ -21,6 +21,10 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import {
+  TurnstileWidget,
+  isTurnstileEnabled,
+} from './turnstile-widget';
+import {
   Form,
   FormControl,
   FormField,
@@ -40,6 +44,8 @@ export function RegisterForm() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const [isSocialPending, setIsSocialPending] = React.useState(false);
+  const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = React.useState(0);
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -54,7 +60,9 @@ export function RegisterForm() {
 
   const onSubmit = (values: RegisterFormData) => {
     startTransition(async () => {
-      const result = await signUpAction(values);
+      const result = await signUpAction(values, captchaToken ?? undefined);
+      setCaptchaToken(null);
+      setCaptchaResetKey((key) => key + 1);
 
       if (result.response === 'error') {
         toast.error(result.message);
@@ -251,7 +259,7 @@ export function RegisterForm() {
           <Button
             type="submit"
             className="w-full"
-            disabled={isPending}
+            disabled={isPending || (isTurnstileEnabled && !captchaToken)}
           >
             {isPending ? (
               <>
@@ -262,6 +270,12 @@ export function RegisterForm() {
               "Create account"
             )}
           </Button>
+
+          <TurnstileWidget
+            action="signup"
+            onToken={setCaptchaToken}
+            resetKey={captchaResetKey}
+          />
 
           {hasOAuth && (
             <>
