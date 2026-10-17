@@ -4,6 +4,15 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # typescript-eslint 8.x solo soporta TypeScript <6.1; se revisa cuando haya soporte.
+      - dependency-name: typescript
+        versions: [">= 6.1.0"]
+      # eslint-plugin-react, incluido por eslint-config-next, solo soporta ESLint ^9.
+      - dependency-name: eslint
+        versions: [">= 10.0.0"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       bun-minor-and-patch:
         update-types:
@@ -24,6 +33,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # Node solo se sube a la siguiente versión LTS, a mano, cambiando Dockerfile, docker/Dockerfile.dev y @types/node.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
     groups:
       docker-minor-and-patch:
         update-types:
@@ -34,6 +47,10 @@ updates:
     directory: /docker
     schedule:
       interval: weekly
+    ignore:
+      # Node solo se sube a la siguiente versión LTS, a mano, cambiando Dockerfile, docker/Dockerfile.dev y @types/node.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
     groups:
       docker-dev-minor-and-patch:
         update-types:

@@ -158,6 +158,7 @@ bunx prisma db push            # Push schema to database
 7. **router.refresh()** - Reload server data after mutations
 8. **Auth through server actions** - `/api/auth` stays closed; use `auth.api.*`
 9. **Keep Classic theme in sync** - After changing `app/auth`, `components/auth`, `app/page.tsx`, `components/landing-content.tsx`, `app/globals.css`, `app/layout.tsx`, or `components/ui`, run `bun run theme:sync-classic`. CI checks this with `bun run theme:sync-classic --check`.
+10. **Respect toolchain update limits** - Keep TypeScript below 6.1 because typescript-eslint 8.x does not support 6.1+, ESLint on 9.x because eslint-plugin-react (included by eslint-config-next) supports only ^9, and Node on the current LTS because upgrades must change both Dockerfiles and `@types/node` together.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
