@@ -258,4 +258,4 @@ docker compose -f docker/compose.yaml run --rm \
 
 ---
 
-← [Cloudflare Turnstile](02-turnstile.md) · [Índice en español](README.md) · [Documentación del proyecto →](../README.md)
+← [Cloudflare Turnstile](02-turnstile.md) · [Índice en español](README.md) · [Actualización de dependencias →](04-dependency-updates.md) · [Documentación del proyecto](../README.md)

@@ -1,0 +1,54 @@
+# Actualización de dependencias
+
+RapidAuth mantiene cada dependencia directa en una versión exacta en `package.json`. Así, las instalaciones son predecibles y una dependencia solo cambia mediante una actualización revisada. Bun usa `bunfig.toml` (`[install] exact = true`) y Dependabot usa `versioning-strategy: increase` para conservar los especificadores exactos en sus pull requests. No integres una actualización hasta que pase las comprobaciones requeridas de CI.
+
+## Revisar un pull request de Dependabot
+
+Para cada actualización propuesta:
+
+1. Lee las notas de versión y los cambios enlazados del paquete y de todos los paquetes del grupo. Busca cambios incompatibles, API eliminadas o renombradas, pasos de migración, correcciones de seguridad, versiones de runtime compatibles y cambios en dependencias pares.
+2. Confirma que la versión sea estable, compatible con este proyecto y con los demás paquetes modificados. Revisa las versiones exactas en `package.json` y los cambios resueltos en `bun.lock`.
+3. Revisa los resultados de CI y el diff generado. Acepta el pull request solo si entiendes el cambio, pasan las comprobaciones requeridas y completaste la lista de su etapa.
+4. Ciérralo o déjalo pendiente si es una versión preliminar, rebasa un límite de herramientas, necesita una migración que no está incluida, rompe una comprobación o no puedes verificar su comportamiento. Anota el motivo y revísalo en la etapa planeada correspondiente.
+
+Dependabot agrupa las actualizaciones menores y de parche. Puedes separar un paquete del grupo si requiere una investigación propia.
+
+## Actualizaciones grandes por etapas
+
+La actualización de octubre de 2026 sirve como modelo: primero versiones menores y de parche; luego librerías críticas como Better Auth; después versiones mayores; y al final componentes de shadcn. Mantén cada etapa aislada y termina su lista de comprobación antes de iniciar la siguiente. **En cada etapa** deben pasar todos estos puntos:
+
+- [ ] CI está en verde, incluidos lint, revisión de tipos, build de producción, auditoría de dependencias, sincronización del tema y trabajos de Docker.
+- [ ] Funcionan el inicio y cierre de sesión con credenciales válidas e inválidas.
+- [ ] Funcionan la creación, el cambio y la recuperación de contraseñas, incluidos los pasos de verificación de esos flujos.
+- [ ] Funcionan la verificación de email y el reenvío del correo de verificación.
+- [ ] Turnstile funciona en registro, reenvío de email y recuperación de contraseña; se rechazan tokens inválidos o ausentes.
+- [ ] Revisa visualmente las páginas principales frente a la versión anterior e inspecciona las áreas modificadas.
+- [ ] Compila la imagen de Docker de producción y ejecuta su comprobación de salud o las pruebas de Docker del proyecto.
+
+### Etapa 1: versiones menores y de parche
+
+Revisa las actualizaciones agrupadas de Dependabot y mantén juntas las versiones menores y de parche compatibles. Separa un paquete si sus notas de versión o los resultados de CI requieren investigarlo individualmente. Completa la lista de comprobación antes de aceptar la etapa.
+
+### Etapa 2: librerías críticas como Better Auth
+
+Actualiza una librería crítica a la vez. Lee sus notas de migración y seguridad, verifica la configuración de autenticación y los adaptadores, y prueba el inicio de sesión, las sesiones, las contraseñas y los flujos de email. Completa la lista de comprobación antes de aceptar cada actualización.
+
+### Etapa 3: versiones mayores
+
+Actualiza un paquete mayor o un conjunto estrechamente relacionado a la vez. Sigue su guía de migración, actualiza el código y la configuración del proyecto, y revisa los requisitos de dependencias pares. Completa la lista de comprobación antes de aceptar cada actualización mayor.
+
+### Etapa 4: componentes de shadcn
+
+Usa la herramienta de línea de comandos de shadcn fijada por el proyecto para actualizar o agregar los componentes afectados, por ejemplo `bunx shadcn add button`. Compara el diff generado con las personalizaciones locales y restáuralas o combínalas de forma deliberada; no reemplaces componentes personalizados a ciegas. Después ejecuta `bun run theme:sync-classic` para copiar los cambios de UI compartida al tema Classic, inspecciona el resultado y ejecuta `bun run theme:sync-classic --check`. Completa la lista de comprobación antes de aceptar las actualizaciones de componentes.
+
+## Límites de herramientas
+
+- **TypeScript:** mantenlo por debajo de 6.1 mientras las herramientas TypeScript ESLint del proyecto no sean compatibles con 6.1 o posterior. Antes de elegir una versión, revisa el rango de dependencia par de las herramientas instaladas.
+- **ESLint:** permanece en la versión 9. La versión de `eslint-plugin-react` incluida por `eslint-config-next` actualmente admite ESLint 9; revisa esa compatibilidad antes de pasar a una versión mayor más nueva.
+- **Node.js:** usa una versión LTS con soporte activo. Dependabot ignora las actualizaciones mayores de Node para que el proyecto pase manualmente a la siguiente LTS.
+
+Para pasar Node a la siguiente LTS, actualiza la imagen base de Node en cada etapa de `Dockerfile` y en `docker/Dockerfile.dev`, actualiza `@types/node` a la versión mayor correspondiente y revisa cualquier declaración de versión de Node en CI o en la configuración del proyecto. Mantén `packageManager` de `package.json` alineado si también cambias la versión de Bun; en este proyecto identifica Bun, no Node. CI lee la versión de Bun desde `package.json`. Reconstruye y valida las imágenes de desarrollo y producción, y completa la lista de comprobación. Cambia las exclusiones de Node en Dependabot solo si el proyecto modifica deliberadamente su política de actualizaciones manuales de LTS.
+
+## Agregar o actualizar una dependencia
+
+Agrega una dependencia con versión exacta, por ejemplo `bun add paquete@1.2.3`; `bunfig.toml` deja las instalaciones exactas como opción predeterminada. Para una actualización deliberada, cambia a la versión exacta elegida, ejecuta `bun install` y revisa que `bun.lock` cambie solo como se esperaba. Sigue la etapa aplicable y su lista de comprobación. Mantén `bun install --frozen-lockfile` funcionando para que CI instale la resolución confirmada sin cambiarla.

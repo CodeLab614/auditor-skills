@@ -6,3 +6,4 @@ Elige una ruta para empezar en [Quick Start](../README.md#quick-start): asistent
 2. [Variables de entorno](01-environment-variables.md) — referencia de cada variable: propósito, origen, entornos donde se necesita y notas de uso.
 3. [Cloudflare Turnstile](02-turnstile.md) — crea un widget, usa claves de prueba en local y configura claves reales para compilar y desplegar.
 4. [Docker](03-docker.md) — instala Docker, inicia la app y la base local, y prepara una imagen de producción.
+5. [Actualización de dependencias](04-dependency-updates.md) — revisa Dependabot, actualiza dependencias por etapas probadas y respeta los límites de herramientas.

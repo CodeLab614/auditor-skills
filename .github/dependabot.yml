@@ -4,11 +4,12 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    versioning-strategy: increase
     ignore:
-      # typescript-eslint 8.x solo soporta TypeScript <6.1; se revisa cuando haya soporte.
+      # typescript-eslint 8.x does not support TypeScript 6.1 or newer; revisit when support changes.
       - dependency-name: typescript
         versions: [">= 6.1.0"]
-      # eslint-plugin-react, incluido por eslint-config-next, solo soporta ESLint ^9.
+      # eslint-plugin-react, included by eslint-config-next, only supports ESLint 9.x.
       - dependency-name: eslint
         versions: [">= 10.0.0"]
       - dependency-name: "@types/node"
@@ -34,7 +35,7 @@ updates:
     schedule:
       interval: weekly
     ignore:
-      # Node solo se sube a la siguiente versión LTS, a mano, cambiando Dockerfile, docker/Dockerfile.dev y @types/node.
+      # Upgrade Node manually to the next LTS in both Dockerfiles and @types/node.
       - dependency-name: node
         update-types: ["version-update:semver-major"]
     groups:
@@ -48,7 +49,7 @@ updates:
     schedule:
       interval: weekly
     ignore:
-      # Node solo se sube a la siguiente versión LTS, a mano, cambiando Dockerfile, docker/Dockerfile.dev y @types/node.
+      # Upgrade Node manually to the next LTS in both Dockerfiles and @types/node.
       - dependency-name: node
         update-types: ["version-update:semver-major"]
     groups:
