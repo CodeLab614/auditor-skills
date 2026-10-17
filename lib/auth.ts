@@ -11,6 +11,51 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
   databaseHooks: {
+    account: {
+      create: {
+        before: async (account) => {
+          if (account.providerId === "credential") return;
+
+          const user = await prisma.user.findUnique({
+            where: { id: account.userId },
+            select: { emailVerified: true },
+          });
+
+          if (!user || user.emailVerified) return;
+
+          // OAuth proves email ownership; the prior unverified password is not trustworthy.
+          const removedCredentials = await prisma.account.deleteMany({
+            where: {
+              userId: account.userId,
+              providerId: "credential",
+            },
+          });
+
+          if (removedCredentials.count > 0) {
+            await prisma.session.deleteMany({
+              where: { userId: account.userId },
+            });
+
+            try {
+              await prisma.activityLog.create({
+                data: {
+                  userId: account.userId,
+                  action: "oauth_link",
+                  details: JSON.stringify({
+                    provider: account.providerId,
+                    removedUnverifiedPassword: true,
+                  }),
+                  ipAddress: "unknown",
+                  userAgent: "unknown",
+                },
+              });
+            } catch (error) {
+              console.error("Failed to log OAuth account linking activity:", error);
+            }
+          }
+        },
+      },
+    },
     session: {
       create: {
         after: async (session) => {
