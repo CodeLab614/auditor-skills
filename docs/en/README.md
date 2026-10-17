@@ -1,6 +1,6 @@
 # English documentation
 
-Read these guides in order: start with manual installation, review every environment variable, configure Turnstile, then follow the Docker guide if you want a local container setup or a Docker production image.
+Choose one starting path in the [Quick Start](../README.md#quick-start): setup wizard, manual setup, or Docker. These are alternatives, not steps to complete in sequence. The environment-variable and Turnstile guides are references you can use with any path.
 
 1. [Manual setup](00-manual-setup.md) — install RapidAuth without the setup wizard, configure services, prepare the database and admin account, and run the app.
 2. [Environment variables](01-environment-variables.md) — reference for every environment variable, its purpose, source, required environments, and handling notes.

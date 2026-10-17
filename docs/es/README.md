@@ -1,6 +1,6 @@
 # Documentación en español
 
-Lee estas guías en orden: empieza con la instalación manual, revisa cada variable de entorno, configura Turnstile y luego sigue la guía de Docker si quieres levantar la app en contenedores o crear una imagen de producción.
+Elige una ruta para empezar en [Quick Start](../README.md#quick-start): asistente, setup manual o Docker. Son alternativas; no tienes que seguirlas en orden ni completar las tres. Las guías de variables de entorno y Turnstile sirven como referencia para cualquiera de las rutas.
 
 1. [Setup manual](00-manual-setup.md) — instala RapidAuth sin el asistente, configura los servicios, prepara la base de datos y la cuenta admin, e inicia la app.
 2. [Variables de entorno](01-environment-variables.md) — referencia de cada variable: propósito, origen, entornos donde se necesita y notas de uso.

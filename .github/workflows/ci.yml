@@ -1,0 +1,229 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run theme:sync-classic --check
+
+  build:
+    name: Production build
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci?sslmode=disable
+      BETTER_AUTH_URL: http://localhost:3000
+      BETTER_AUTH_SECRET: 0000000000000000000000000000000000000000000000000000000000000000
+      # These fake values pass the real-key format check; they are not secrets.
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 0x4AAAAAACIBfakeCIpublicsitekey0000000000
+      TURNSTILE_SECRET_KEY: 0x4AAAAAACIBfakeCIsecretkey00000000000000000
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+
+  turnstile-guard:
+    name: Turnstile build guard
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci?sslmode=disable
+      BETTER_AUTH_URL: http://localhost:3000
+      BETTER_AUTH_SECRET: 0000000000000000000000000000000000000000000000000000000000000000
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      - name: Reject missing Turnstile keys
+        shell: bash
+        run: |
+          if bun run build > /tmp/build-without-turnstile.log 2>&1; then
+            echo "The production build unexpectedly passed without Turnstile keys."
+            exit 1
+          fi
+          grep -F "docs/en/02-turnstile.md" /tmp/build-without-turnstile.log
+      - name: Reject Turnstile test keys
+        shell: bash
+        env:
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+          TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+        run: |
+          if bun run build > /tmp/build-with-test-turnstile.log 2>&1; then
+            echo "The production build unexpectedly passed with Turnstile test keys."
+            exit 1
+          fi
+          grep -F "docs/en/02-turnstile.md" /tmp/build-with-test-turnstile.log
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      # Production dependencies ship with the app: any high or critical advisory fails CI.
+      - name: Audit production dependencies
+        run: bun audit --prod --audit-level=high
+      # Development tooling (ESLint, shadcn CLI, react-email preview) never ships with the app.
+      # Report its advisories without failing CI; Dependabot proposes the upgrades.
+      - name: Report development dependency advisories
+        continue-on-error: true
+        run: bun audit --audit-level=high
+
+  docker:
+    name: Docker integration
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      TURNSTILE_SECRET_KEY: 0x4AAAAAACIBfakeCIsecretkey00000000000000000
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 0x4AAAAAACIBfakeCIpublicsitekey0000000000
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Create a non-secret local environment file
+        run: |
+          cp .env.example .env
+          sed -i 's#^DATABASE_URL=.*#DATABASE_URL="postgresql://ci:ci@127.0.0.1:5432/ci?sslmode=disable"#' .env
+          sed -i 's#^BETTER_AUTH_SECRET=.*#BETTER_AUTH_SECRET="0000000000000000000000000000000000000000000000000000000000000000"#' .env
+          sed -i 's#^RESEND_API_KEY=.*#RESEND_API_KEY="re_ci_not_a_secret"#' .env
+          sed -i 's#^FROM_EMAIL=.*#FROM_EMAIL="RapidAuth <ci@example.invalid>"#' .env
+          sed -i 's#^SEED_ADMIN_PASSWORD=.*#SEED_ADMIN_PASSWORD="ci-admin-password"#' .env
+      - name: Validate Compose configuration
+        run: docker compose -p rapidauth-ci -f docker/compose.yaml config --quiet
+      - name: Start development stack and smoke test
+        shell: bash
+        run: |
+          docker compose -p rapidauth-ci -f docker/compose.yaml up -d --build
+          for attempt in $(seq 1 120); do
+            : "$attempt"
+            status="$(curl --silent --output /dev/null --write-out '%{http_code}' http://localhost:3000/auth/login || true)"
+            if [ "$status" = "200" ]; then
+              break
+            fi
+            sleep 2
+          done
+          if [ "${status:-}" != "200" ]; then
+            echo "The development app did not return HTTP 200 from /auth/login."
+            docker compose -p rapidauth-ci -f docker/compose.yaml logs app db
+            exit 1
+          fi
+          docker compose -p rapidauth-ci -f docker/compose.yaml logs app > /tmp/rapidauth-app.log
+          grep -qF "Created admin user:" /tmp/rapidauth-app.log
+          echo "Admin creation log found."
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: Dockerfile
+          tags: rapidauth-ci-production:local
+          load: true
+          build-args: |
+            NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ env.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+          secret-envs: |
+            turnstile_secret_key=TURNSTILE_SECRET_KEY
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Run the production image and verify health
+        shell: bash
+        env:
+          DATABASE_URL: postgresql://rapidauth:rapidauth@db:5432/rapidauth?sslmode=disable
+          BETTER_AUTH_URL: http://localhost:3001
+          BETTER_AUTH_SECRET: 0000000000000000000000000000000000000000000000000000000000000000
+          RESEND_API_KEY: re_ci_not_a_secret
+          FROM_EMAIL: RapidAuth-ci@example.invalid
+        run: |
+          docker run -d --name rapidauth-ci-production \
+            --network rapidauth-ci_default -p 3001:3000 \
+            -e DATABASE_URL -e BETTER_AUTH_URL -e BETTER_AUTH_SECRET \
+            -e RESEND_API_KEY -e FROM_EMAIL \
+            -e TURNSTILE_SECRET_KEY -e NEXT_PUBLIC_TURNSTILE_SITE_KEY \
+            rapidauth-ci-production:local
+          for attempt in $(seq 1 120); do
+            : "$attempt"
+            health="$(docker inspect --format '{{.State.Health.Status}}' rapidauth-ci-production 2>/dev/null || true)"
+            if [ "$health" = "healthy" ]; then
+              break
+            fi
+            sleep 2
+          done
+          if [ "${health:-}" != "healthy" ]; then
+            docker logs rapidauth-ci-production
+            echo "The production image did not become healthy."
+            exit 1
+          fi
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://localhost:3001/auth/login)" = "200"
+      - name: Verify the build secret is absent from the image
+        shell: bash
+        run: |
+          if docker history --no-trunc rapidauth-ci-production:local | grep -Fq "$TURNSTILE_SECRET_KEY"; then
+            echo "The Turnstile secret appears in Docker history."
+            exit 1
+          fi
+          if docker image inspect rapidauth-ci-production:local | grep -Fq "$TURNSTILE_SECRET_KEY"; then
+            echo "The Turnstile secret appears in image metadata."
+            exit 1
+          fi
+          docker run --rm --entrypoint /bin/sh \
+            -e SECRET_TO_CHECK="$TURNSTILE_SECRET_KEY" \
+            rapidauth-ci-production:local \
+            -c 'if grep -R -F "$SECRET_TO_CHECK" /app; then exit 1; fi'
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          docker logs rapidauth-ci-production 2>&1 || true
+          docker compose -p rapidauth-ci -f docker/compose.yaml logs app db 2>&1 || true
+      - name: Clean up Docker resources
+        if: always()
+        run: |
+          docker rm -f rapidauth-ci-production 2>/dev/null || true
+          docker compose -p rapidauth-ci -f docker/compose.yaml down -v --remove-orphans 2>/dev/null || true

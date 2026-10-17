@@ -3,6 +3,7 @@ name: rapidauth
 services:
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: rapidauth
       POSTGRES_PASSWORD: rapidauth

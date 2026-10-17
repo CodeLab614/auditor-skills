@@ -34,15 +34,22 @@ A production-ready Next.js 16+ authentication boilerplate with Better Auth, desi
 
 ## Quick Start
 
-### Prerequisites
+[![CI](https://github.com/jotredev/rapidauth-v2/actions/workflows/ci.yml/badge.svg)](https://github.com/jotredev/rapidauth-v2/actions/workflows/ci.yml)
 
-- [Bun](https://bun.sh/) (recommended) or Node.js 20.9+
-- PostgreSQL database ([Neon](https://neon.tech) recommended)
-- A Docker engine with Compose v2 and Buildx (Docker Desktop, OrbStack, Colima, or Docker Engine; the Docker setup includes a local database and does not require Bun or PostgreSQL on your computer)
-- [Resend](https://resend.com) account for emails
-- OAuth credentials (optional)
+The project pins Bun to **1.4.2** in `package.json`; use that version locally and in Docker.
 
-### Recommended: Setup wizard
+Choose **one** of these four ways to start. You do not need to follow the other setup paths.
+
+| Option | What must be installed | Database | Main command |
+| --- | --- | --- | --- |
+| Setup wizard | [Bun](https://bun.sh/); Docker engine only for its local database option | External PostgreSQL or local PostgreSQL in Docker | `bun run init:setup` |
+| Manual setup | [Bun](https://bun.sh/) | External PostgreSQL, such as [Neon](https://neon.tech) | `bun dev` after following the manual guide |
+| Docker | A Docker engine with Compose v2 and Buildx | Local PostgreSQL, created by Compose | `docker compose -f docker/compose.yaml up --build` |
+| Docker for the database only | [Bun](https://bun.sh/) and a Docker engine | Local PostgreSQL in Docker; no external database | `docker compose -f docker/compose.yaml up -d db`, then `bun dev` |
+
+### Option 1: Setup wizard
+
+**Requirements:** Bun. Choose an external PostgreSQL database or let the wizard run local PostgreSQL in Docker; the local option also requires a Docker engine. Create a [Resend](https://resend.com) account for email delivery; OAuth credentials are optional.
 
 ```bash
 # Clone the repository
@@ -57,7 +64,7 @@ bun run init:setup
 ```
 
 The setup wizard will guide you through:
-1. Database connection
+1. Database connection (external PostgreSQL or a local Docker database)
 2. Better Auth configuration
 3. Email service setup
 4. Cloudflare Turnstile
@@ -65,19 +72,50 @@ The setup wizard will guide you through:
 6. Database setup and admin user creation
 7. Optional auth theme selection
 
-### Manual setup
+You can run `bun run init:setup` again later. It offers the sections to update; only the selected section is changed in `.env` (or choose **Everything** to revisit all sections).
 
-To configure each step yourself, follow the [English manual setup guide](docs/en/00-manual-setup.md) or the [guía de setup manual en español](docs/es/00-manual-setup.md).
+### Option 2: Manual setup
 
-### Docker
+**Requirements:** Bun and access to an external PostgreSQL database. Create a [Resend](https://resend.com) account for email delivery; OAuth credentials are optional.
 
-To start the app and a local PostgreSQL database with Docker, follow the [English Docker guide](docs/en/03-docker.md) or the [guía de Docker en español](docs/es/03-docker.md).
+To configure each step yourself, follow the [English manual setup guide](docs/en/00-manual-setup.md) or the [guía de setup manual en español](docs/es/00-manual-setup.md). Start the app with `bun dev` after completing that guide.
+
+### Option 3: Docker
+
+**Requirements:** A Docker engine with Compose v2 and Buildx, such as Docker Desktop, OrbStack, Colima, or Docker Engine. You do not need Bun or PostgreSQL installed on your computer. Compose creates the local database, applies the schema, and seeds the admin account when it starts; you do not need to run `bun run init:setup`.
+
+A `.env` file created by `bun run init:setup` also works with Docker. Compose supplies the local database URL and local app URL when starting the container. To start the app and database, follow the [English Docker guide](docs/en/03-docker.md) or the [guía de Docker en español](docs/es/03-docker.md).
+
+### Option 4: Docker for the database only
+
+**Requirements:** Bun and a Docker engine. You do not need an external database. Docker runs PostgreSQL while `bun dev` runs the app directly on your computer. Next.js recommends this approach for development on macOS and Windows because it is faster than mounting the app code into Docker. Follow the [English Docker guide](docs/en/03-docker.md#run-the-app-on-your-computer-and-only-postgresql-in-docker) or the [guía en español](docs/es/03-docker.md#ejecuta-la-app-en-tu-computadora-y-solo-postgresql-en-docker).
 
 Browse all guides from the [documentation index](docs/README.md).
 
 ### Admin Account
 
 The setup seed prints a randomly generated admin password once. Save it and change it after your first login. Set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` to customize the seed credentials; a configured password must be at least 8 characters. If the admin already exists, the seed keeps its current password. To reset it, run `bun run scripts/reset-password.ts [email]` (defaults to `admin@admin.com`); the new password is printed once.
+
+### Themes and template maintenance
+
+Themes can change authentication pages, the landing page, shared UI, layout, and styles. They never include or replace the dashboard. A v2 `theme.json` must declare a compatible `coreVersion` such as `">=0.2.0"` (only `>=x.y.z`, at least `0.2.0`); RapidAuth rejects themes with a missing or incompatible core version before changing files. Aurora and Nexus need an update before they can be installed with this core version.
+
+When you change the template's auth, landing, layout, style, or shared UI files, update Classic with `bun run theme:sync-classic`. Run `bun run theme:sync-classic --check` to see whether Classic is in sync; CI runs this check too.
+
+The local pre-commit hook sets `RAPIDAUTH_SKIP_TURNSTILE_BUILD_CHECK=1` only for its compile check. This bypass is never for production, CI production builds, or hosting builds; those builds must validate real Turnstile keys.
+
+### CI
+
+The [GitHub Actions workflow](.github/workflows/ci.yml) has separate quality, production build, Turnstile guard, dependency audit, and Docker jobs. Reproduce quality locally with `bun run lint`, `bun run typecheck`, and `bun run theme:sync-classic --check`; run the audit with `bun audit --audit-level=high`. To exercise the build guard safely, use dummy database/auth values (the build does not connect to the database):
+
+```sh
+BUILD_ENV='DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?sslmode=disable BETTER_AUTH_URL=http://localhost:3000 BETTER_AUTH_SECRET=0000000000000000000000000000000000000000000000000000000000000000 NEXT_TELEMETRY_DISABLED=1'
+env NEXT_PUBLIC_TURNSTILE_SITE_KEY= TURNSTILE_SECRET_KEY= $BUILD_ENV bun run build # expected to fail without Turnstile keys
+env $BUILD_ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA TURNSTILE_SECRET_KEY=1x0000000000000000000000AA bun run build # expected to fail with test keys
+env $BUILD_ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=0x4AAAAAACIBfakeCIpublicsitekey0000000000 TURNSTILE_SECRET_KEY=0x4AAAAAACIBfakeCIsecretkey00000000000000000 bun run build # fake format-valid keys; expected to compile
+```
+
+Run the Docker job steps using the isolated project name and alternate ports shown in [the Docker guide](docs/en/03-docker.md). Production builds always validate Turnstile. The local pre-commit hook alone uses `RAPIDAUTH_SKIP_TURNSTILE_BUILD_CHECK=1` for a compile check; never set it in production.
 
 ## Tech Stack
 

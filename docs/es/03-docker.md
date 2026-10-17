@@ -74,6 +74,53 @@ Si creas otro proyecto a partir de esta plantilla, cambia `name: rapidauth` en `
 
 Los comandos `bun run docker:up`, `bun run docker:logs`, `bun run docker:down` y `bun run docker:reset` son atajos opcionales. Requieren Bun en tu computadora; los comandos de Docker anteriores no.
 
+## Ejecuta la app en tu computadora y solo PostgreSQL en Docker
+
+Esta es una alternativa a ejecutar ambos servicios en Docker. Suele ser más rápida en macOS y Windows porque Next.js recomienda ejecutar la app directamente en la computadora en vez de montar el código fuente dentro de un contenedor.
+
+También puedes elegir esta opción de base de datos en `bun run init:setup`. El asistente comprueba Docker, inicia solo la base, guarda su URL local en `.env` y luego aplica el esquema y crea el admin como parte del setup.
+
+La base se inicia automáticamente cuando arranca el motor de Docker, salvo que la hayas detenido a propósito con `docker compose -f docker/compose.yaml stop db`.
+
+Inicia solo la base en segundo plano. Este comando para la base no necesita un archivo `.env`:
+
+```sh
+docker compose -f docker/compose.yaml up -d db
+```
+
+Configura en `.env` la URL de la base local de Docker:
+
+```dotenv
+DATABASE_URL="postgresql://rapidauth:rapidauth@localhost:5432/rapidauth?sslmode=disable"
+DOCKER_DATABASE=true
+```
+
+Si cambiaste `DB_PORT`, reemplaza `5432` en la URL por ese puerto del host. `sslmode=disable` solo se usa con esta base local de Docker. Nunca lo uses con una base de producción.
+
+Cuando `DOCKER_DATABASE=true`, `bun dev` inicia la base y espera a que esté saludable antes de ejecutar lint y Next.js. Con cualquier otro valor o si la variable no existe, `bun dev` no inicia Docker. `init:setup` configura esta variable automáticamente cuando eliges la base local en Docker.
+
+## Cambiar de base de datos (Neon ↔ Docker)
+
+Ejecuta `bun run db:switch` para elegir una base PostgreSQL externa o la base local en Docker. El asistente guarda la URL anterior como comentario en `.env`, sincroniza el esquema y crea el admin en la base nueva. No copia registros entre bases.
+
+Para cambiarla manualmente, edita `DATABASE_URL` y `DOCKER_DATABASE` en `.env`. Usa `DOCKER_DATABASE=true` con PostgreSQL local en Docker; para una base externa, quítala o asígnale `false`. Luego ejecuta `bun run db:push` y `bun run db:seed`. Usa `sslmode=disable` solo con la base local de Docker; nunca en producción.
+
+Si aún no instalaste las dependencias, ejecuta `bun install`. Después, crea las tablas y el admin e inicia la app en tu computadora:
+
+```sh
+bun run db:push
+bun run db:seed
+bun dev
+```
+
+Este modo usa la misma base PostgreSQL y el mismo volumen con nombre que Docker completo; puedes alternar entre ambos sin perder datos. No ejecutes este modo y la app completa de Docker a la vez: ambos usan el puerto 3000 del host.
+
+Para detener PostgreSQL y conservar sus datos, ejecuta:
+
+```sh
+docker compose -f docker/compose.yaml stop db
+```
+
 ## 4. Trabaja en la app
 
 - Edita los archivos en tu computadora. Compose monta el proyecto dentro del contenedor. Next.js recarga la app cuando detecta tus cambios.
@@ -155,6 +202,14 @@ Espera un segundo y actualiza el navegador. Confirma que editaste archivos dentr
 ### Cambió una dependencia o un archivo de Docker
 
 Ejecuta `docker compose -f docker/compose.yaml up --build`. Esto reconstruye la imagen de la app y conserva el volumen de la base. No uses `down -v` para reconstruir.
+
+## Temas, Bun y CI
+
+El repositorio fija Bun en **1.4.2** en `package.json`. Los temas nunca incluyen ni reemplazan el dashboard. Un `theme.json` v2 debe declarar un `coreVersion` compatible, por ejemplo `">=0.2.0"`; RapidAuth rechaza las versiones ausentes o incompatibles antes de cambiar archivos. Aurora y Nexus necesitan actualizarse para RapidAuth 0.2.0.
+
+Quienes mantienen la plantilla deben ejecutar `bun run theme:sync-classic` después de cambiar auth, landing, layout, estilos o UI compartida. Usa `bun run theme:sync-classic --check` para ver diferencias sin escribir; CI también lo comprueba.
+
+GitHub Actions comprueba lint, tipos, sincronización de Classic, compilación de producción, rechazo de claves de Turnstile ausentes o de prueba, avisos de dependencias altos o críticos y Docker en desarrollo y producción, incluida la ausencia del secreto de build en la imagen. Ejecuta localmente `bun run lint`, `bun run typecheck`, `bun run theme:sync-classic --check` y `bun audit --audit-level=high`; esta guía contiene las pruebas de Docker. El hook local de pre-commit puede usar `RAPIDAUTH_SKIP_TURNSTILE_BUILD_CHECK=1` solo para comprobar que compila. Nunca uses este bypass en producción, hosting ni builds de producción de CI.
 
 ## Producción con Docker
 

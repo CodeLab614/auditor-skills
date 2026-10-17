@@ -9,6 +9,7 @@ echo "2/3 Running typecheck..."
 bun run typecheck || exit 1
 
 echo "3/3 Running build..."
-bun run build || exit 1
+# This local hook build checks compilation only; production builds must always validate Turnstile.
+RAPIDAUTH_SKIP_TURNSTILE_BUILD_CHECK=1 bun run build || exit 1
 
 echo "All checks passed!"

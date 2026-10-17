@@ -11,7 +11,7 @@
     {
       "id": "aurora",
       "name": "Aurora",
-      "description": "Vibrant gradient panel with floating orbs and clean modern form",
+      "description": "Blocked until updated for RapidAuth 0.2.0 coreVersion compatibility",
       "preview": "https://rapidauth.dev/themes/aurora",
       "source": "github:jotredev/rapidauth-v2-theme-aurora",
       "requiresToken": true
@@ -19,7 +19,7 @@
     {
       "id": "nexus",
       "name": "Nexus",
-      "description": "Futuristic tech theme with grid backgrounds, corner brackets, and cyan accents",
+      "description": "Blocked until updated for RapidAuth 0.2.0 coreVersion compatibility",
       "preview": "https://rapidauth.dev/themes/nexus",
       "source": "github:jotredev/rapidauth-v2-theme-nexus",
       "requiresToken": true

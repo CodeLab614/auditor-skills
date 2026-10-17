@@ -10,7 +10,16 @@ This reference covers every variable read by the application and setup scripts. 
 - **Required:** Development and production.
 - **Where to get it:** Copy the connection string from your PostgreSQL provider, such as Neon.
 - **Example format:** `postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require`
+- **Local Docker database:** `postgresql://rapidauth:rapidauth@localhost:5432/rapidauth?sslmode=disable` (use your `DB_PORT` if you changed it).
+- **Warning:** `sslmode=disable` is only for the local PostgreSQL database in Docker. Never use it in production.
 - **Secret:** Yes. It contains database credentials.
+
+### `DOCKER_DATABASE`
+
+- **Purpose:** Enables automatic startup of the local PostgreSQL service in Docker before `bun dev` starts lint and Next.js.
+- **Required:** No. The default is `false`; `init:setup` sets it to `true` when you choose a local Docker database.
+- **Values:** `true` or `false`. Only the exact value `true` enables Docker startup. Choosing an external database removes this variable; keeping an existing `DATABASE_URL` also keeps its existing value.
+- **Secret:** No.
 
 ## Better Auth
 

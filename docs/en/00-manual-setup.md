@@ -93,6 +93,39 @@ bun run theme:select
 
 The theme selector is optional. Some premium themes require a GitHub personal access token. The selector prompts for it and saves it to `.env.local`; it does not need to be set for the free/default theme.
 
+Before replacing files, the selector lists every affected path. It checks Git changes and compares those paths with the Classic theme. If it finds changes, type the theme name to confirm. It always saves a copy under `.theme-backups/<timestamp>/` before replacing files; the folder is ignored by Git. To restore, copy each saved path from that timestamp folder back to the same path in the project root.
+
+Themes never include or replace the dashboard. A v2 `theme.json` must declare a compatible `coreVersion`, for example `">=0.2.0"`. Only the `>=x.y.z` form is supported, and the version must be at least `0.2.0` (the release that moved Turnstile and the email verification flow into the auth pages) and no newer than the installed core. Themes with a missing or incompatible version are rejected before files are changed. Aurora and Nexus need an update for RapidAuth 0.2.0.
+
+Template maintainers should run `bun run theme:sync-classic` after changing auth, landing, layout, styles, or shared UI files. Use `bun run theme:sync-classic --check` to list differences without writing; CI runs this check.
+
+The local pre-commit hook sets `RAPIDAUTH_SKIP_TURNSTILE_BUILD_CHECK=1` for its compile check only. This bypass is never for production or hosting builds; those builds must validate real Turnstile keys.
+
+## Switch databases (Neon ↔ Docker)
+
+Run `bun run db:switch` and choose an external PostgreSQL database or the local Docker database. The wizard saves the previous URL as a comment in `.env`, then runs `prisma db push` and the seed against the new database. Database records are not copied between the two databases.
+
+You can switch manually by changing `DATABASE_URL` and `DOCKER_DATABASE` in `.env`. Set `DOCKER_DATABASE=true` for the local Docker database and remove the variable or set it to `false` for an external database. Then run:
+
+```sh
+bun run db:push
+bun run db:seed
+```
+
+Use `sslmode=disable` only with the local Docker database. Never use it for production.
+
+## CI and Bun version
+
+Use Bun **1.4.2**, the version pinned by `package.json`. GitHub Actions has quality, production build, Turnstile guard, dependency audit, and Docker jobs. Run `bun run lint`, `bun run typecheck`, `bun run theme:sync-classic --check`, and `bun audit --audit-level=high` locally. The Docker guide shows how to reproduce its stack checks. To check Turnstile rejection without connecting to a real database, use dummy database/auth values:
+
+```sh
+BUILD_ENV='DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?sslmode=disable BETTER_AUTH_URL=http://localhost:3000 BETTER_AUTH_SECRET=0000000000000000000000000000000000000000000000000000000000000000 NEXT_TELEMETRY_DISABLED=1'
+env NEXT_PUBLIC_TURNSTILE_SITE_KEY= TURNSTILE_SECRET_KEY= $BUILD_ENV bun run build # expected to fail without Turnstile keys
+env $BUILD_ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA TURNSTILE_SECRET_KEY=1x0000000000000000000000AA bun run build # expected to fail with test keys
+```
+
+Production builds always need real Turnstile keys. The pre-commit bypass is never used in CI or production.
+
 ## 9. Start the app and verify the admin login
 
 ```sh

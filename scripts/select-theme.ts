@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process';
 import * as path from 'node:path';
 import * as clack from '@clack/prompts';
 import { z } from 'zod';
+import { getThemeChangedPaths } from './lib/theme-safety';
 
 // ============================================================================
 // TYPES
@@ -51,11 +52,11 @@ interface ThemeJsonV2 {
   name: string;
   description: string;
   version: string;
+  coreVersion: string;
   preview?: string;
   schema: 2;
   scopes: {
     auth?: { pages: string; components: string };
-    dashboard?: { pages: string; components: string };
     landing?: { page: string; components?: string };
     styles?: { globals: string };
     layout?: { root: string };
@@ -97,6 +98,7 @@ const themeJsonV1Schema = z.object({
   name: z.string().min(1),
   description: z.string(),
   version: z.string().min(1),
+  coreVersion: z.string().min(1),
   preview: z.string().optional(),
   files: z.object({
     app: relativePathSchema,
@@ -111,11 +113,11 @@ const themeJsonV2Schema = z.object({
   name: z.string().min(1),
   description: z.string(),
   version: z.string().min(1),
+  coreVersion: z.string().min(1),
   preview: z.string().optional(),
   schema: z.literal(2),
   scopes: z.object({
     auth: z.object({ pages: relativePathSchema, components: relativePathSchema }).strict().optional(),
-    dashboard: z.object({ pages: relativePathSchema, components: relativePathSchema }).strict().optional(),
     landing: z.object({ page: relativePathSchema, components: relativePathSchema.optional() }).strict().optional(),
     styles: z.object({ globals: relativePathSchema }).strict().optional(),
     layout: z.object({ root: relativePathSchema }).strict().optional(),
@@ -150,13 +152,6 @@ const SCOPE_TARGETS: Record<string, { dirs: string[]; files: string[] }> = {
     dirs: [
       path.join(ROOT_DIR, 'app', 'auth'),
       path.join(ROOT_DIR, 'components', 'auth'),
-    ],
-    files: [],
-  },
-  dashboard: {
-    dirs: [
-      path.join(ROOT_DIR, 'app', 'dashboard'),
-      path.join(ROOT_DIR, 'components', 'dashboard'),
     ],
     files: [],
   },
@@ -350,6 +345,13 @@ export function validateThemeConfig(themeDir: string): ThemeJsonV2 {
   }
 
   const rawConfig: unknown = JSON.parse(readFileSync(themeJsonPath, 'utf-8'));
+  if (rawConfig && typeof rawConfig === 'object' && 'scopes' in rawConfig && rawConfig.scopes && typeof rawConfig.scopes === 'object' && 'dashboard' in rawConfig.scopes) {
+    throw new Error('Themes cannot declare the dashboard scope. The dashboard contains application code and is never replaced by themes. Ask the theme author to remove that scope.');
+  }
+  const rawCoreVersion = rawConfig && typeof rawConfig === 'object' && 'coreVersion' in rawConfig ? rawConfig.coreVersion : undefined;
+  if (typeof rawCoreVersion !== 'string' || !isCoreVersionCompatible(rawCoreVersion)) {
+    throw new Error(`Theme "${rawConfig && typeof rawConfig === 'object' && 'name' in rawConfig ? String(rawConfig.name) : 'Unknown'}" is for a different RapidAuth version (requires a compatible coreVersion; current version is ${CURRENT_CORE_VERSION}). Ask the theme author to update it.`);
+  }
   const parsedConfig = themeJsonSchema.safeParse(rawConfig);
   if (!parsedConfig.success) {
     const details = parsedConfig.error.issues
@@ -458,6 +460,31 @@ function isV2(config: ThemeJson): config is ThemeJsonV2 {
   return 'schema' in config && config.schema === 2;
 }
 
+const CURRENT_CORE_VERSION = (JSON.parse(readFileSync(PACKAGE_JSON_PATH, 'utf-8')) as { version: string }).version;
+
+// Oldest core a theme may target. 0.2.0 moved Turnstile and the email verification flow into
+// the auth pages, so themes built before it would silently remove them. Raise it on breaking changes.
+const MIN_THEME_CORE_VERSION = '0.2.0';
+
+function compareVersions(a: string, b: string): number | null {
+  const left = a.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  const right = b.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (!left || !right) return null;
+  for (let index = 1; index <= 3; index++) {
+    const difference = Number(left[index]) - Number(right[index]);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
+function isCoreVersionCompatible(range: string): boolean {
+  const required = range.trim().match(/^>=\s*(\d+\.\d+\.\d+)$/)?.[1];
+  if (!required) return false;
+  const atLeastMinimum = compareVersions(required, MIN_THEME_CORE_VERSION);
+  const notAboveCurrent = compareVersions(required, CURRENT_CORE_VERSION);
+  return atLeastMinimum !== null && atLeastMinimum >= 0 && notAboveCurrent !== null && notAboveCurrent <= 0;
+}
+
 /** Convert v1 theme.json to v2 format for uniform handling */
 function normalizeThemeConfig(config: ThemeJson): ThemeJsonV2 {
   if (isV2(config)) return config;
@@ -467,6 +494,7 @@ function normalizeThemeConfig(config: ThemeJson): ThemeJsonV2 {
     name: config.name,
     description: config.description,
     version: config.version,
+    coreVersion: `>=${CURRENT_CORE_VERSION}`,
     preview: config.preview,
     schema: 2,
     scopes: {
@@ -516,24 +544,6 @@ function resolveScopeMappings(
         {
           src: resolveContainedPath(themeDir, config.scopes.auth.components, 'Auth components source'),
           dest: path.join(ROOT_DIR, 'components', 'auth'),
-          type: 'dir',
-        },
-      ],
-    });
-  }
-
-  if (config.scopes.dashboard) {
-    mappings.set('dashboard', {
-      label: 'Dashboard pages & components',
-      sources: [
-        {
-          src: resolveContainedPath(themeDir, config.scopes.dashboard.pages, 'Dashboard pages source'),
-          dest: path.join(ROOT_DIR, 'app', 'dashboard'),
-          type: 'dir',
-        },
-        {
-          src: resolveContainedPath(themeDir, config.scopes.dashboard.components, 'Dashboard components source'),
-          dest: path.join(ROOT_DIR, 'components', 'dashboard'),
           type: 'dir',
         },
       ],
@@ -616,6 +626,63 @@ function cleanScopes(scopeNames: string[]): void {
       if (existsSync(dir)) rmSync(dir, { recursive: true });
     }
   }
+}
+
+function relativeTarget(absolutePath: string): string {
+  return path.relative(ROOT_DIR, absolutePath).split(path.sep).join('/');
+}
+
+function pathsForScopes(scopeNames: string[], extraPaths: string[] = []): string[] {
+  const paths = new Set<string>(extraPaths);
+  for (const scope of scopeNames) {
+    const targets = SCOPE_TARGETS[scope];
+    if (!targets) continue;
+    for (const target of [...targets.dirs, ...targets.files]) paths.add(relativeTarget(target));
+  }
+  return [...paths].sort();
+}
+
+function showAffectedPaths(paths: string[]): void {
+  clack.note(paths.map((item) => `• ${item}`).join('\n'), 'Directories and files to replace');
+}
+
+async function confirmReplacement(themeName: string, paths: string[]): Promise<boolean> {
+  showAffectedPaths(paths);
+  const changed = getThemeChangedPaths(paths);
+  if (changed.length) {
+    clack.log.warn('Changes detected in the paths listed below:');
+    for (const item of changed) clack.log.message(`  ${item}`);
+    const typedName = await clack.text({
+      message: `Type "${themeName}" to confirm replacing these paths`,
+      placeholder: themeName,
+      validate: (value) => value === themeName ? undefined : `Type ${themeName} exactly to continue.`,
+    });
+    return !clack.isCancel(typedName) && typedName === themeName;
+  }
+  const accepted = await clack.confirm({ message: `Install "${themeName}" and replace the listed paths?` });
+  return !clack.isCancel(accepted) && accepted;
+}
+
+function backupPaths(paths: string[]): string {
+  const timestamp = new Date().toISOString().replaceAll(':', '-');
+  const backupRoot = path.join(ROOT_DIR, '.theme-backups', timestamp);
+  mkdirSync(backupRoot, { recursive: true });
+  const backedUp: string[] = [];
+  for (const relative of paths) {
+    const source = path.join(ROOT_DIR, relative);
+    if (!existsSync(source)) continue;
+    const destination = path.join(backupRoot, relative);
+    mkdirSync(path.dirname(destination), { recursive: true });
+    cpSync(source, destination, { recursive: true, dereference: false });
+    backedUp.push(relative);
+  }
+  clack.log.success(`Backup saved to ${path.relative(ROOT_DIR, backupRoot)}/`);
+  clack.log.info('Restore the saved paths from the project root with:');
+  for (const relative of backedUp) {
+    const parent = path.posix.dirname(relative);
+    clack.log.message(`  cp -R ${path.relative(ROOT_DIR, backupRoot)}/${relative} ${parent === '.' ? '.' : `${parent}/`}`);
+  }
+  return backupRoot;
 }
 
 function installScopes(
@@ -787,6 +854,7 @@ function restoreClassic(): void {
       name: 'Classic',
       description: 'Default theme',
       version: '1.0.0',
+      coreVersion: '>=0.2.0',
       schema: 2,
       scopes: {
         auth: { pages: 'app/auth', components: 'components/auth' },
@@ -807,16 +875,14 @@ function restoreClassic(): void {
 // ============================================================================
 
 async function handleClassicInstall(): Promise<void> {
-  const shouldRestore = await clack.confirm({
-    message:
-      'Install Classic theme? This will replace current files with the Classic default.',
-  });
-
-  if (clack.isCancel(shouldRestore) || !shouldRestore) {
+  const paths = pathsForScopes(Object.keys(SCOPE_TARGETS));
+  const shouldRestore = await confirmReplacement('Classic', paths);
+  if (!shouldRestore) {
     clack.cancel('No changes made.');
-    process.exit(0);
+    return;
   }
 
+  backupPaths(paths);
   const s = clack.spinner();
 
   s.start('Restoring Classic theme...');
@@ -882,7 +948,6 @@ async function handleGitHubTheme(theme: RegistryTheme): Promise<void> {
     // 4. Show summary of what will be changed
     const scopeDescriptions: Record<string, string> = {
       auth: 'Login, register, and auth pages (app/auth/, components/auth/)',
-      dashboard: 'Dashboard pages and components (app/dashboard/, components/dashboard/)',
       landing: 'Landing page (app/page.tsx)',
       styles: 'Global styles and CSS variables (app/globals.css)',
       layout: 'Root layout and fonts (app/layout.tsx)',
@@ -921,15 +986,17 @@ async function handleGitHubTheme(theme: RegistryTheme): Promise<void> {
       }
     }
 
-    // 6. Confirm
-    const shouldContinue = await clack.confirm({
-      message: `Install "${theme.name}" theme?`,
-    });
-
-    if (clack.isCancel(shouldContinue) || !shouldContinue) {
+    const affected = pathsForScopes([...new Set([...Object.keys(SCOPE_TARGETS), ...scopeNames])], [
+      ...[...mappings.values()].flatMap((mapping) => mapping.sources.map(({ dest }) => relativeTarget(dest))),
+      ...(config.assets ?? []).map((asset) => relativeTarget(resolveContainedPath(ROOT_DIR, asset.destination, 'Asset destination'))),
+    ]);
+    const shouldContinue = await confirmReplacement(theme.name, affected);
+    if (!shouldContinue) {
       clack.cancel('No changes made.');
       return;
     }
+
+    backupPaths(affected);
 
     if (isNewToken) {
       saveEnvValue('GITHUB_TOKEN', token);
@@ -994,6 +1061,12 @@ async function handleGitHubTheme(theme: RegistryTheme): Promise<void> {
 // ============================================================================
 
 async function main() {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    console.error('An interactive terminal is required. No changes were made.');
+    process.exitCode = 1;
+    return;
+  }
+
   clack.intro('RapidAuth Theme Selector');
 
   const registry = readRegistry();

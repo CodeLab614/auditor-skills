@@ -1,5 +1,14 @@
 import { LandingContent } from "@/components/landing-content";
+import { getSession } from "@/lib/auth";
 
-export default function Home() {
-  return <LandingContent />;
+export default async function Home() {
+  const session = await getSession();
+
+  const user = session ? {
+    name: session.user.name,
+    email: session.user.email,
+    image: session.user.image ?? undefined,
+  } : null;
+
+  return <LandingContent user={user} />;
 }

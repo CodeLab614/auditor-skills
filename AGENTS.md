@@ -157,6 +157,7 @@ bunx prisma db push            # Push schema to database
 6. **Export from index** - Always add new components to barrel exports
 7. **router.refresh()** - Reload server data after mutations
 8. **Auth through server actions** - `/api/auth` stays closed; use `auth.api.*`
+9. **Keep Classic theme in sync** - After changing `app/auth`, `components/auth`, `app/page.tsx`, `components/landing-content.tsx`, `app/globals.css`, `app/layout.tsx`, or `components/ui`, run `bun run theme:sync-classic`. CI checks this with `bun run theme:sync-classic --check`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

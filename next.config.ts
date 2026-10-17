@@ -3,7 +3,10 @@ import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import { getTurnstileConfigError } from "./lib/turnstile-config";
 
 const nextConfig = (phase: string): NextConfig => {
-  if (phase === PHASE_PRODUCTION_BUILD) {
+  if (
+    phase === PHASE_PRODUCTION_BUILD &&
+    process.env.RAPIDAUTH_SKIP_TURNSTILE_BUILD_CHECK !== "1"
+  ) {
     const error = getTurnstileConfigError(process.env);
     if (error) throw new Error(error);
   }

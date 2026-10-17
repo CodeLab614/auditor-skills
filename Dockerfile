@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 FROM node:24-alpine AS dependencies
-COPY --from=oven/bun:1.3-alpine /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=oven/bun:1.4.2-alpine /usr/local/bin/bun /usr/local/bin/bun
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx
 WORKDIR /app
 COPY package.json bun.lock prisma.config.ts ./

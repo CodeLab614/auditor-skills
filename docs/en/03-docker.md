@@ -74,6 +74,53 @@ If you create another project from this template, change `name: rapidauth` in `d
 
 The `bun run docker:up`, `bun run docker:logs`, `bun run docker:down`, and `bun run docker:reset` commands are optional shortcuts. They require Bun on the host; the Docker commands above do not.
 
+## Run the app on your computer and only PostgreSQL in Docker
+
+This is an alternative to running both services in Docker. It is often faster on macOS and Windows because Next.js recommends running the app directly on the host instead of mounting source code into a container.
+
+You can also choose this database option in `bun run init:setup`. The wizard checks Docker, starts only the database, writes its local URL to `.env`, then applies the schema and seeds the admin as part of setup.
+
+The database starts automatically when the Docker engine starts, unless you intentionally stopped it with `docker compose -f docker/compose.yaml stop db`.
+
+Start only the database in the background. This database-only command does not need a `.env` file:
+
+```sh
+docker compose -f docker/compose.yaml up -d db
+```
+
+Set the local Docker database URL in `.env`:
+
+```dotenv
+DATABASE_URL="postgresql://rapidauth:rapidauth@localhost:5432/rapidauth?sslmode=disable"
+DOCKER_DATABASE=true
+```
+
+If you changed `DB_PORT`, replace `5432` in the URL with that host port. `sslmode=disable` is only for this local Docker database. Never use it for a production database.
+
+When `DOCKER_DATABASE=true`, `bun dev` starts the database and waits for it to become healthy before running lint and Next.js. With any other value or when the variable is absent, `bun dev` does not start Docker. `init:setup` sets this variable automatically when you choose the local Docker database.
+
+## Switch databases (Neon ↔ Docker)
+
+Run `bun run db:switch` to choose an external PostgreSQL database or the local Docker database. The wizard saves the previous URL as a comment in `.env`, then pushes the schema and seeds the new database. It does not copy records between databases.
+
+To switch manually, edit `DATABASE_URL` and `DOCKER_DATABASE` in `.env`. Set `DOCKER_DATABASE=true` for local Docker PostgreSQL; remove it or set it to `false` for an external database. Then run `bun run db:push` and `bun run db:seed`. Use `sslmode=disable` only for the local Docker database, never production.
+
+Install dependencies with `bun install` if you have not already, then create the tables and admin and start the app on your computer:
+
+```sh
+bun run db:push
+bun run db:seed
+bun dev
+```
+
+This uses the same PostgreSQL database and named volume as the full Docker setup, so you can switch between the two modes without losing data. Do not run this mode and the full Docker app at the same time; both use host port 3000.
+
+To stop PostgreSQL while keeping its data, run:
+
+```sh
+docker compose -f docker/compose.yaml stop db
+```
+
 ## 4. Work on the app
 
 - Edit files on your computer. Compose mounts the project into the app container. Next.js reloads the app when it detects your edits.
@@ -155,6 +202,14 @@ Wait one second and refresh the browser. Confirm the edited files are inside the
 ### A dependency or Docker file changed
 
 Run `docker compose -f docker/compose.yaml up --build`. This rebuilds the app image and keeps the database volume. Do not use `down -v` for a rebuild.
+
+## Themes, Bun, and CI
+
+The repository pins Bun to **1.4.2** in `package.json`. Themes never include or replace the dashboard. A v2 `theme.json` must declare a compatible `coreVersion`, such as `">=0.2.0"`; missing or incompatible versions are rejected before files are changed. Aurora and Nexus need an update for RapidAuth 0.2.0.
+
+Template maintainers should run `bun run theme:sync-classic` after changing auth, landing, layout, styles, or shared UI files. Use `bun run theme:sync-classic --check` to list differences without writing; CI runs this check.
+
+GitHub Actions checks lint, types, Classic sync, production compilation, rejection of missing/test Turnstile keys, high/critical dependency advisories, and development/production Docker behavior including build-secret exclusion. Run `bun run lint`, `bun run typecheck`, `bun run theme:sync-classic --check`, and `bun audit --audit-level=high` locally; this guide covers the Docker checks. The local pre-commit hook may set `RAPIDAUTH_SKIP_TURNSTILE_BUILD_CHECK=1` for its compile check only. Never use this bypass for production, hosting, or CI production builds.
 
 ## Production with Docker
 

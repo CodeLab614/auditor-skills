@@ -2,15 +2,12 @@
   "name": "Classic",
   "description": "Two-column split layout with branding panel and form",
   "version": "1.0.0",
+  "coreVersion": ">=0.2.0",
   "schema": 2,
   "scopes": {
     "auth": {
       "pages": "app/auth",
       "components": "components/auth"
-    },
-    "dashboard": {
-      "pages": "app/dashboard",
-      "components": "components/dashboard"
     },
     "landing": {
       "page": "app/page.tsx",

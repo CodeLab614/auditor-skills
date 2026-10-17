@@ -8,6 +8,13 @@ import {
   isTurnstileTestSecretKey,
   isTurnstileTestSiteKey,
 } from '../lib/turnstile-config';
+import {
+  checkDockerPrerequisites,
+  commandErrorOutput,
+  DOCKER_GUIDES,
+  ensureDockerDatabase,
+} from './lib/docker';
+import { getThemeChangedPaths } from './lib/theme-safety';
 
 // ============================================================================
 // CONFIGURATION
@@ -356,7 +363,7 @@ async function askTurnstileConfig(
     [
       'Production builds fail without real Turnstile keys.',
       'Guide (English): docs/en/02-turnstile.md',
-      'Guía (español): docs/es/02-turnstile.md',
+      'Spanish guide: docs/es/02-turnstile.md',
     ],
     'warning',
   );
@@ -479,6 +486,139 @@ async function runPrismaPush(): Promise<void> {
 
 async function runSeed(): Promise<void> {
   execSync('bun run scripts/seed.ts', { stdio: 'inherit' });
+}
+
+async function startLocalDatabase(
+  existingPort?: string,
+): Promise<{ url: string; port: string } | undefined> {
+  let port = existingPort || process.env.DB_PORT || '5432';
+
+  while (true) {
+    if (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535) {
+      println(`  ${colors.red}${icons.error} DB_PORT must be a number between 1 and 65535.${colors.reset}`);
+      port = await question('  Enter the database port to publish (default 5432): ') || '5432';
+      continue;
+    }
+
+    try {
+      await ensureDockerDatabase(port);
+      return {
+        url: `postgresql://rapidauth:rapidauth@localhost:${port}/rapidauth?sslmode=disable`,
+        port,
+      };
+    } catch (error) {
+      const output = commandErrorOutput(error);
+      if (/address already in use|port is already allocated|failed to bind|bind.*failed/i.test(output)) {
+        printBox(
+          `Host port ${port} is already in use`,
+          [
+            'PostgreSQL cannot publish this port on your computer.',
+            'Enter another unused port, such as 5433.',
+            'The wizard will save it as DB_PORT in .env.',
+            'Press Enter without a value to choose another database option.',
+          ],
+          'warning',
+        );
+        const alternatePort = await question('  Alternate DB_PORT: ');
+        if (!alternatePort) return undefined;
+        port = alternatePort;
+        continue;
+      }
+
+      printBox(
+        'Could not start local PostgreSQL',
+        [
+          'Check that Docker is running, then choose a database option again.',
+          ...output.split('\n').slice(0, 3),
+          ...DOCKER_GUIDES,
+        ],
+        'error',
+      );
+      return undefined;
+    }
+  }
+}
+
+async function askDatabaseUrl(
+  existingEnv: Record<string, string>,
+  allowKeepExisting = true,
+): Promise<{
+  url: string;
+  dockerDatabase: boolean;
+  dockerDatabaseValue?: string;
+  port?: string;
+} | undefined> {
+  const databaseVariable = ENV_VARIABLES.find((variable) => variable.key === 'DATABASE_URL');
+  if (!databaseVariable) throw new Error('DATABASE_URL configuration is missing.');
+
+  if (existingEnv.DATABASE_URL) {
+    try {
+      const current = new URL(existingEnv.DATABASE_URL);
+      const isDocker = existingEnv.DOCKER_DATABASE === 'true' || current.searchParams.get('sslmode') === 'disable';
+      println(`  Current database: ${current.hostname}${current.port ? `:${current.port}` : ''}${isDocker ? ' (Docker)' : ' (external)'}`);
+      println();
+    } catch {
+      println('  Current database: configured (connection details hidden)');
+      println();
+    }
+  }
+
+  while (true) {
+    println(`  ${icons.database} ${colors.bold}Choose a PostgreSQL database${colors.reset}`);
+    println('  [1] Use an external PostgreSQL (Neon, Supabase, …)');
+    println('  [2] Use a local PostgreSQL in Docker (for development)');
+    if (existingEnv.DATABASE_URL && allowKeepExisting) {
+      const maskedUrl = `****${existingEnv.DATABASE_URL.slice(-4)}`;
+      println(`  [3] Keep existing DATABASE_URL (${maskedUrl})`);
+    }
+
+    const validChoices = existingEnv.DATABASE_URL && allowKeepExisting ? ['1', '2', '3'] : ['1', '2'];
+    const choice = await question('  Select an option: ');
+
+    if (!validChoices.includes(choice)) {
+      println(`  ${colors.red}${icons.error} Choose one of the listed options.${colors.reset}`);
+      println();
+      continue;
+    }
+
+    if (choice === '3') {
+      return {
+        url: existingEnv.DATABASE_URL,
+        dockerDatabase: existingEnv.DOCKER_DATABASE === 'true',
+        dockerDatabaseValue: existingEnv.DOCKER_DATABASE,
+      };
+    }
+
+    if (existingEnv.DATABASE_URL) {
+      println('Switching databases does not copy data.');
+      const confirmed = await question('Continue with this database change? (y/n): ');
+      if (!['y', 'yes'].includes(confirmed.trim().toLowerCase())) return undefined;
+    }
+
+    if (choice === '1') {
+      const url = await askVariable(databaseVariable, existingEnv.DATABASE_URL);
+      return { url, dockerDatabase: false };
+    }
+
+    const prerequisiteError = checkDockerPrerequisites();
+    if (prerequisiteError) {
+      printBox(
+        'Docker is not ready',
+        [prerequisiteError, ...DOCKER_GUIDES, 'Fix this issue, then select a database option again.'],
+        'error',
+      );
+      continue;
+    }
+
+    const localDatabase = await startLocalDatabase(existingEnv.DB_PORT);
+    if (localDatabase) {
+      return {
+        url: localDatabase.url,
+        dockerDatabase: true,
+        port: localDatabase.port,
+      };
+    }
+  }
 }
 
 // ============================================================================
@@ -780,64 +920,113 @@ function loadExistingEnv(): Record<string, string> {
   return result;
 }
 
-function writeEnvFile(envVars: Record<string, string>): void {
+const ENV_SECTION_KEYS: Record<string, string[]> = {
+  database: ['DATABASE_URL', 'DB_PORT', 'DOCKER_DATABASE'],
+  auth: ['BETTER_AUTH_SECRET', 'BETTER_AUTH_URL'],
+  email: ['RESEND_API_KEY', 'FROM_EMAIL'],
+  captcha: ['NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY'],
+  oauth: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'NEXT_PUBLIC_GOOGLE_ENABLED', 'NEXT_PUBLIC_GITHUB_ENABLED'],
+};
+
+function updateEnvSections(
+  envVars: Record<string, string>,
+  sections: string[],
+  previousDatabaseUrl?: string,
+): void {
   const envPath = path.join(process.cwd(), '.env');
-
-  // Define the order and sections for env variables
-  const variableToSection: Record<string, string> = {
-    DATABASE_URL: 'database',
-    BETTER_AUTH_SECRET: 'auth',
-    BETTER_AUTH_URL: 'auth',
-    RESEND_API_KEY: 'email',
-    FROM_EMAIL: 'email',
-    NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'captcha',
-    TURNSTILE_SECRET_KEY: 'captcha',
-    GOOGLE_CLIENT_ID: 'oauth',
-    GOOGLE_CLIENT_SECRET: 'oauth',
-    GITHUB_CLIENT_ID: 'oauth',
-    GITHUB_CLIENT_SECRET: 'oauth',
-    NEXT_PUBLIC_GOOGLE_ENABLED: 'oauth',
-    NEXT_PUBLIC_GITHUB_ENABLED: 'oauth',
+  const content = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : '';
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+  const selectedKeys = new Set(sections.flatMap((section) => ENV_SECTION_KEYS[section] ?? []));
+  const sectionLabels: Record<string, string> = {
+    database: '# Database', auth: '# Better Auth', email: '# Email (Resend)',
+    captcha: '# Cloudflare Turnstile', oauth: '# OAuth Providers',
   };
+  const allSectionLabels = new Set(Object.values(sectionLabels));
+  const insertedKeys = new Set<string>();
+  let previousUrlSaved = false;
+  const date = new Date().toISOString().slice(0, 10);
+  const quotedValue = (value: string) => `"${value.replaceAll('"', '\\"')}"`;
+  const renderedValue = (key: string, value: string) => `${key}=${quotedValue(value)}`;
 
-  const sections: Record<string, string[]> = {
-    database: ['# Database'],
-    auth: ['# Better Auth'],
-    email: ['# Email (Resend)'],
-    captcha: ['# Cloudflare Turnstile'],
-    oauth: ['# OAuth Providers'],
-  };
+  const dockerDatabaseComment = '# bun dev starts the local Docker database when this is true.';
+  const leavingDockerDatabase = sections.includes('database') && envVars.DOCKER_DATABASE !== 'true';
 
-  if (
-    isTurnstileTestSiteKey(envVars.NEXT_PUBLIC_TURNSTILE_SITE_KEY) ||
-    isTurnstileTestSecretKey(envVars.TURNSTILE_SECRET_KEY)
-  ) {
-    sections.captcha.push(
-      '# Test keys: local development only. Production builds fail until you set real keys (docs/en/02-turnstile.md)',
-    );
+  const updated: string[] = [];
+  for (const line of lines) {
+    // An external database needs neither the Docker note nor the local Docker port.
+    if (leavingDockerDatabase && line.trim() === dockerDatabaseComment) continue;
+    if (leavingDockerDatabase && /^\s*DB_PORT\s*=/.test(line)) continue;
+    const assignment = line.match(/^(\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*=\s*)(.*)$/);
+    if (!assignment || !selectedKeys.has(assignment[2])) {
+      updated.push(line);
+      continue;
+    }
+
+    const [, leading, key, separator, remainder] = assignment;
+    const value = envVars[key];
+    if (value === undefined || value === '') continue;
+    if (insertedKeys.has(key)) continue;
+
+    if (key === 'DATABASE_URL' && previousDatabaseUrl && !previousUrlSaved) {
+      updated.push(`# Previous DATABASE_URL (${date}): ${previousDatabaseUrl}`);
+      previousUrlSaved = true;
+    }
+    const inlineComment = remainder.match(/^(.*?)(\s+#.*)$/)?.[2] ?? '';
+    updated.push(`${leading}${key}${separator}${quotedValue(value)}${inlineComment}`);
+    insertedKeys.add(key);
   }
 
-  // Add all env variables to their sections
-  for (const [key, value] of Object.entries(envVars)) {
-    if (value) {
-      const section = variableToSection[key] || 'oauth';
-      sections[section].push(`${key}="${value}"`);
+  const headingIndexes = () => updated
+    .map((line, index) => allSectionLabels.has(line.trim()) ? index : -1)
+    .filter((index) => index >= 0);
+
+  for (const section of sections) {
+    const label = sectionLabels[section];
+    const keys = ENV_SECTION_KEYS[section] ?? [];
+    const missing = keys.filter((key) => envVars[key] !== undefined && envVars[key] !== '' && !insertedKeys.has(key)
+      && !(leavingDockerDatabase && key === 'DB_PORT'));
+    const comments: string[] = [];
+    if (section === 'database' && envVars.DOCKER_DATABASE === 'true' && !updated.includes(dockerDatabaseComment)) {
+      comments.push(dockerDatabaseComment);
+    }
+    if (section === 'captcha' && (isTurnstileTestSiteKey(envVars.NEXT_PUBLIC_TURNSTILE_SITE_KEY) || isTurnstileTestSecretKey(envVars.TURNSTILE_SECRET_KEY)) && !updated.some((line) => line.startsWith('# Test keys: local development only.'))) {
+      comments.push('# Test keys: local development only. Production builds fail until you set real keys (docs/en/02-turnstile.md)');
+    }
+    const appendLines = [...comments, ...missing.map((key) => {
+      insertedKeys.add(key);
+      if (key === 'DATABASE_URL' && previousDatabaseUrl && !previousUrlSaved) {
+        previousUrlSaved = true;
+        return `# Previous DATABASE_URL (${date}): ${previousDatabaseUrl}\n${renderedValue(key, envVars[key])}`;
+      }
+      return renderedValue(key, envVars[key]);
+    })];
+
+    let headerIndex = updated.findIndex((line) => line.trim() === label);
+    if (appendLines.length && headerIndex === -1) {
+      if (updated.length && updated.at(-1) !== '') updated.push('');
+      updated.push(label);
+      headerIndex = updated.length - 1;
+    }
+    if (appendLines.length) {
+      const nextHeading = headingIndexes().find((index) => index > headerIndex);
+      let insertionIndex = nextHeading ?? updated.length;
+      // Keep the blank line that separates this section from the next one after the new keys.
+      while (insertionIndex > headerIndex + 1 && updated[insertionIndex - 1].trim() === '') insertionIndex--;
+      updated.splice(insertionIndex, 0, ...appendLines);
+    }
+
+    headerIndex = updated.findIndex((line) => line.trim() === label);
+    if (headerIndex >= 0) {
+      const nextHeading = headingIndexes().find((index) => index > headerIndex) ?? updated.length;
+      const hasAssignment = updated.slice(headerIndex + 1, nextHeading).some((line) => {
+        const assignment = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/);
+        return assignment && keys.includes(assignment[1]);
+      });
+      if (!hasAssignment) updated.splice(headerIndex, 1);
     }
   }
 
-  const content = Object.values(sections)
-    .filter((section) => section.length > 1)
-    .map((section) => section.join('\n'))
-    .join('\n\n');
-
-  writeFileSync(envPath, content + '\n');
-}
-
-function ensureEnvFileExists(): void {
-  const envPath = path.join(process.cwd(), '.env');
-  if (!existsSync(envPath)) {
-    writeFileSync(envPath, '');
-  }
+  writeFileSync(envPath, `${updated.join('\n').replace(/\n*$/, '')}\n`);
 }
 
 function mergeEnvLocalIntoEnv(): void {
@@ -1041,11 +1230,42 @@ async function askProviderCredentials(
 // ============================================================================
 
 async function runSetup() {
-  // Ensure .env exists from the start so shadcn writes there instead of .env.local
-  ensureEnvFileExists();
+  const onlyIndex = process.argv.indexOf('--only');
+  const allowedOnly = ['database', 'email', 'turnstile', 'oauth', 'theme'] as const;
+  let forcedSection: (typeof allowedOnly)[number] | undefined;
+  if (onlyIndex !== -1) {
+    const value = process.argv[onlyIndex + 1];
+    if (!value || !allowedOnly.includes(value as (typeof allowedOnly)[number])) {
+      throw new Error('Usage: bun run scripts/setup.ts --only <database|email|turnstile|oauth|theme>');
+    }
+    forcedSection = value as (typeof allowedOnly)[number];
+  }
 
   const existingEnv = loadExistingEnv();
+  const isConfigured = Boolean(existingEnv.DATABASE_URL && existingEnv.BETTER_AUTH_SECRET && existingEnv.BETTER_AUTH_URL && existingEnv.RESEND_API_KEY && existingEnv.FROM_EMAIL);
+  let selection = forcedSection ?? '';
+  if (!selection && isConfigured) {
+    println('This project is already configured. Choose what to update:');
+    println('  [1] Database');
+    println('  [2] Email');
+    println('  [3] Turnstile');
+    println('  [4] OAuth');
+    println('  [5] Theme');
+    println('  [6] Everything');
+    const choices: Record<string, string> = { '1': 'database', '2': 'email', '3': 'turnstile', '4': 'oauth', '5': 'theme', '6': 'everything' };
+    while (!selection) {
+      selection = choices[await question('Select a section: ')] ?? '';
+      if (!selection) println('Choose one of the listed options.');
+    }
+  }
+  if (!selection) selection = 'everything';
+  const selectedSections = new Set(selection === 'everything' ? ['database', 'auth', 'email', 'captcha', 'oauth', 'theme'] : [selection === 'turnstile' ? 'captcha' : selection]);
+  const databaseSelected = selectedSections.has('database');
+  const themeSelected = selectedSections.has('theme');
+  const previousDatabaseUrl = existingEnv.DATABASE_URL;
   const newEnv: Record<string, string> = {};
+  if (databaseSelected && existingEnv.DB_PORT) newEnv.DB_PORT = existingEnv.DB_PORT;
+  let databaseRunsInDocker = false;
 
   const categories = [
     { key: 'database', title: 'Database Configuration', icon: icons.database },
@@ -1056,17 +1276,18 @@ async function runSetup() {
   ] as const;
 
   let stepNumber = 1;
-  const totalSteps = categories.length + 3; // +3 for database setup, theme selection, and final
+  const activeCategories = categories.filter((category) => selectedSections.has(category.key));
+  const totalSteps = activeCategories.length + (databaseSelected ? 1 : 0) + (themeSelected ? 1 : 0) + 1;
 
   // Welcome screen
   printHeader();
-  printBox(
+  if (!isConfigured) printBox(
     'Welcome to RapidAuth Setup',
     [
       'This wizard will help you configure your application.',
       '',
       'Before you start, make sure you have:',
-      '  • A PostgreSQL database (Neon, Supabase, etc.)',
+      '  • An external PostgreSQL database or Docker for local PostgreSQL',
       '  • A Resend account for sending emails',
       '  • A free Cloudflare account for Turnstile',
       '  • OAuth credentials (optional)',
@@ -1074,11 +1295,13 @@ async function runSetup() {
     'info',
   );
 
-  await question(`  ${colors.cyan}Press Enter to continue...${colors.reset}`);
+  if (!isConfigured) await question(`  ${colors.cyan}Press Enter to continue...${colors.reset}`);
 
   // Collect variables by category
-  for (const category of categories) {
-    printHeader();
+  let firstCategory = true;
+  for (const category of activeCategories) {
+    if (!firstCategory) printHeader();
+    firstCategory = false;
     printStep(stepNumber, totalSteps, category.title);
 
     if (category.key === 'auth') {
@@ -1098,6 +1321,17 @@ async function runSetup() {
       // Then ask for BETTER_AUTH_URL with options
       const authUrl = await askAuthUrl();
       newEnv['BETTER_AUTH_URL'] = authUrl;
+    } else if (category.key === 'database') {
+      const database = await askDatabaseUrl(existingEnv, !isConfigured);
+      if (!database) return;
+      newEnv.DATABASE_URL = database.url;
+      databaseRunsInDocker = database.dockerDatabase;
+      if (database.port) newEnv.DB_PORT = database.port;
+      if (database.dockerDatabase) {
+        newEnv.DOCKER_DATABASE = 'true';
+      } else if (database.dockerDatabaseValue !== undefined) {
+        newEnv.DOCKER_DATABASE = database.dockerDatabaseValue;
+      }
     } else if (category.key === 'email') {
       // Handle email category specially
       const categoryVars = ENV_VARIABLES.filter(
@@ -1212,111 +1446,81 @@ async function runSetup() {
       // Write NEXT_PUBLIC flags for the frontend
       newEnv['NEXT_PUBLIC_GOOGLE_ENABLED'] = selectedProviders.has('google') ? 'true' : 'false';
       newEnv['NEXT_PUBLIC_GITHUB_ENABLED'] = selectedProviders.has('github') ? 'true' : 'false';
-    } else {
-      // Normal category handling
-      const categoryVars = ENV_VARIABLES.filter(
-        (v) => v.category === category.key,
-      );
-
-      for (const variable of categoryVars) {
-        const value = await askVariable(variable, existingEnv[variable.key]);
-        if (value) {
-          newEnv[variable.key] = value;
-        }
-      }
     }
 
     stepNumber++;
   }
 
-  // Write .env file
-  printHeader();
-  printStep(stepNumber, totalSteps, 'Setting up Database');
+  const envSections = [...selectedSections].filter((section) => section !== 'theme');
+  if (envSections.length > 0) {
+    const changedDatabase = databaseSelected && previousDatabaseUrl && newEnv.DATABASE_URL !== previousDatabaseUrl ? previousDatabaseUrl : undefined;
+    if (changedDatabase) println('Database records are not copied when you switch databases.');
+    await spinner('Updating selected .env sections...', async () => {
+      updateEnvSections(newEnv, envSections, changedDatabase);
+      if (!isConfigured) mergeEnvLocalIntoEnv();
+    });
+  }
 
-  await spinner('Writing .env file...', async () => {
-    writeEnvFile(newEnv);
-    mergeEnvLocalIntoEnv();
-  });
-
-  // Load the newly written env file into process.env for Prisma
-  println();
-  await spinner('Loading environment variables...', async () => {
+  if (databaseSelected) {
+    if (previousDatabaseUrl && newEnv.DATABASE_URL !== previousDatabaseUrl) {
+      println('The previous DATABASE_URL was saved as a comment in .env.');
+    }
     const dotenv = await import('dotenv');
-    dotenv.config({ path: path.join(process.cwd(), '.env') });
-  });
+    dotenv.config({ path: path.join(process.cwd(), '.env'), override: true });
 
-  // Run Prisma commands
-  println();
-  println(
-    `  ${colors.cyan}${icons.arrow} Running Prisma generate...${colors.reset}`,
-  );
-  println();
-
-  try {
-    await runPrismaGenerate();
     println();
-    println(
-      `  ${colors.green}${icons.success} Prisma client generated${colors.reset}`,
-    );
-  } catch (err) {
-    println(
-      `  ${colors.red}${icons.error} Failed to generate Prisma client${colors.reset}`,
-    );
-    throw err;
-  }
-
-  println();
-  println(
-    `  ${colors.cyan}${icons.arrow} Pushing schema to database...${colors.reset}`,
-  );
-  println();
-
-  try {
-    await runPrismaPush();
+    println(`  ${colors.cyan}${icons.arrow} Running Prisma generate...${colors.reset}`);
     println();
-    println(
-      `  ${colors.green}${icons.success} Database schema pushed${colors.reset}`,
-    );
-  } catch (err) {
-    println(
-      `  ${colors.red}${icons.error} Failed to push schema${colors.reset}`,
-    );
-    throw err;
-  }
+    try {
+      await runPrismaGenerate();
+      println();
+      println(`  ${colors.green}${icons.success} Prisma client generated${colors.reset}`);
+    } catch (err) {
+      println(`  ${colors.red}${icons.error} Failed to generate Prisma client${colors.reset}`);
+      throw err;
+    }
 
-  // Run seed
-  println();
-  println(
-    `  ${colors.cyan}${icons.arrow} Seeding database with initial data...${colors.reset}`,
-  );
-  println();
-
-  try {
-    await runSeed();
     println();
-    println(`  ${colors.green}${icons.success} Database seeded${colors.reset}`);
-    await question(
-      `     ${colors.yellow}${icons.arrow}${colors.reset} ${colors.dim}If an admin password was shown above, save it now. Press Enter to continue${colors.reset}`,
-    );
-  } catch {
-    println(
-      `  ${colors.yellow}${icons.warning} Seed skipped (may already exist)${colors.reset}`,
-    );
-  }
+    println(`  ${colors.cyan}${icons.arrow} Pushing schema to database...${colors.reset}`);
+    println();
+    try {
+      await runPrismaPush();
+      println();
+      println(`  ${colors.green}${icons.success} Database schema pushed${colors.reset}`);
+    } catch (err) {
+      println(`  ${colors.red}${icons.error} Failed to push schema${colors.reset}`);
+      throw err;
+    }
 
-  stepNumber++;
+    println();
+    println(`  ${colors.cyan}${icons.arrow} Seeding database with initial data...${colors.reset}`);
+    println();
+    try {
+      await runSeed();
+      println();
+      println(`  ${colors.green}${icons.success} Database seeded${colors.reset}`);
+      await question(`     ${colors.yellow}${icons.arrow}${colors.reset} ${colors.dim}If an admin password was shown above, save it now. Press Enter to continue${colors.reset}`);
+    } catch {
+      println(`  ${colors.yellow}${icons.warning} Seed skipped (may already exist)${colors.reset}`);
+    }
+    stepNumber++;
+  }
 
   // Theme selection
+  if (themeSelected) {
   printHeader();
   printStep(stepNumber, totalSteps, 'Auth Theme');
 
   println(`  🎨 ${colors.bold}Choose your auth theme${colors.reset}`);
   println(`     ${colors.dim}Select a visual theme for your login, register, and auth pages.${colors.reset}`);
   println(`     ${colors.dim}You can change this later with: bun run theme:select${colors.reset}`);
+  const themeChanges = getThemeChangedPaths();
+  const conservativeThemeDefault = isConfigured || themeChanges.length > 0;
+  if (themeChanges.length > 0) println('     Changes exist in theme paths; the default is no.');
   println();
 
   const wantsTheme = await question(
-    `     ${colors.yellow}${icons.arrow}${colors.reset} ${colors.dim}Configure auth theme now? (y/n)${colors.reset}: `,
+    `     ${colors.yellow}${icons.arrow}${colors.reset} ${colors.dim}Configure auth theme now? ${conservativeThemeDefault ? '[y/N]' : '(y/N)'}${colors.reset}: `,
   );
 
   if (wantsTheme.toLowerCase() === 'y' || wantsTheme.toLowerCase() === 'yes') {
@@ -1333,12 +1537,15 @@ async function runSetup() {
     }
   } else {
     println();
-    println(`     ${colors.green}${icons.success} Using Classic theme (default)${colors.reset}`);
+    println(`     ${colors.green}${icons.success} Keeping the current theme${colors.reset}`);
     println(`     ${colors.dim}Change anytime with: bun run theme:select${colors.reset}`);
   }
+  }
 
-  println();
-  stepNumber++;
+  if (themeSelected) {
+    println();
+    stepNumber++;
+  }
 
   // Final screen
   printHeader();
@@ -1349,15 +1556,22 @@ async function runSetup() {
     [
       'Your RapidAuth application is ready to use.',
       '',
-      'The admin password was shown once during the database step.',
-      'Save it and change it after your first login.',
-      'If the admin already existed, its password was kept.',
+      ...(databaseSelected ? ['The admin password was shown once during the database step.', 'Save it and change it after your first login.', 'If the admin already existed, its password was kept.'] : []),
       '',
       ...(isTurnstileTestSiteKey(newEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY) ||
       isTurnstileTestSecretKey(newEnv.TURNSTILE_SECRET_KEY)
         ? [
             'Before deploying: create a Turnstile widget',
             'and set real keys in your hosting.',
+            '',
+          ]
+        : []),
+      ...(databaseRunsInDocker
+        ? [
+            'Local PostgreSQL is running in Docker.',
+            'It starts with Docker unless you stopped it on purpose.',
+            'Stop it: docker compose -f docker/compose.yaml stop db',
+            'Start it: docker compose -f docker/compose.yaml up -d db',
             '',
           ]
         : []),
