@@ -23,7 +23,6 @@ import { revokeSession, revokeAllOtherSessions } from "@/actions/sessions";
 
 export interface SessionData {
   id: string;
-  token: string;
   userAgent: string | null;
   ipAddress: string | null;
   createdAt: string;
@@ -33,7 +32,6 @@ export interface SessionData {
 
 interface ActiveSessionsProps {
   sessions: SessionData[];
-  currentSessionToken?: string;
   onSessionRevoked?: () => void;
 }
 
@@ -193,7 +191,6 @@ function SessionItem({
 
 export function ActiveSessions({
   sessions,
-  currentSessionToken,
   onSessionRevoked,
 }: ActiveSessionsProps) {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -224,13 +221,8 @@ export function ActiveSessions({
   };
 
   const handleRevokeAllOtherSessions = async () => {
-    if (!currentSessionToken) {
-      toast.error("No se pudo identificar la sesión actual");
-      return;
-    }
-
     setIsLoading(true);
-    const result = await revokeAllOtherSessions(currentSessionToken);
+    const result = await revokeAllOtherSessions();
 
     if (result.response === 'error') {
       toast.error(result.message);

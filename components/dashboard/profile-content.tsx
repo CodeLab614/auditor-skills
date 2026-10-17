@@ -30,7 +30,6 @@ interface ProfileContentProps {
   isOAuthUser?: boolean;
   activityLogs?: ActivityLogEntry[];
   sessions?: SessionData[];
-  currentSessionToken?: string;
   onChangePassword?: (passwords: { current: string; new: string }) => Promise<void>;
 }
 
@@ -40,7 +39,6 @@ export function ProfileContent({
   isOAuthUser = false,
   activityLogs = [],
   sessions = [],
-  currentSessionToken,
   onChangePassword,
 }: ProfileContentProps) {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -390,7 +388,7 @@ export function ProfileContent({
         </TabsContent>
 
         <TabsContent value="sessions" className="space-y-6">
-          <ActiveSessions sessions={sessions} currentSessionToken={currentSessionToken} />
+          <ActiveSessions sessions={sessions} />
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-6">

@@ -1,6 +1,5 @@
 'use server';
 
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 
@@ -26,7 +25,6 @@ export interface ActivityLogEntry {
 
 export interface SessionData {
   id: string;
-  token: string;
   userAgent: string | null;
   ipAddress: string | null;
   createdAt: string;
@@ -40,7 +38,6 @@ export interface ProfilePageData {
   isOAuthUser: boolean;
   activityLogs: ActivityLogEntry[];
   sessions: SessionData[];
-  currentSessionToken?: string;
 }
 
 // ============================================
@@ -59,10 +56,7 @@ export const getProfileData = async (): Promise<{
     }
 
     const userId = session.user.id;
-
-    // Get current session token
-    const cookieStore = await cookies();
-    const currentSessionToken = cookieStore.get('better-auth.session_token')?.value;
+    const currentSessionId = session.session.id;
 
     // Get user's 2FA status, image, activity logs, and sessions from database
     const [user, oauthAccounts, activityLogs, sessions] = await Promise.all([
@@ -85,6 +79,7 @@ export const getProfileData = async (): Promise<{
           expiresAt: { gt: new Date() }, // Only active (non-expired) sessions
         },
         orderBy: { createdAt: 'desc' },
+        select: { id: true, userAgent: true, ipAddress: true, createdAt: true, expiresAt: true },
       }),
     ]);
 
@@ -116,12 +111,11 @@ export const getProfileData = async (): Promise<{
     // Format sessions with current session flag and serialize dates
     const formattedSessions: SessionData[] = sessions.map((s) => ({
       id: s.id,
-      token: s.token,
       userAgent: s.userAgent,
       ipAddress: s.ipAddress,
       createdAt: s.createdAt.toISOString(),
       expiresAt: s.expiresAt.toISOString(),
-      isCurrent: s.token === currentSessionToken,
+      isCurrent: s.id === currentSessionId,
     }));
 
     return {
@@ -133,7 +127,6 @@ export const getProfileData = async (): Promise<{
         isOAuthUser: oauthAccounts.length > 0,
         activityLogs: parsedActivityLogs,
         sessions: formattedSessions,
-        currentSessionToken,
       },
     };
   } catch (error) {

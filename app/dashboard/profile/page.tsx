@@ -27,7 +27,6 @@ export default async function ProfilePage() {
       isOAuthUser={result.data.isOAuthUser}
       activityLogs={result.data.activityLogs}
       sessions={result.data.sessions}
-      currentSessionToken={result.data.currentSessionToken}
     />
   );
 }

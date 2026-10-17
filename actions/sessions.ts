@@ -80,9 +80,7 @@ type RevokeAllSessionsData = {
   count: number;
 };
 
-export const revokeAllOtherSessions = async (
-  currentSessionToken: string
-): Promise<{
+export const revokeAllOtherSessions = async (): Promise<{
   response: 'success' | 'error';
   message: string;
   data: RevokeAllSessionsData | null;
@@ -101,7 +99,7 @@ export const revokeAllOtherSessions = async (
     const result = await prisma.session.deleteMany({
       where: {
         userId: currentSession.user.id,
-        token: { not: currentSessionToken },
+        id: { not: currentSession.session.id },
       },
     });
 
