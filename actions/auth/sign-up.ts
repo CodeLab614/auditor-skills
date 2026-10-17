@@ -5,6 +5,7 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { APIError } from 'better-auth/api';
 import { registerSchema } from '@/validations/auth';
+import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 
 type SignUpData = {
   email: string;
@@ -29,6 +30,20 @@ export const signUpAction = async (
     }
 
     const { name, email, password } = data;
+    const clientIp = await getClientIp();
+    const normalizedEmail = email.trim().toLowerCase();
+    const rateLimit = await checkRateLimit([
+      ...(clientIp ? [{ key: `signup:ip:${clientIp}`, window: 3600, max: 5 }] : []),
+      { key: `signup:email:${hashKey(normalizedEmail)}`, window: 3600, max: 3 },
+    ]);
+
+    if (rateLimit.limited) {
+      return {
+        response: 'error',
+        message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
+        data: null,
+      };
+    }
 
     await auth.api.signUpEmail({
       body: { name, email, password },

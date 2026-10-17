@@ -6,6 +6,7 @@ import { headers } from 'next/headers';
 import { APIError } from 'better-auth/api';
 import { logActivity } from '@/actions/activity-log';
 import { forgotPasswordSchema, resetPasswordSchema } from '@/validations/auth';
+import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 
 type ForgotPasswordData = {
   email: string;
@@ -30,6 +31,20 @@ export const forgotPasswordAction = async (
     }
 
     const { email } = data;
+    const clientIp = await getClientIp();
+    const normalizedEmail = email.trim().toLowerCase();
+    const rateLimit = await checkRateLimit([
+      ...(clientIp ? [{ key: `reset:ip:${clientIp}`, window: 600, max: 5 }] : []),
+      { key: `reset:email:${hashKey(normalizedEmail)}`, window: 600, max: 3 },
+    ]);
+
+    if (rateLimit.limited) {
+      return {
+        response: 'error',
+        message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
+        data: null,
+      };
+    }
 
     await auth.api.requestPasswordReset({
       body: {
@@ -130,6 +145,18 @@ export const changePasswordAction = async (values: {
       return {
         response: 'error',
         message: 'Unauthorized',
+        data: null,
+      };
+    }
+
+    const rateLimit = await checkRateLimit([
+      { key: `password-check:user:${session.user.id}`, window: 60, max: 5 },
+    ]);
+
+    if (rateLimit.limited) {
+      return {
+        response: 'error',
+        message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
         data: null,
       };
     }

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "bun run lint && concurrently -n \"next,tsc\" -c \"cyan,yellow\" \"next dev --turbopack\" \"tsc --noEmit --watch --pretty\"",
+    "dev": "bun run lint && concurrently -n \"next,tsc\" -c \"cyan,yellow\" \"next dev --turbopack\" \"bun run scripts/typecheck-watch.ts\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings 0",

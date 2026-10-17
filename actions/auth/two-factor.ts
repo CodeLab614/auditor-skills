@@ -2,10 +2,26 @@
 
 import * as z from 'zod';
 import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { APIError } from 'better-auth/api';
 import { logActivity } from '@/actions/activity-log';
-import { twoFactorSchema } from '@/validations/auth';
+import { twoFactorSchema, verifyTotpSetupSchema } from '@/validations/auth';
+import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
+
+const checkTwoFactorRateLimit = async () => {
+  const clientIp = await getClientIp();
+  const cookieStore = await cookies();
+  const challengeCookie =
+    cookieStore.get('__Secure-better-auth.two_factor') ??
+    cookieStore.get('better-auth.two_factor');
+
+  return checkRateLimit([
+    ...(clientIp ? [{ key: `2fa:ip:${clientIp}`, window: 60, max: 10 }] : []),
+    ...(challengeCookie?.value
+      ? [{ key: `2fa:challenge:${hashKey(challengeCookie.value)}`, window: 300, max: 5 }]
+      : []),
+  ]);
+};
 
 export const verifyTotpAction = async (
   values: z.infer<typeof twoFactorSchema>
@@ -26,6 +42,15 @@ export const verifyTotpAction = async (
     }
 
     const { code } = data;
+    const rateLimit = await checkTwoFactorRateLimit();
+
+    if (rateLimit.limited) {
+      return {
+        response: 'error',
+        message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
+        data: null,
+      };
+    }
 
     await auth.api.verifyTOTP({
       body: { code },
@@ -67,6 +92,16 @@ export const verifyBackupCodeAction = async (
       return {
         response: 'error',
         message: 'Backup code is required',
+        data: null,
+      };
+    }
+
+    const rateLimit = await checkTwoFactorRateLimit();
+
+    if (rateLimit.limited) {
+      return {
+        response: 'error',
+        message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
         data: null,
       };
     }
@@ -116,6 +151,20 @@ export const enable2FAAction = async (
       headers: await headers(),
     });
 
+    if (session?.user?.id) {
+      const rateLimit = await checkRateLimit([
+        { key: `password-check:user:${session.user.id}`, window: 60, max: 5 },
+      ]);
+
+      if (rateLimit.limited) {
+        return {
+          response: 'error',
+          message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
+          data: null,
+        };
+      }
+    }
+
     const result = await auth.api.enableTwoFactor({
       body: { password },
       headers: await headers(),
@@ -157,8 +206,36 @@ export const verify2FASetupAction = async (
   data: null;
 }> => {
   try {
+    const { success, data } = verifyTotpSetupSchema.safeParse({ code });
+
+    if (!success) {
+      return {
+        response: 'error',
+        message: 'Invalid verification code',
+        data: null,
+      };
+    }
+
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (session?.user?.id) {
+      const rateLimit = await checkRateLimit([
+        { key: `2fa-setup:user:${session.user.id}`, window: 60, max: 5 },
+      ]);
+
+      if (rateLimit.limited) {
+        return {
+          response: 'error',
+          message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
+          data: null,
+        };
+      }
+    }
+
     await auth.api.verifyTOTP({
-      body: { code },
+      body: { code: data.code },
       headers: await headers(),
     });
 
@@ -194,6 +271,20 @@ export const disable2FAAction = async (
     const session = await auth.api.getSession({
       headers: await headers(),
     });
+
+    if (session?.user?.id) {
+      const rateLimit = await checkRateLimit([
+        { key: `password-check:user:${session.user.id}`, window: 60, max: 5 },
+      ]);
+
+      if (rateLimit.limited) {
+        return {
+          response: 'error',
+          message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
+          data: null,
+        };
+      }
+    }
 
     await auth.api.disableTwoFactor({
       body: { password },

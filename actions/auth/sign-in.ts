@@ -5,6 +5,7 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { APIError } from 'better-auth/api';
 import { loginSchema } from '@/validations/auth';
+import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 
 type SignInData = {
   twoFactorRequired?: boolean;
@@ -29,6 +30,20 @@ export const signInAction = async (
     }
 
     const { email, password } = data;
+    const clientIp = await getClientIp();
+    const normalizedEmail = email.trim().toLowerCase();
+    const rateLimit = await checkRateLimit([
+      ...(clientIp ? [{ key: `signin:ip:${clientIp}`, window: 60, max: 10 }] : []),
+      { key: `signin:email:${hashKey(normalizedEmail)}`, window: 60, max: 5 },
+    ]);
+
+    if (rateLimit.limited) {
+      return {
+        response: 'error',
+        message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
+        data: null,
+      };
+    }
 
     const result = await auth.api.signInEmail({
       body: { email, password },
@@ -74,6 +89,21 @@ export const resendVerificationEmailAction = async (
   data: null;
 }> => {
   try {
+    const clientIp = await getClientIp();
+    const normalizedEmail = email.trim().toLowerCase();
+    const rateLimit = await checkRateLimit([
+      ...(clientIp ? [{ key: `verify-email:ip:${clientIp}`, window: 600, max: 5 }] : []),
+      { key: `verify-email:email:${hashKey(normalizedEmail)}`, window: 600, max: 3 },
+    ]);
+
+    if (rateLimit.limited) {
+      return {
+        response: 'error',
+        message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
+        data: null,
+      };
+    }
+
     await auth.api.sendVerificationEmail({
       body: {
         email,

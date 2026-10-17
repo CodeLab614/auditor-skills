@@ -7,6 +7,7 @@ import { sendVerificationEmail } from "@/lib/email";
 import { headers } from "next/headers";
 
 export const auth = betterAuth({
+  rateLimit: { enabled: true, storage: "database" },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),

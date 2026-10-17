@@ -7,6 +7,7 @@ import { writeFile, mkdir, readdir, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { logActivity } from '@/actions/activity-log';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_SIZE = 4 * 1024 * 1024; // 4MB
@@ -56,6 +57,18 @@ export const uploadAvatarAction = async (
       return {
         response: 'error',
         message: 'File too large. Maximum size is 4MB.',
+        data: null,
+      };
+    }
+
+    const rateLimit = await checkRateLimit([
+      { key: `avatar:user:${session.user.id}`, window: 600, max: 5 },
+    ]);
+
+    if (rateLimit.limited) {
+      return {
+        response: 'error',
+        message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
         data: null,
       };
     }
