@@ -130,6 +130,7 @@ DATABASE_URL="postgresql://user:password@host:5432/database"
 # Better Auth
 BETTER_AUTH_SECRET="auto-generated"
 BETTER_AUTH_URL="http://localhost:3000"
+# BETTER_AUTH_URL is required; without it every auth request fails with a clear error.
 
 # Email (Resend)
 RESEND_API_KEY="re_xxxxxxxxxxxxx"

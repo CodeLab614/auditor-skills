@@ -6,7 +6,29 @@ import { prisma } from "@/lib/prisma";
 import { sendVerificationEmail } from "@/lib/email";
 import { headers } from "next/headers";
 
+// Keep auth email links on the configured application origin.
+const baseURL = process.env.BETTER_AUTH_URL;
+
+if (!baseURL) {
+  throw new Error(
+    "BETTER_AUTH_URL is required because auth email links would use the request Host without it."
+  );
+}
+
+let parsedBaseURL: URL;
+
+try {
+  parsedBaseURL = new URL(baseURL);
+} catch {
+  throw new Error("BETTER_AUTH_URL must be a valid HTTP or HTTPS URL.");
+}
+
+if (parsedBaseURL.protocol !== "http:" && parsedBaseURL.protocol !== "https:") {
+  throw new Error("BETTER_AUTH_URL must be a valid HTTP or HTTPS URL.");
+}
+
 export const auth = betterAuth({
+  baseURL,
   rateLimit: { enabled: true, storage: "database" },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
