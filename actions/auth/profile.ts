@@ -4,7 +4,7 @@ import * as z from 'zod';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { APIError } from 'better-auth/api';
-import { logActivity } from '@/actions/activity-log';
+import { logActivity } from '@/lib/activity-log';
 
 const updateProfileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),

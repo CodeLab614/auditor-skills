@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { writeFile, mkdir, readdir, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { logActivity } from '@/actions/activity-log';
+import { logActivity } from '@/lib/activity-log';
 import { checkRateLimit } from '@/lib/rate-limit';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];

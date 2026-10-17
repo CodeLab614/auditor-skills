@@ -3,7 +3,7 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { logActivity } from "@/actions/activity-log";
+import { logActivity } from "@/lib/activity-log";
 
 export async function signOut() {
   try {
