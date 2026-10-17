@@ -7,10 +7,12 @@ import {
   rmSync,
   cpSync,
   readdirSync,
-  statSync,
+  lstatSync,
 } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import * as path from 'node:path';
 import * as clack from '@clack/prompts';
+import { z } from 'zod';
 
 // ============================================================================
 // TYPES
@@ -69,6 +71,61 @@ interface Asset {
 }
 
 type ThemeJson = ThemeJsonV1 | ThemeJsonV2;
+
+const relativePathSchema = z.string().min(1).refine(
+  (value) => !path.isAbsolute(value) && !path.win32.isAbsolute(value) && !value.includes('\0'),
+  'must be a relative path'
+);
+
+const assetSchema = z.object({
+  source: relativePathSchema,
+  destination: relativePathSchema,
+}).strict();
+
+const dependenciesSchema = z.record(
+  z.string().regex(
+    /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/
+  ).refine((name) => name.split('/').every((part) => part !== '.' && part !== '..') && name.length <= 214,
+    'must be a valid npm package name'),
+  z.string().regex(
+    /^(?:\^|~|>=?|<=?|=)?v?(?:\d+|[xX*])(?:\.(?:\d+|[xX*])){0,2}(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/,
+    'must be a semver version or a simple semver range without spaces'
+  )
+);
+
+const themeJsonV1Schema = z.object({
+  name: z.string().min(1),
+  description: z.string(),
+  version: z.string().min(1),
+  preview: z.string().optional(),
+  files: z.object({
+    app: relativePathSchema,
+    components: relativePathSchema,
+    globals: relativePathSchema.optional(),
+    layout: relativePathSchema.optional(),
+  }).strict(),
+  assets: z.array(assetSchema).optional(),
+}).strict();
+
+const themeJsonV2Schema = z.object({
+  name: z.string().min(1),
+  description: z.string(),
+  version: z.string().min(1),
+  preview: z.string().optional(),
+  schema: z.literal(2),
+  scopes: z.object({
+    auth: z.object({ pages: relativePathSchema, components: relativePathSchema }).strict().optional(),
+    dashboard: z.object({ pages: relativePathSchema, components: relativePathSchema }).strict().optional(),
+    landing: z.object({ page: relativePathSchema, components: relativePathSchema.optional() }).strict().optional(),
+    styles: z.object({ globals: relativePathSchema }).strict().optional(),
+    layout: z.object({ root: relativePathSchema }).strict().optional(),
+    ui: z.object({ components: relativePathSchema }).strict().optional(),
+  }).strict().refine((scopes) => Object.keys(scopes).length > 0, 'must define at least one scope'),
+  dependencies: dependenciesSchema.optional(),
+  assets: z.array(assetSchema).optional(),
+}).strict();
+
+const themeJsonSchema = z.union([themeJsonV1Schema, themeJsonV2Schema]);
 
 interface ScopeMapping {
   label: string;
@@ -165,41 +222,229 @@ function saveEnvValue(key: string, value: string): void {
   writeFileSync(ENV_LOCAL_PATH, content);
 }
 
+function resolveContainedPath(base: string, relativePath: string, label: string): string {
+  if (path.isAbsolute(relativePath) || path.win32.isAbsolute(relativePath)) {
+    throw new Error(`${label} must be a relative path: ${relativePath}`);
+  }
+
+  const resolvedBase = path.resolve(base);
+  const resolvedPath = path.resolve(resolvedBase, relativePath);
+  if (
+    resolvedPath !== resolvedBase &&
+    !resolvedPath.startsWith(`${resolvedBase}${path.sep}`)
+  ) {
+    throw new Error(`${label} resolves outside its allowed directory: ${relativePath}`);
+  }
+  return resolvedPath;
+}
+
+function assertNoSymlinks(sourcePath: string): void {
+  let stat;
+  try {
+    stat = lstatSync(sourcePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw error;
+  }
+
+  if (stat.isSymbolicLink()) {
+    throw new Error(`Theme contains a symbolic link: ${sourcePath}`);
+  }
+  if (stat.isDirectory()) {
+    for (const entry of readdirSync(sourcePath)) {
+      assertNoSymlinks(path.join(sourcePath, entry));
+    }
+  }
+}
+
+function assertNoSymlinkPathComponents(base: string, sourcePath: string): void {
+  const relativeSource = path.relative(base, sourcePath);
+  let currentPath = base;
+  for (const segment of relativeSource.split(path.sep).filter(Boolean)) {
+    currentPath = path.join(currentPath, segment);
+    let stat;
+    try {
+      stat = lstatSync(currentPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw error;
+    }
+    if (stat.isSymbolicLink()) {
+      throw new Error(`Theme contains a symbolic link: ${currentPath}`);
+    }
+  }
+  assertNoSymlinks(sourcePath);
+}
+
+function assertThemeSourceType(
+  sourcePath: string,
+  type: 'dir' | 'file',
+  label: string
+): void {
+  let stat;
+  try {
+    stat = lstatSync(sourcePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`${label} does not exist in the theme: ${sourcePath}`);
+    }
+    throw error;
+  }
+
+  if ((type === 'dir' && !stat.isDirectory()) || (type === 'file' && !stat.isFile())) {
+    throw new Error(`${label} must be a ${type === 'dir' ? 'directory' : 'regular file'}: ${sourcePath}`);
+  }
+}
+
+function copyFileNoSymlink(sourcePath: string, destinationPath: string): void {
+  const stat = lstatSync(sourcePath);
+  if (stat.isSymbolicLink() || !stat.isFile()) {
+    throw new Error(`Expected a regular file in theme source: ${sourcePath}`);
+  }
+  mkdirSync(path.dirname(destinationPath), { recursive: true });
+  cpSync(sourcePath, destinationPath);
+}
+
+function assertSafeAssetDestination(destination: string): void {
+  const relativeDestination = path.relative(ROOT_DIR, destination);
+  const segments = relativeDestination.split(path.sep);
+  if (segments.some((segment) => {
+    const normalizedSegment = segment.toLowerCase();
+    return normalizedSegment === '.git' ||
+      normalizedSegment === 'node_modules' ||
+      normalizedSegment.startsWith('.env') ||
+      normalizedSegment === 'package.json' ||
+      normalizedSegment === 'bun.lock' ||
+      normalizedSegment === 'bun.lockb';
+  })) {
+    throw new Error(`Asset destination targets a protected project path: ${relativeDestination}`);
+  }
+
+  let currentPath = ROOT_DIR;
+  for (const segment of segments) {
+    currentPath = path.join(currentPath, segment);
+    try {
+      if (lstatSync(currentPath).isSymbolicLink()) {
+        throw new Error(`Asset destination traverses a symbolic link: ${currentPath}`);
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') break;
+      throw error;
+    }
+  }
+}
+
+/** Read, validate, and check all source and asset paths before installation. */
+export function validateThemeConfig(themeDir: string): ThemeJsonV2 {
+  const resolvedThemeDir = path.resolve(themeDir);
+  if (lstatSync(resolvedThemeDir).isSymbolicLink()) {
+    throw new Error('Theme directory cannot be a symbolic link.');
+  }
+  const themeJsonPath = resolveContainedPath(resolvedThemeDir, 'theme.json', 'theme.json');
+  if (!existsSync(themeJsonPath)) {
+    throw new Error('Theme is missing theme.json. Cannot install.');
+  }
+  const themeJsonStat = lstatSync(themeJsonPath);
+  if (themeJsonStat.isSymbolicLink() || !themeJsonStat.isFile()) {
+    throw new Error('Theme theme.json must be a regular file, not a symbolic link.');
+  }
+
+  const rawConfig: unknown = JSON.parse(readFileSync(themeJsonPath, 'utf-8'));
+  const parsedConfig = themeJsonSchema.safeParse(rawConfig);
+  if (!parsedConfig.success) {
+    const details = parsedConfig.error.issues
+      .map((issue) => `${issue.path.join('.') || 'theme.json'}: ${issue.message}`)
+      .join('; ');
+    throw new Error(`Invalid theme.json: ${details}`);
+  }
+
+  const config = normalizeThemeConfig(parsedConfig.data as ThemeJson);
+  const mappings = resolveScopeMappings(resolvedThemeDir, config);
+  for (const mapping of mappings.values()) {
+    for (const { src, type } of mapping.sources) {
+      assertNoSymlinkPathComponents(resolvedThemeDir, src);
+      assertThemeSourceType(src, type, mapping.label);
+    }
+  }
+
+  for (const asset of config.assets ?? []) {
+    const source = resolveContainedPath(resolvedThemeDir, asset.source, 'Asset source');
+    const destination = resolveContainedPath(ROOT_DIR, asset.destination, 'Asset destination');
+    assertNoSymlinkPathComponents(resolvedThemeDir, source);
+    assertThemeSourceType(source, 'file', 'Asset source');
+    assertSafeAssetDestination(destination);
+  }
+
+  return config;
+}
+
 function parseGitHubSource(source: string): { owner: string; repo: string } {
   const parts = source.replace('github:', '').split('/');
   return { owner: parts[0], repo: parts[1] };
 }
 
 function copyDirRecursive(src: string, dest: string): void {
-  if (!existsSync(src)) return;
+  let stat;
+  try {
+    stat = lstatSync(src);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw error;
+  }
+  if (stat.isSymbolicLink()) {
+    throw new Error(`Symbolic links are not allowed in theme sources: ${src}`);
+  }
+  if (!stat.isDirectory()) {
+    throw new Error(`Expected a directory in theme source: ${src}`);
+  }
   mkdirSync(dest, { recursive: true });
 
   const entries = readdirSync(src);
   for (const entry of entries) {
     const srcPath = path.join(src, entry);
     const destPath = path.join(dest, entry);
-    const stat = statSync(srcPath);
+    const entryStat = lstatSync(srcPath);
 
-    if (stat.isDirectory()) {
+    if (entryStat.isSymbolicLink()) {
+      throw new Error(`Symbolic links are not allowed in theme sources: ${srcPath}`);
+    }
+    if (entryStat.isDirectory()) {
       copyDirRecursive(srcPath, destPath);
-    } else {
+    } else if (entryStat.isFile()) {
       mkdirSync(path.dirname(destPath), { recursive: true });
       cpSync(srcPath, destPath);
+    } else {
+      throw new Error(`Unsupported theme source entry: ${srcPath}`);
     }
   }
 }
 
 function countFiles(dir: string): number {
-  if (!existsSync(dir)) return 0;
+  let stat;
+  try {
+    stat = lstatSync(dir);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 0;
+    throw error;
+  }
+  if (stat.isSymbolicLink()) {
+    throw new Error(`Symbolic links are not allowed in copied files: ${dir}`);
+  }
+  if (!stat.isDirectory()) return 1;
   let count = 0;
   const entries = readdirSync(dir);
   for (const entry of entries) {
     const fullPath = path.join(dir, entry);
-    const stat = statSync(fullPath);
-    if (stat.isDirectory()) {
+    const entryStat = lstatSync(fullPath);
+    if (entryStat.isSymbolicLink()) {
+      throw new Error(`Symbolic links are not allowed in copied files: ${fullPath}`);
+    }
+    if (entryStat.isDirectory()) {
       count += countFiles(fullPath);
-    } else {
+    } else if (entryStat.isFile()) {
       count++;
+    } else {
+      throw new Error(`Unsupported copied file entry: ${fullPath}`);
     }
   }
   return count;
@@ -264,12 +509,12 @@ function resolveScopeMappings(
       label: 'Auth pages & components',
       sources: [
         {
-          src: path.join(themeDir, config.scopes.auth.pages),
+          src: resolveContainedPath(themeDir, config.scopes.auth.pages, 'Auth pages source'),
           dest: path.join(ROOT_DIR, 'app', 'auth'),
           type: 'dir',
         },
         {
-          src: path.join(themeDir, config.scopes.auth.components),
+          src: resolveContainedPath(themeDir, config.scopes.auth.components, 'Auth components source'),
           dest: path.join(ROOT_DIR, 'components', 'auth'),
           type: 'dir',
         },
@@ -282,12 +527,12 @@ function resolveScopeMappings(
       label: 'Dashboard pages & components',
       sources: [
         {
-          src: path.join(themeDir, config.scopes.dashboard.pages),
+          src: resolveContainedPath(themeDir, config.scopes.dashboard.pages, 'Dashboard pages source'),
           dest: path.join(ROOT_DIR, 'app', 'dashboard'),
           type: 'dir',
         },
         {
-          src: path.join(themeDir, config.scopes.dashboard.components),
+          src: resolveContainedPath(themeDir, config.scopes.dashboard.components, 'Dashboard components source'),
           dest: path.join(ROOT_DIR, 'components', 'dashboard'),
           type: 'dir',
         },
@@ -298,14 +543,14 @@ function resolveScopeMappings(
   if (config.scopes.landing) {
     const sources: ScopeMapping['sources'] = [
       {
-        src: path.join(themeDir, config.scopes.landing.page),
+        src: resolveContainedPath(themeDir, config.scopes.landing.page, 'Landing page source'),
         dest: path.join(ROOT_DIR, 'app', 'page.tsx'),
         type: 'file',
       },
     ];
     if (config.scopes.landing.components) {
       sources.push({
-        src: path.join(themeDir, config.scopes.landing.components),
+        src: resolveContainedPath(themeDir, config.scopes.landing.components, 'Landing components source'),
         dest: path.join(ROOT_DIR, 'components', 'landing-content.tsx'),
         type: 'file',
       });
@@ -321,7 +566,7 @@ function resolveScopeMappings(
       label: 'Global styles',
       sources: [
         {
-          src: path.join(themeDir, config.scopes.styles.globals),
+          src: resolveContainedPath(themeDir, config.scopes.styles.globals, 'Styles source'),
           dest: path.join(ROOT_DIR, 'app', 'globals.css'),
           type: 'file',
         },
@@ -334,7 +579,7 @@ function resolveScopeMappings(
       label: 'Root layout',
       sources: [
         {
-          src: path.join(themeDir, config.scopes.layout.root),
+          src: resolveContainedPath(themeDir, config.scopes.layout.root, 'Layout source'),
           dest: path.join(ROOT_DIR, 'app', 'layout.tsx'),
           type: 'file',
         },
@@ -347,7 +592,7 @@ function resolveScopeMappings(
       label: 'UI components (shadcn)',
       sources: [
         {
-          src: path.join(themeDir, config.scopes.ui.components),
+          src: resolveContainedPath(themeDir, config.scopes.ui.components, 'UI components source'),
           dest: path.join(ROOT_DIR, 'components', 'ui'),
           type: 'dir',
         },
@@ -388,8 +633,7 @@ function installScopes(
         copyDirRecursive(src, dest);
         fileCount += countFiles(dest);
       } else {
-        mkdirSync(path.dirname(dest), { recursive: true });
-        cpSync(src, dest);
+        copyFileNoSymlink(src, dest);
         fileCount++;
       }
     }
@@ -405,12 +649,11 @@ function installAssets(themeDir: string, assets?: Asset[]): number {
 
   let count = 0;
   for (const asset of assets) {
-    const src = path.join(themeDir, asset.source);
-    const dest = path.join(ROOT_DIR, asset.destination);
+    const src = resolveContainedPath(themeDir, asset.source, 'Asset source');
+    const dest = resolveContainedPath(ROOT_DIR, asset.destination, 'Asset destination');
 
     if (existsSync(src)) {
-      mkdirSync(path.dirname(dest), { recursive: true });
-      cpSync(src, dest);
+      copyFileNoSymlink(src, dest);
       count++;
     }
   }
@@ -447,9 +690,8 @@ async function installDependencies(
 ): Promise<void> {
   if (deps.length === 0) return;
 
-  const packages = deps.map((d) => `${d.name}@${d.version}`).join(' ');
-  const { execSync } = await import('node:child_process');
-  execSync(`bun add ${packages}`, { cwd: ROOT_DIR, stdio: 'pipe' });
+  const packages = deps.map((dependency) => `${dependency.name}@${dependency.version}`);
+  execFileSync('bun', ['add', ...packages], { cwd: ROOT_DIR, stdio: 'pipe' });
 }
 
 // ============================================================================
@@ -497,12 +739,12 @@ async function downloadAndExtractTarball(
   const tarballPath = path.join(TEMP_DIR, 'theme.tar.gz');
   writeFileSync(tarballPath, Buffer.from(arrayBuffer));
 
-  const { execSync } = await import('node:child_process');
-  execSync(`tar -xzf "${tarballPath}" -C "${TEMP_DIR}"`, { stdio: 'pipe' });
+  execFileSync('tar', ['-xzf', tarballPath, '-C', TEMP_DIR], { stdio: 'pipe' });
 
   const extracted = readdirSync(TEMP_DIR).filter((f) => {
     const fullPath = path.join(TEMP_DIR, f);
-    return statSync(fullPath).isDirectory();
+    const stat = lstatSync(fullPath);
+    return !stat.isSymbolicLink() && stat.isDirectory();
   });
 
   if (extracted.length === 0) {
@@ -632,19 +874,8 @@ async function handleGitHubTheme(theme: RegistryTheme): Promise<void> {
     const themeDir = await downloadAndExtractTarball(owner, repo, token);
     s.stop('Downloaded theme files.');
 
-    if (isNewToken) {
-      saveEnvValue('GITHUB_TOKEN', token);
-      clack.log.success('Token saved to .env.local');
-    }
-
-    // 3. Read and normalize theme.json
-    const themeJsonPath = path.join(themeDir, 'theme.json');
-    if (!existsSync(themeJsonPath)) {
-      throw new Error('Theme is missing theme.json. Cannot install.');
-    }
-
-    const rawConfig = JSON.parse(readFileSync(themeJsonPath, 'utf-8')) as ThemeJson;
-    const config = normalizeThemeConfig(rawConfig);
+    // 3. Validate theme.json, all paths, and source trees before confirmation.
+    const config = validateThemeConfig(themeDir);
     const scopeNames = Object.keys(config.scopes);
     const mappings = resolveScopeMappings(themeDir, config);
 
@@ -664,6 +895,19 @@ async function handleGitHubTheme(theme: RegistryTheme): Promise<void> {
         .join('\n'),
       `"${config.name}" will modify`
     );
+
+    if (config.assets && config.assets.length > 0) {
+      clack.note(
+        config.assets
+          .map((asset) => {
+            const source = resolveContainedPath(themeDir, asset.source, 'Asset source');
+            const destination = resolveContainedPath(ROOT_DIR, asset.destination, 'Asset destination');
+            return `${source} → ${destination}`;
+          })
+          .join('\n'),
+        'Assets to copy (source → destination)'
+      );
+    }
 
     // 5. Check dependencies
     const missingDeps = config.dependencies
@@ -685,6 +929,11 @@ async function handleGitHubTheme(theme: RegistryTheme): Promise<void> {
     if (clack.isCancel(shouldContinue) || !shouldContinue) {
       clack.cancel('No changes made.');
       return;
+    }
+
+    if (isNewToken) {
+      saveEnvValue('GITHUB_TOKEN', token);
+      clack.log.success('Token saved to .env.local');
     }
 
     // 7. Restore Classic first (clean slate)
@@ -778,7 +1027,9 @@ async function main() {
   await handleGitHubTheme(theme);
 }
 
-main().catch((error) => {
-  console.error('Unexpected error:', error);
-  process.exit(1);
-});
+if ((import.meta as ImportMeta & { main?: boolean }).main) {
+  main().catch((error) => {
+    console.error('Unexpected error:', error);
+    process.exit(1);
+  });
+}

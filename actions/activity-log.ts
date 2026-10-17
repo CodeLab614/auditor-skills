@@ -13,7 +13,14 @@ export async function getUserActivityLogs(
       return { success: false as const, error: "Unauthorized" };
     }
 
-    const { limit = 50, offset = 0 } = options || {};
+    const requestedLimit = options?.limit ?? 50;
+    const requestedOffset = options?.offset ?? 0;
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(100, Math.max(1, Math.trunc(requestedLimit)))
+      : 50;
+    const offset = Number.isFinite(requestedOffset)
+      ? Math.max(0, Math.trunc(requestedOffset))
+      : 0;
 
     const logs = await prisma.activityLog.findMany({
       where: { userId },
