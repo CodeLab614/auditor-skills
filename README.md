@@ -36,12 +36,12 @@ A production-ready Next.js 16+ authentication boilerplate with Better Auth, desi
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) (recommended) or Node.js 18+
+- [Bun](https://bun.sh/) (recommended) or Node.js 20.9+
 - PostgreSQL database ([Neon](https://neon.tech) recommended)
 - [Resend](https://resend.com) account for emails
 - OAuth credentials (optional)
 
-### Installation
+### Recommended: Setup wizard
 
 ```bash
 # Clone the repository
@@ -59,9 +59,16 @@ The setup wizard will guide you through:
 1. Database connection
 2. Better Auth configuration
 3. Email service setup
-4. OAuth providers (optional)
-5. Database migration
-6. Admin user creation
+4. Cloudflare Turnstile
+5. OAuth providers (optional)
+6. Database setup and admin user creation
+7. Optional auth theme selection
+
+### Manual setup
+
+To configure each step yourself, follow the [English manual setup guide](docs/en/00-manual-setup.md) or the [guía de setup manual en español](docs/es/00-manual-setup.md).
+
+Browse all guides from the [documentation index](docs/README.md).
 
 ### Admin Account
 
@@ -143,9 +150,11 @@ GITHUB_CLIENT_ID=""
 GITHUB_CLIENT_SECRET=""
 ```
 
-## Turnstile (Optional)
+## Turnstile (Required in production)
 
-Set both keys to protect registration, verification email resends, and password reset. If either key is omitted, Turnstile is disabled.
+Turnstile protects registration, verification email resends, and password reset. `bun run init:setup` asks for the two keys and can use test keys for local development. Production builds require both real keys and fail if either is missing or a test key is used.
+
+Setup guides: [English](docs/en/02-turnstile.md) · [Español](docs/es/02-turnstile.md).
 
 Cloudflare's test keys work on `localhost` and development domains:
 
@@ -158,7 +167,7 @@ TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"
 - Always fail: site key `2x00000000000000000000AB`, secret `2x0000000000000000000000000000000AA`.
 - Duplicate-token response: secret `3x0000000000000000000000000000000AA`.
 
-Test keys are rejected in production. Create real keys in the Cloudflare dashboard for production.
+Test keys are only for local development. Create real keys in the Cloudflare dashboard for production; see the guides above.
 
 ## Available Scripts
 
@@ -311,7 +320,25 @@ Edit templates in `emails/`:
 
 ## Deployment
 
-### Vercel (Recommended)
+### Before deploying
+
+Set these required environment variables in the runtime environment of each deployment:
+
+- `DATABASE_URL`
+- `BETTER_AUTH_SECRET`
+- `BETTER_AUTH_URL`
+- `RESEND_API_KEY`
+- `FROM_EMAIL`
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (real Cloudflare key)
+- `TURNSTILE_SECRET_KEY` (real Cloudflare key)
+
+OAuth credentials are optional. Additionally, every environment running `next build` (production, staging, previews, and CI) needs real Turnstile keys during compilation; test keys make the build fail. `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is embedded during compilation, so changing it requires a new build. For Docker, pass the public site key as `ARG`/`--build-arg` and mount `TURNSTILE_SECRET_KEY` as a BuildKit secret during the build; also provide the secret to the running container.
+
+This applies across hosting providers, including Vercel, Netlify, Railway, Render, Coolify, Docker on a VPS, and any CI pipeline that runs the build. For example, Vercel variables are configured under **Project Settings → Environment Variables**; CI should provide both as secrets to the build step.
+
+Every hostname serving the app must be covered by the widget's **Hostnames**. Cloudflare does not support `*` wildcards, but adding a hostname covers its subdomains. For example, `example.com` covers `staging.example.com`; adding only `app.example.com` does not cover its parent or sibling subdomains. Add unrelated hostnames individually or use separate widgets per environment. See [Cloudflare's hostname management guide](https://developers.cloudflare.com/turnstile/additional-configuration/hostname-management/).
+
+### Example: Vercel
 
 1. Push to GitHub
 2. Import in Vercel
@@ -321,15 +348,21 @@ Edit templates in `emails/`:
 ### Docker
 
 ```dockerfile
+# syntax=docker/dockerfile:1
 FROM oven/bun:1 as base
 WORKDIR /app
 COPY package.json bun.lockb ./
 RUN bun install --frozen-lockfile
 COPY . .
-RUN bun run build
+# The public key is safe as a build argument; mount the secret with BuildKit.
+ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
+RUN --mount=type=secret,id=turnstile_secret_key,env=TURNSTILE_SECRET_KEY \\
+    bun run build
 EXPOSE 3000
 CMD ["bun", "run", "start"]
 ```
+
+Pass `NEXT_PUBLIC_TURNSTILE_SITE_KEY` with `--build-arg` and pass the protected `TURNSTILE_SECRET_KEY` with `--secret id=turnstile_secret_key,env=TURNSTILE_SECRET_KEY`. Also configure `TURNSTILE_SECRET_KEY` for the running container. See [Docker's Build secrets documentation](https://docs.docker.com/build/building/secrets/).
 
 ## Contributing
 
@@ -341,7 +374,7 @@ CMD ["bun", "run", "start"]
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License.
 
 ## Author
 

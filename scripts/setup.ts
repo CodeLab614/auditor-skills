@@ -4,6 +4,10 @@ import { existsSync, writeFileSync, readFileSync, appendFileSync, unlinkSync } f
 import { createInterface } from 'node:readline';
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
+import {
+  isTurnstileTestSecretKey,
+  isTurnstileTestSiteKey,
+} from '../lib/turnstile-config';
 
 // ============================================================================
 // CONFIGURATION
@@ -17,7 +21,8 @@ interface EnvVariable {
   validate?: (value: string) => boolean | string;
   transform?: (value: string) => string;
   helpUrl?: string;
-  category: 'database' | 'auth' | 'email' | 'oauth';
+  category: 'database' | 'auth' | 'email' | 'captcha' | 'oauth';
+  sensitive?: boolean;
   autoGenerate?: () => string;
 }
 
@@ -28,6 +33,7 @@ const ENV_VARIABLES: EnvVariable[] = [
     description: 'PostgreSQL connection string',
     placeholder: 'postgresql://user:password@host:5432/database',
     required: true,
+    sensitive: true,
     category: 'database',
     helpUrl: 'https://neon.tech',
     validate: (value) => {
@@ -56,6 +62,7 @@ const ENV_VARIABLES: EnvVariable[] = [
     description: 'Resend API key for sending emails',
     placeholder: 're_xxxxxxxxxxxxx',
     required: true,
+    sensitive: true,
     category: 'email',
     helpUrl: 'https://resend.com/api-keys',
     validate: (value) => {
@@ -105,6 +112,7 @@ const icons = {
   database: '🗄️',
   key: '🔑',
   email: '📧',
+  shield: '🛡️',
   globe: '🌐',
   check: '✅',
   spinner: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'],
@@ -249,6 +257,7 @@ async function askVariable(
     database: icons.database,
     auth: icons.key,
     email: icons.email,
+    captcha: icons.shield,
     oauth: icons.globe,
   };
 
@@ -281,8 +290,11 @@ async function askVariable(
   let isValid = false;
 
   while (!isValid) {
-    const defaultHint = existingValue
-      ? ` ${colors.dim}[${existingValue}]${colors.reset}`
+    const safeExistingValue = variable.sensitive && existingValue
+      ? `****${existingValue.slice(-4)}`
+      : existingValue;
+    const defaultHint = safeExistingValue
+      ? ` ${colors.dim}[${safeExistingValue}]${colors.reset}`
       : '';
     const placeholderHint = variable.placeholder
       ? ` ${colors.dim}(${variable.placeholder})${colors.reset}`
@@ -334,6 +346,123 @@ async function askVariable(
   println();
 
   return value;
+}
+
+async function askTurnstileConfig(
+  existingEnv: Record<string, string>,
+): Promise<{ siteKey: string; secretKey: string }> {
+  printBox(
+    'Cloudflare Turnstile is required in production',
+    [
+      'Production builds fail without real Turnstile keys.',
+      'Guide (English): docs/en/02-turnstile.md',
+      'Guía (español): docs/es/02-turnstile.md',
+    ],
+    'warning',
+  );
+
+  const hasExistingKeys = Boolean(
+    existingEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY && existingEnv.TURNSTILE_SECRET_KEY,
+  );
+  println('  Choose your Cloudflare Turnstile keys:');
+  println('  [1] Use my Cloudflare keys');
+  println('  [2] Use Cloudflare test keys (local development only)');
+  if (hasExistingKeys) println('  [3] Keep existing keys');
+
+  let choice = '';
+  while (!['1', '2', ...(hasExistingKeys ? ['3'] : [])].includes(choice)) {
+    choice = await question('  Select an option: ');
+  }
+
+  if (choice === '2') {
+    println(
+      `  ${colors.yellow}${icons.warning} Test keys only work locally. Production builds fail with them. Create a widget using the guide before deploying.${colors.reset}`,
+    );
+    return {
+      siteKey: '1x00000000000000000000AA',
+      secretKey: '1x0000000000000000000000000000000AA',
+    };
+  }
+
+  let siteKey: string;
+  let secretKey: string;
+  if (choice === '3') {
+    siteKey = existingEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    secretKey = existingEnv.TURNSTILE_SECRET_KEY;
+    println(`  ${colors.green}${icons.success} Keeping existing Cloudflare keys${colors.reset}`);
+  } else {
+    const noWhitespace = (value: string) =>
+      /\s/.test(value) ? 'Keys cannot contain spaces' : true;
+    siteKey = await askVariable(
+      {
+        key: 'NEXT_PUBLIC_TURNSTILE_SITE_KEY',
+        description: 'Cloudflare Turnstile site key',
+        placeholder: '0x4AAAA...',
+        required: true,
+        category: 'captcha',
+        validate: noWhitespace,
+      },
+      existingEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+    );
+
+    while (true) {
+      secretKey = await askVariable(
+        {
+          key: 'TURNSTILE_SECRET_KEY',
+          description: 'Cloudflare Turnstile secret key',
+          placeholder: '0x4AAAA...',
+          required: true,
+          sensitive: true,
+          category: 'captcha',
+          validate: noWhitespace,
+        },
+        existingEnv.TURNSTILE_SECRET_KEY,
+      );
+
+      if (
+        isTurnstileTestSiteKey(siteKey) ||
+        isTurnstileTestSecretKey(secretKey)
+      ) {
+        println(
+          `  ${colors.yellow}${icons.warning} These are Cloudflare test keys. They only work locally; production builds fail with them. Create a widget using the guide before deploying.${colors.reset}`,
+        );
+      }
+
+      try {
+        const response = await fetch(
+          'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              secret: secretKey,
+              response: 'rapidauth-setup-secret-check',
+            }),
+            signal: AbortSignal.timeout(8_000),
+          },
+        );
+        if (!response.ok) throw new Error(`Siteverify returned HTTP ${response.status}`);
+        const result = (await response.json()) as {
+          'error-codes'?: string[];
+        };
+        if (result['error-codes']?.includes('invalid-input-secret')) {
+          println(`  ${colors.red}${icons.error} Cloudflare rejected this secret key. Check it and try again.${colors.reset}`);
+          continue;
+        }
+        if (!result['error-codes']?.includes('invalid-input-response')) {
+          println(`  ${colors.yellow}${icons.warning} Could not confirm the secret key with the test response. Continuing; verify it in Cloudflare.${colors.reset}`);
+        } else {
+          println(`  ${colors.green}${icons.success} Cloudflare accepted the secret key${colors.reset}`);
+        }
+        break;
+      } catch {
+        println(`  ${colors.yellow}${icons.warning} Could not reach Cloudflare to verify the secret key. Continuing; verify it before deploying.${colors.reset}`);
+        break;
+      }
+    }
+  }
+
+  return { siteKey, secretKey };
 }
 
 // ============================================================================
@@ -661,6 +790,8 @@ function writeEnvFile(envVars: Record<string, string>): void {
     BETTER_AUTH_URL: 'auth',
     RESEND_API_KEY: 'email',
     FROM_EMAIL: 'email',
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'captcha',
+    TURNSTILE_SECRET_KEY: 'captcha',
     GOOGLE_CLIENT_ID: 'oauth',
     GOOGLE_CLIENT_SECRET: 'oauth',
     GITHUB_CLIENT_ID: 'oauth',
@@ -673,8 +804,18 @@ function writeEnvFile(envVars: Record<string, string>): void {
     database: ['# Database'],
     auth: ['# Better Auth'],
     email: ['# Email (Resend)'],
+    captcha: ['# Cloudflare Turnstile'],
     oauth: ['# OAuth Providers'],
   };
+
+  if (
+    isTurnstileTestSiteKey(envVars.NEXT_PUBLIC_TURNSTILE_SITE_KEY) ||
+    isTurnstileTestSecretKey(envVars.TURNSTILE_SECRET_KEY)
+  ) {
+    sections.captcha.push(
+      '# Test keys: local development only. Production builds fail until you set real keys (docs/en/02-turnstile.md)',
+    );
+  }
 
   // Add all env variables to their sections
   for (const [key, value] of Object.entries(envVars)) {
@@ -742,20 +883,20 @@ type OAuthProvider = 'google' | 'github';
 
 const PROVIDER_INFO: Record<OAuthProvider, {
   label: string;
-  vars: { key: string; description: string; placeholder: string; helpUrl?: string }[];
+  vars: { key: string; description: string; placeholder: string; helpUrl?: string; sensitive?: boolean }[];
 }> = {
   google: {
     label: 'Google',
     vars: [
       { key: 'GOOGLE_CLIENT_ID', description: 'Google OAuth Client ID', placeholder: 'xxxxx.apps.googleusercontent.com', helpUrl: 'https://console.cloud.google.com/apis/credentials' },
-      { key: 'GOOGLE_CLIENT_SECRET', description: 'Google OAuth Client Secret', placeholder: 'GOCSPX-xxxxxxxxxxxxx' },
+      { key: 'GOOGLE_CLIENT_SECRET', description: 'Google OAuth Client Secret', placeholder: 'GOCSPX-xxxxxxxxxxxxx', sensitive: true },
     ],
   },
   github: {
     label: 'GitHub',
     vars: [
       { key: 'GITHUB_CLIENT_ID', description: 'GitHub OAuth Client ID', placeholder: 'Ov23liXXXXXXXX', helpUrl: 'https://github.com/settings/developers' },
-      { key: 'GITHUB_CLIENT_SECRET', description: 'GitHub OAuth Client Secret', placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxx' },
+      { key: 'GITHUB_CLIENT_SECRET', description: 'GitHub OAuth Client Secret', placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxx', sensitive: true },
     ],
   },
 };
@@ -877,7 +1018,8 @@ async function askProviderCredentials(
     let valid = false;
     while (!valid) {
       const existing = existingEnv[v.key];
-      const hint = existing ? ` ${colors.dim}[${existing}]${colors.reset}` : '';
+      const safeExisting = v.sensitive && existing ? `****${existing.slice(-4)}` : existing;
+      const hint = safeExisting ? ` ${colors.dim}[${safeExisting}]${colors.reset}` : '';
       value = await question(`     ${colors.yellow}${icons.arrow}${colors.reset}${hint} ${colors.dim}(${v.placeholder})${colors.reset}: `);
       if (!value && existing) value = existing;
       if (!value) {
@@ -909,6 +1051,7 @@ async function runSetup() {
     { key: 'database', title: 'Database Configuration', icon: icons.database },
     { key: 'auth', title: 'Authentication', icon: icons.key },
     { key: 'email', title: 'Email Configuration', icon: icons.email },
+    { key: 'captcha', title: 'Bot Protection (Cloudflare Turnstile)', icon: icons.shield },
     { key: 'oauth', title: 'OAuth Providers', icon: icons.globe },
   ] as const;
 
@@ -925,6 +1068,7 @@ async function runSetup() {
       'Before you start, make sure you have:',
       '  • A PostgreSQL database (Neon, Supabase, etc.)',
       '  • A Resend account for sending emails',
+      '  • A free Cloudflare account for Turnstile',
       '  • OAuth credentials (optional)',
     ],
     'info',
@@ -1051,6 +1195,10 @@ async function runSetup() {
       }
 
       println();
+    } else if (category.key === 'captcha') {
+      const turnstile = await askTurnstileConfig(existingEnv);
+      newEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY = turnstile.siteKey;
+      newEnv.TURNSTILE_SECRET_KEY = turnstile.secretKey;
     } else if (category.key === 'oauth') {
       // Dynamic provider selection
       process.stdin.pause();
@@ -1205,6 +1353,14 @@ async function runSetup() {
       'Save it and change it after your first login.',
       'If the admin already existed, its password was kept.',
       '',
+      ...(isTurnstileTestSiteKey(newEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY) ||
+      isTurnstileTestSecretKey(newEnv.TURNSTILE_SECRET_KEY)
+        ? [
+            'Before deploying: create a Turnstile widget',
+            'and set real keys in your hosting.',
+            '',
+          ]
+        : []),
       "Run 'bun dev' to start the development server.",
     ],
     'success',

@@ -1,0 +1,157 @@
+# Environment variables
+
+This reference covers every variable read by the application and setup scripts. The `.env.example` file provides a copyable template. Never commit real secrets.
+
+## Database
+
+### `DATABASE_URL`
+
+- **Purpose:** PostgreSQL connection used by the app, Prisma, and the database scripts.
+- **Required:** Development and production.
+- **Where to get it:** Copy the connection string from your PostgreSQL provider, such as Neon.
+- **Example format:** `postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require`
+- **Secret:** Yes. It contains database credentials.
+
+## Better Auth
+
+### `BETTER_AUTH_SECRET`
+
+- **Purpose:** Signs and encrypts Better Auth session data.
+- **Required:** Development and production.
+- **Where to get it:** Generate a unique value with `openssl rand -hex 32` or `node -p "require('node:crypto').randomBytes(32).toString('hex')"`.
+- **Example format:** `64-characters-of-random-hex`
+- **Secret:** Yes. Use a different value for each environment and never expose it to the client.
+
+### `BETTER_AUTH_URL`
+
+- **Purpose:** Public base URL Better Auth uses to build callback and email links.
+- **Required:** Development and production.
+- **Where to get it:** Use `http://localhost:3000` locally; use the canonical HTTPS URL for each deployed environment.
+- **Example format:** `https://auth.example.com`
+- **Secret:** No. Keep it aligned with the URL from which the app is served.
+
+## Email
+
+### `RESEND_API_KEY`
+
+- **Purpose:** Authenticates email requests sent through Resend.
+- **Required:** For email delivery in development and production; use production credentials for production.
+- **Where to get it:** Create an API key in the Resend dashboard.
+- **Example format:** `re_replace_with_your_resend_key`
+- **Secret:** Yes. Keep it server-side.
+
+### `FROM_EMAIL`
+
+- **Purpose:** Sender name and address for verification and password emails.
+- **Required:** Development has an application fallback; production email delivery requires a sender address authorized by Resend.
+- **Where to get it:** Choose an address on a domain verified in Resend.
+- **Example format:** `RapidAuth <noreply@example.com>`
+- **Secret:** No. The domain must be verified before production email delivery.
+
+## Turnstile
+
+### `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+
+- **Purpose:** Public key rendered by the browser widget.
+- **Required:** Optional for `next dev`; a real key is required for every `next build`, including production, staging, previews, and CI.
+- **Where to get it:** Create a Cloudflare Turnstile widget. See [Cloudflare Turnstile](02-turnstile.md).
+- **Example format:** `your-real-turnstile-site-key`
+- **Secret:** No. `NEXT_PUBLIC_*` values are embedded in the client bundle at compile time; changing this key requires a new build.
+
+### `TURNSTILE_SECRET_KEY`
+
+- **Purpose:** Validates Turnstile tokens on the server.
+- **Required:** Optional for `next dev`; a real key is required for every `next build` and by the running production server.
+- **Where to get it:** Copy the Secret Key belonging to the same Cloudflare Turnstile widget as the site key.
+- **Example format:** `your-real-turnstile-secret-key`
+- **Secret:** Yes. Keep it server-side. Docker builds must mount it with BuildKit; also provide it to the running container.
+
+## OAuth
+
+For either provider, add its callback URL to the provider's OAuth application: `<BETTER_AUTH_URL>/api/auth/callback/google` or `<BETTER_AUTH_URL>/api/auth/callback/github`. For example, the local Google callback is `http://localhost:3000/api/auth/callback/google`.
+
+### `GOOGLE_CLIENT_ID`
+
+- **Purpose:** Identifies the Google OAuth application.
+- **Required:** Not required unless Google sign-in is enabled, in development or production.
+- **Where to get it:** Google Cloud Console → APIs & Services → Credentials.
+- **Example format:** `1234567890-example.apps.googleusercontent.com`
+- **Secret:** No. Configure the matching callback URL above.
+
+### `GOOGLE_CLIENT_SECRET`
+
+- **Purpose:** Authenticates RapidAuth to the Google OAuth application.
+- **Required:** Not required unless Google sign-in is enabled, in development or production.
+- **Where to get it:** Google Cloud Console, with the client ID.
+- **Example format:** `replace-with-google-client-secret`
+- **Secret:** Yes. Keep it server-side.
+
+### `GITHUB_CLIENT_ID`
+
+- **Purpose:** Identifies the GitHub OAuth application.
+- **Required:** Not required unless GitHub sign-in is enabled, in development or production.
+- **Where to get it:** GitHub Settings → Developer settings → OAuth Apps.
+- **Example format:** `Iv1.exampleclientid`
+- **Secret:** No. Configure the matching callback URL above.
+
+### `GITHUB_CLIENT_SECRET`
+
+- **Purpose:** Authenticates RapidAuth to the GitHub OAuth application.
+- **Required:** Not required unless GitHub sign-in is enabled, in development or production.
+- **Where to get it:** GitHub OAuth App settings, with the client ID.
+- **Example format:** `replace-with-github-client-secret`
+- **Secret:** Yes. Keep it server-side.
+
+### `NEXT_PUBLIC_GOOGLE_ENABLED`
+
+- **Purpose:** Controls whether the Google sign-in button appears.
+- **Required:** Optional; set to `true` when Google sign-in is configured, otherwise `false`.
+- **Where to get it:** Set it yourself in `.env`.
+- **Example format:** `false`
+- **Secret:** No. This `NEXT_PUBLIC_*` flag is embedded at compile time. Set it to `true` only with matching Google credentials.
+
+### `NEXT_PUBLIC_GITHUB_ENABLED`
+
+- **Purpose:** Controls whether the GitHub sign-in button appears.
+- **Required:** Optional; set to `true` when GitHub sign-in is configured, otherwise `false`.
+- **Where to get it:** Set it yourself in `.env`.
+- **Example format:** `false`
+- **Secret:** No. This `NEXT_PUBLIC_*` flag is embedded at compile time. Set it to `true` only with matching GitHub credentials.
+
+## Seed
+
+These variables are read only by `bun run db:seed`; they are not needed by the app after seeding.
+
+### `SEED_ADMIN_EMAIL`
+
+- **Purpose:** Email address of the initial admin account.
+- **Required:** Not required. The seed defaults to `admin@admin.com`.
+- **Where to get it:** Choose an email address you control.
+- **Example format:** `admin@example.com`
+- **Secret:** No. Used only by the seed script.
+
+### `SEED_ADMIN_PASSWORD`
+
+- **Purpose:** Password for the initial admin account.
+- **Required:** Not required. If unset, the seed generates a password and prints it once.
+- **Where to get it:** Choose a unique password of at least 8 characters.
+- **Example format:** `replace-with-a-unique-password`
+- **Secret:** Yes. Used only by the seed script. Do not leave a sample value active in a real `.env`.
+
+## Themes
+
+### `GITHUB_TOKEN`
+
+- **Purpose:** Lets the optional theme selector download premium themes from GitHub.
+- **Required:** Not required for the app or free/default themes.
+- **Where to get it:** Create a GitHub personal access token with access to the requested theme repository. The theme selector prompts for a token and saves it in `.env.local`.
+- **Example format:** `github_pat_replace_with_your_token`
+- **Secret:** Yes. The theme selector reads it from `.env.local`; it is not needed by the running app.
+
+## Public values and build timing
+
+Every `NEXT_PUBLIC_*` value is public and compiled into the client bundle. Set the intended values before building; changing one requires a new `next build` and deployment. Turnstile production builds require real site and secret keys.
+
+---
+
+← [Manual setup](00-manual-setup.md) · [English index](README.md) · [Next: Cloudflare Turnstile →](02-turnstile.md)

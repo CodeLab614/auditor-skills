@@ -1,24 +1,16 @@
 import { getClientIp } from '@/lib/rate-limit';
+import {
+  getTurnstileConfigError,
+  isTurnstileTestSecretKey,
+  isTurnstileTestSiteKey,
+} from '@/lib/turnstile-config';
 
 const secretKey = process.env.TURNSTILE_SECRET_KEY;
 const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 const isEnabled = Boolean(secretKey && siteKey);
 
-const testSiteKeys = new Set([
-  '1x00000000000000000000AA',
-  '2x00000000000000000000AB',
-  '1x00000000000000000000BB',
-  '2x00000000000000000000BB',
-  '3x00000000000000000000FF',
-]);
-const testSecretKeys = new Set([
-  '1x0000000000000000000000000000000AA',
-  '2x0000000000000000000000000000000AA',
-  '3x0000000000000000000000000000000AA',
-]);
 const isTestKey = Boolean(
-  (siteKey && testSiteKeys.has(siteKey)) ||
-    (secretKey && testSecretKeys.has(secretKey))
+  isTurnstileTestSiteKey(siteKey) || isTurnstileTestSecretKey(secretKey)
 );
 
 if (Boolean(secretKey) !== Boolean(siteKey)) {
@@ -27,13 +19,16 @@ if (Boolean(secretKey) !== Boolean(siteKey)) {
   );
 }
 
-if (process.env.NODE_ENV === 'production' && isTestKey) {
-  throw new Error('Cloudflare Turnstile test keys cannot be used in production.');
-}
-
-if (process.env.NODE_ENV === 'production' && !isEnabled) {
+if (process.env.NODE_ENV === 'production') {
+  const configError = getTurnstileConfigError(process.env);
+  if (configError) throw new Error(configError);
+} else if (!isEnabled) {
   console.warn(
-    'Cloudflare Turnstile is disabled in production because its keys are not configured.'
+    'Turnstile disabled; production builds will fail until real keys are set'
+  );
+} else if (isTestKey) {
+  console.warn(
+    'Using Cloudflare Turnstile test keys; production builds will fail until real keys are set'
   );
 }
 

@@ -6,6 +6,8 @@ Instructions for any AI coding agent working in this repository (Claude Code, Co
 
 This is a **RapidAuth Boilerplate** - a Next.js 16+ application with Better Auth, designed for rapid application development with user management.
 
+User documentation lives in `docs/` (index: `docs/README.md`). When adding or changing an environment variable, update `.env.example`, both `docs/en/01-environment-variables.md` and `docs/es/01-environment-variables.md`, and `scripts/setup.ts`.
+
 ### Tech Stack
 - **Framework**: Next.js 16+ (App Router)
 - **UI**: shadcn/ui + Tailwind CSS v4
