@@ -48,7 +48,7 @@ const icons = {
 // SEED DATA
 // ============================================================================
 
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "admin@admin.com";
+const ADMIN_EMAIL = (process.env.SEED_ADMIN_EMAIL || "admin@admin.com").trim().toLowerCase();
 
 // ============================================================================
 // MAIN SEED FUNCTION

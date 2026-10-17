@@ -3,7 +3,7 @@
 import * as z from 'zod';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
-import { getSession } from '@/lib/auth';
+import { auth, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import {
   addUserSchema,
@@ -89,11 +89,12 @@ export const addUserAction = async (
       };
     }
 
-    const { name, email, role, sendInvite } = data;
+    const { name, role, sendInvite } = data;
+    const email = data.email.trim().toLowerCase();
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
+    const existingUser = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
     });
 
     if (existingUser) {
@@ -180,11 +181,11 @@ export const editUserAction = async (
       };
     }
 
-    // Only admins can edit other users
-    if (session.user.role !== 'admin' && session.user.id !== userId) {
+    // Only admins can edit users
+    if (session.user.role !== 'admin') {
       return {
         response: 'error',
-        message: 'You can only edit your own profile',
+        message: 'Only admins can edit users',
         data: null,
       };
     }
@@ -200,7 +201,8 @@ export const editUserAction = async (
       };
     }
 
-    const { name, email } = data;
+    const { name } = data;
+    const email = data.email.trim().toLowerCase();
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -215,8 +217,10 @@ export const editUserAction = async (
       };
     }
 
+    const emailChanged = email !== user.email.toLowerCase();
+
     // Check if user is OAuth — cannot change email
-    if (email !== user.email) {
+    if (emailChanged) {
       const oauthAccount = await prisma.account.findFirst({
         where: { userId, providerId: { not: 'credential' } },
       });
@@ -230,8 +234,11 @@ export const editUserAction = async (
       }
 
       // Check if email is being changed to one that already exists
-      const existingUser = await prisma.user.findUnique({
-        where: { email },
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          email: { equals: email, mode: 'insensitive' },
+          id: { not: userId },
+        },
       });
 
       if (existingUser) {
@@ -243,17 +250,41 @@ export const editUserAction = async (
       }
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: { name, email },
-    });
+    const updatedUser = emailChanged
+      ? await prisma.$transaction(async (tx) => {
+          const updatedUser = await tx.user.update({
+            where: { id: userId },
+            data: { name, email, emailVerified: false },
+          });
+          await tx.session.deleteMany({ where: { userId } });
+          return updatedUser;
+        })
+      : await prisma.user.update({
+          where: { id: userId },
+          data: { name },
+        });
+
+    let message = 'User updated successfully';
+
+    if (emailChanged) {
+      try {
+        await auth.api.sendVerificationEmail({
+          body: { email, callbackURL: '/auth/verify-email' },
+        });
+        message = 'User updated. A verification email was sent to the new address';
+      } catch (error) {
+        console.error('Verification email error:', error);
+        message = 'User updated, but the verification email could not be sent';
+      }
+    }
 
     await logActivity(session.user.id, 'profile_update', {
       action: 'user_edited',
       targetUserId: userId,
+      emailVerificationReset: emailChanged,
       changes: {
         name: user.name !== name ? { from: user.name, to: name } : undefined,
-        email: user.email !== email ? { from: user.email, to: email } : undefined,
+        email: emailChanged ? { from: user.email, to: email } : undefined,
       },
     });
 
@@ -261,7 +292,7 @@ export const editUserAction = async (
 
     return {
       response: 'success',
-      message: 'User updated successfully',
+      message,
       data: {
         id: updatedUser.id,
         name: updatedUser.name,
