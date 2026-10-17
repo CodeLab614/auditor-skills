@@ -192,6 +192,21 @@ export const auth = betterAuth({
   emailVerification: {
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
+    afterEmailVerification: async (user) => {
+      try {
+        await prisma.activityLog.create({
+          data: {
+            userId: user.id,
+            action: "email_verified",
+            details: null,
+            ipAddress: "unknown",
+            userAgent: "unknown",
+          },
+        });
+      } catch (error) {
+        console.error("Failed to log email verification activity:", error);
+      }
+    },
     sendVerificationEmail: async ({ user, url }) => {
       // Replace the callback URL to go to our custom verified page
       const verifiedUrl = url.replace(

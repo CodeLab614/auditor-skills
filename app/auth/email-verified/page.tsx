@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { EmailVerifiedClient } from "./client";
 
 interface EmailVerifiedPageProps {
@@ -16,21 +15,5 @@ export default async function EmailVerifiedPage({
     redirect("/auth/login");
   }
 
-  let verified = false;
-  let alreadyVerified = false;
-
-  try {
-    await auth.api.verifyEmail({
-      query: { token },
-    });
-    verified = true;
-  } catch (error) {
-    // Check if already verified
-    if (error instanceof Error && error.message.toLowerCase().includes("already")) {
-      alreadyVerified = true;
-    }
-    verified = false;
-  }
-
-  return <EmailVerifiedClient verified={verified} alreadyVerified={alreadyVerified} />;
+  return <EmailVerifiedClient token={token} />;
 }

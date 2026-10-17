@@ -1,5 +1,6 @@
 // Sign In
 export { signInAction, resendVerificationEmailAction } from './sign-in';
+export { verifyEmailAction } from './verify-email';
 
 // Sign Up
 export { signUpAction } from './sign-up';

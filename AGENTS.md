@@ -36,6 +36,7 @@ Project skills live in `.agents/skills/<name>/SKILL.md` (`.claude/skills/` symli
 | Sending emails, Resend | `resend` |
 | Animations, transitions, GSAP | `gsap` |
 | Performance issues, optimization, React patterns | `vercel-react-best-practices` |
+| Security questions, vulnerability reviews, audits, pen tests | `security-audit` |
 
 ### Examples
 
