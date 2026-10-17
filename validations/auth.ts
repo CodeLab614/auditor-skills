@@ -42,6 +42,15 @@ export const resetPasswordSchema = z
     path: ["confirmPassword"],
   });
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Password is required"),
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
+});
+
 export const twoFactorSchema = z.object({
   code: z.string().length(6, "Code must be 6 digits"),
 });
@@ -62,6 +71,7 @@ export type LoginFormData = z.infer<typeof loginSchema>;
 export type RegisterFormData = z.infer<typeof registerSchema>;
 export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 export type TwoFactorFormData = z.infer<typeof twoFactorSchema>;
 export type BackupCodeFormData = z.infer<typeof backupCodeSchema>;
 export type PasswordConfirmFormData = z.infer<typeof passwordConfirmSchema>;

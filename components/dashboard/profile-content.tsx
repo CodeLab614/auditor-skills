@@ -14,7 +14,7 @@ import { User, Mail, Lock, Bell, Camera, Save, Shield, History, Monitor } from "
 import { TwoFactorStatus } from "./two-factor-setup";
 import { ActivityLog, type ActivityLogEntry } from "./activity-log";
 import { ActiveSessions, type SessionData } from "./active-sessions";
-import { updateProfileAction, uploadAvatarAction } from "@/actions/auth";
+import { changePasswordAction, updateProfileAction, uploadAvatarAction } from "@/actions/auth";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -30,7 +30,6 @@ interface ProfileContentProps {
   isOAuthUser?: boolean;
   activityLogs?: ActivityLogEntry[];
   sessions?: SessionData[];
-  onChangePassword?: (passwords: { current: string; new: string }) => Promise<void>;
 }
 
 export function ProfileContent({
@@ -39,7 +38,6 @@ export function ProfileContent({
   isOAuthUser = false,
   activityLogs = [],
   sessions = [],
-  onChangePassword,
 }: ProfileContentProps) {
   const [isLoading, setIsLoading] = React.useState(false);
   const [is2FAEnabled, setIs2FAEnabled] = React.useState(twoFactorEnabled);
@@ -79,8 +77,19 @@ export function ProfileContent({
   const handleChangePassword = async () => {
     setIsLoading(true);
     try {
-      await onChangePassword?.({ current: passwords.current, new: passwords.new });
+      const result = await changePasswordAction({
+        currentPassword: passwords.current,
+        newPassword: passwords.new,
+      });
+
+      if (result.response === 'error') {
+        toast.error(result.message);
+        return;
+      }
+
+      toast.success(result.message);
       setPasswords({ current: "", new: "", confirm: "" });
+      router.refresh();
     } finally {
       setIsLoading(false);
     }

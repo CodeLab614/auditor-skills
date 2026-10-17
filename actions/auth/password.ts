@@ -5,7 +5,11 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { APIError } from 'better-auth/api';
 import { logActivity } from '@/actions/activity-log';
-import { forgotPasswordSchema, resetPasswordSchema } from '@/validations/auth';
+import {
+  changePasswordSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} from '@/validations/auth';
 import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 
 type ForgotPasswordData = {
@@ -128,15 +132,24 @@ export const resetPasswordAction = async (
   }
 };
 
-export const changePasswordAction = async (values: {
-  currentPassword: string;
-  newPassword: string;
-}): Promise<{
+export const changePasswordAction = async (
+  values: z.infer<typeof changePasswordSchema>
+): Promise<{
   response: 'success' | 'error';
   message: string;
   data: null;
 }> => {
   try {
+    const validation = changePasswordSchema.safeParse(values);
+
+    if (!validation.success) {
+      return {
+        response: 'error',
+        message: validation.error.issues[0]?.message ?? 'Invalid fields',
+        data: null,
+      };
+    }
+
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -163,8 +176,9 @@ export const changePasswordAction = async (values: {
 
     await auth.api.changePassword({
       body: {
-        currentPassword: values.currentPassword,
-        newPassword: values.newPassword,
+        currentPassword: validation.data.currentPassword,
+        newPassword: validation.data.newPassword,
+        revokeOtherSessions: true,
       },
       headers: await headers(),
     });
