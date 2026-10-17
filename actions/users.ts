@@ -562,10 +562,20 @@ export const toggleUserStatus = async (
 
     const newStatus = activate ? 'active' : 'inactive';
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: { status: newStatus },
-    });
+    if (newStatus === 'inactive') {
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: userId },
+          data: { status: newStatus },
+        });
+        await tx.session.deleteMany({ where: { userId } });
+      });
+    } else {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { status: newStatus },
+      });
+    }
 
     await logActivity(session.user.id, 'profile_update', {
       action: 'status_change',
@@ -638,10 +648,20 @@ export const bulkToggleStatus = async (
 
     const newStatus = activate ? 'active' : 'inactive';
 
-    await prisma.user.updateMany({
-      where: { id: { in: userIds } },
-      data: { status: newStatus },
-    });
+    if (newStatus === 'inactive') {
+      await prisma.$transaction(async (tx) => {
+        await tx.user.updateMany({
+          where: { id: { in: userIds } },
+          data: { status: newStatus },
+        });
+        await tx.session.deleteMany({ where: { userId: { in: userIds } } });
+      });
+    } else {
+      await prisma.user.updateMany({
+        where: { id: { in: userIds } },
+        data: { status: newStatus },
+      });
+    }
 
     await logActivity(session.user.id, 'profile_update', {
       action: 'bulk_status_change',

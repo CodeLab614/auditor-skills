@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { twoFactor } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
@@ -81,6 +82,19 @@ export const auth = betterAuth({
     },
     session: {
       create: {
+        before: async (session) => {
+          // All sign-in paths create a session, making this the single enforcement point.
+          const user = await prisma.user.findUnique({
+            where: { id: session.userId },
+            select: { status: true },
+          });
+
+          if (user?.status === "inactive") {
+            throw new APIError("FORBIDDEN", {
+              message: "This account has been deactivated.",
+            });
+          }
+        },
         after: async (session) => {
           // Log login activity when a new session is created
           try {
