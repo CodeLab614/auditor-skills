@@ -1,8 +1,10 @@
 'use server';
 
+import { randomInt } from 'node:crypto';
 import * as z from 'zod';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
+import { APIError } from 'better-auth/api';
 import { auth, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import {
@@ -909,8 +911,14 @@ export const resetPasswordAction = async (
     }
 
     if (method === 'email') {
-      // TODO: Send password reset email using Better Auth's forgetPassword
-      // For now, we'll just log the activity
+      await auth.api.requestPasswordReset({
+        body: {
+          email: user.email,
+          redirectTo: '/auth/reset-password',
+        },
+        headers: await headers(),
+      });
+
       await logActivity(session.user.id, 'profile_update', {
         action: 'password_reset_requested',
         targetUserId: userId,
@@ -928,11 +936,36 @@ export const resetPasswordAction = async (
       };
     }
 
-    // Manual method: Generate temporary password
-    const temporaryPassword = generateTemporaryPassword();
+    if (session.user.id === userId) {
+      return {
+        response: 'error',
+        message: 'Use the password change option in your profile to reset your own password',
+        data: null,
+      };
+    }
 
-    // TODO: Update user password using Better Auth
-    // For now, we'll just log the activity
+    const credentialAccount = await prisma.account.findFirst({
+      where: {
+        userId,
+        providerId: 'credential',
+      },
+      select: { id: true },
+    });
+
+    if (!credentialAccount) {
+      return {
+        response: 'error',
+        message: 'This user has no password account. They can only sign in with Google or GitHub.',
+        data: null,
+      };
+    }
+
+    const temporaryPassword = generateTemporaryPassword();
+    const ctx = await auth.$context;
+    const hash = await ctx.password.hash(temporaryPassword);
+    await ctx.internalAdapter.updatePassword(userId, hash);
+    await prisma.session.deleteMany({ where: { userId } });
+
     await logActivity(session.user.id, 'profile_update', {
       action: 'password_reset_manual',
       targetUserId: userId,
@@ -950,6 +983,14 @@ export const resetPasswordAction = async (
       },
     };
   } catch (error) {
+    if (error instanceof APIError) {
+      console.error('Reset password error:', error.message);
+      return {
+        response: 'error',
+        message: error.message ?? 'Failed to reset password',
+        data: null,
+      };
+    }
     console.error('Reset password error:', error);
     return {
       response: 'error',
@@ -961,12 +1002,25 @@ export const resetPasswordAction = async (
 
 // Helper to generate a temporary password
 function generateTemporaryPassword(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  let password = '';
-  for (let i = 0; i < 12; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lowercase = 'abcdefghjkmnpqrstuvwxyz';
+  const numbers = '23456789';
+  const chars = uppercase + lowercase + numbers;
+  const password = [
+    uppercase[randomInt(uppercase.length)],
+    numbers[randomInt(numbers.length)],
+  ];
+
+  while (password.length < 12) {
+    password.push(chars[randomInt(chars.length)]);
   }
-  return password;
+
+  for (let index = password.length - 1; index > 0; index--) {
+    const swapIndex = randomInt(index + 1);
+    [password[index], password[swapIndex]] = [password[swapIndex], password[index]];
+  }
+
+  return password.join('');
 }
 
 export async function getUsers(): Promise<{

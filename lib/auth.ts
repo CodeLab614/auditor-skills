@@ -4,7 +4,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { twoFactor } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/lib/prisma";
-import { sendVerificationEmail } from "@/lib/email";
+import { sendResetPasswordEmail, sendVerificationEmail } from "@/lib/email";
 import { headers } from "next/headers";
 
 // Keep auth email links on the configured application origin.
@@ -162,6 +162,32 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
     revokeSessionsOnPasswordReset: true,
+    resetPasswordTokenExpiresIn: 60 * 60,
+    sendResetPassword: async ({ user, token }) => {
+      const resetUrl = new URL("/auth/reset-password", baseURL);
+      resetUrl.searchParams.set("token", token);
+
+      await sendResetPasswordEmail({
+        email: user.email,
+        name: user.name,
+        url: resetUrl.toString(),
+      });
+    },
+    onPasswordReset: async ({ user }) => {
+      try {
+        await prisma.activityLog.create({
+          data: {
+            userId: user.id,
+            action: "password_change",
+            details: null,
+            ipAddress: "unknown",
+            userAgent: "unknown",
+          },
+        });
+      } catch (error) {
+        console.error("Failed to log password reset activity:", error);
+      }
+    },
   },
   emailVerification: {
     sendOnSignUp: true,
