@@ -10,6 +10,13 @@ const nextConfig = (phase: string): NextConfig => {
 
   return {
     reactCompiler: true,
+    output: "standalone",
+    outputFileTracingIncludes: {
+      "/*": ["./node_modules/.prisma/client/**/*"],
+    },
+    ...(process.env.DOCKER_DEV_POLLING === "true"
+      ? { watchOptions: { pollIntervalMs: 1000 } }
+      : {}),
     images: {
       remotePatterns: [
         { protocol: "https", hostname: "images.unsplash.com" },

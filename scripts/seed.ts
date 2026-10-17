@@ -11,16 +11,15 @@ dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
 
 // Create Prisma client with pg adapter (same as lib/prisma.ts)
-// Note: sslmode is set via connection string, not ssl object
-const connectionString = process.env.DATABASE_URL!.includes('sslmode=')
-  ? process.env.DATABASE_URL!
-  : `${process.env.DATABASE_URL!}${process.env.DATABASE_URL!.includes('?') ? '&' : '?'}sslmode=verify-full`;
+const databaseUrl = process.env.DATABASE_URL!;
+const connectionString = databaseUrl.includes("sslmode=")
+  ? databaseUrl
+  : `${databaseUrl}${databaseUrl.includes("?") ? "&" : "?"}sslmode=verify-full`;
+const sslDisabled = new URL(connectionString).searchParams.get("sslmode") === "disable";
 
 const pool = new Pool({
   connectionString,
-  ssl: {
-    rejectUnauthorized: true,
-  },
+  ssl: sslDisabled ? false : { rejectUnauthorized: true },
 });
 
 const adapter = new PrismaPg(pool);

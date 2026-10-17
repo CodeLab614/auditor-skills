@@ -26,27 +26,7 @@ Every environment that runs `next build` needs both real keys available while co
 
 `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is embedded in the client bundle during compilation. Changing it requires a new build. This applies to hosting platforms such as Vercel, Netlify, Railway, Render, and Coolify, as well as to Docker images built for a VPS.
 
-For Docker, the public site key can be passed as a build argument. Do not pass `TURNSTILE_SECRET_KEY` as `ARG`, `ENV`, or `--build-arg`: Docker documents that build arguments and environment variables persist in the image or its metadata. Use a BuildKit secret mount for the build and configure the secret separately for the running container.
-
-Put the syntax directive at the top of your Dockerfile, declare the public key before the build, and mount the secret as an environment variable for the `RUN` instruction:
-
-```dockerfile
-# syntax=docker/dockerfile:1
-ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
-RUN --mount=type=secret,id=turnstile_secret_key,env=TURNSTILE_SECRET_KEY \\
-    bun run build
-```
-
-Provide the public key with `--build-arg` and source the secret from your protected build environment:
-
-```sh
-docker build \\
-  --build-arg NEXT_PUBLIC_TURNSTILE_SITE_KEY="$NEXT_PUBLIC_TURNSTILE_SITE_KEY" \\
-  --secret id=turnstile_secret_key,env=TURNSTILE_SECRET_KEY \\
-  -t rapidauth .
-```
-
-The running container still needs `TURNSTILE_SECRET_KEY`; inject it with your container platform's runtime secret mechanism. See [Docker's Build secrets documentation](https://docs.docker.com/build/building/secrets/).
+For Docker, pass the public key as a build argument and mount `TURNSTILE_SECRET_KEY` as a BuildKit secret. The running container also needs the secret at runtime. Follow the [Docker guide](03-docker.md#production-with-docker) for the complete Dockerfile and commands. See [Docker's Build secrets documentation](https://docs.docker.com/build/building/secrets/).
 
 For example, in Vercel add both variables under **Project Settings → Environment Variables** for every environment that builds the app, including Preview when used. In CI, provide the public key as a build variable and the secret key as a protected CI secret to the build step.
 
@@ -88,4 +68,4 @@ Set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` in the hosting p
 
 ---
 
-← [Environment variables](01-environment-variables.md) · [English index](README.md) · [Project docs →](../README.md)
+← [Environment variables](01-environment-variables.md) · [English index](README.md) · [Next: Docker →](03-docker.md) · [Project docs →](../README.md)

@@ -9,11 +9,13 @@ import { generatePassword } from "./generate-password";
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
 
-const connectionString = process.env.DATABASE_URL!.includes("sslmode=")
-  ? process.env.DATABASE_URL!
-  : `${process.env.DATABASE_URL!}${process.env.DATABASE_URL!.includes("?") ? "&" : "?"}sslmode=verify-full`;
+const databaseUrl = process.env.DATABASE_URL!;
+const connectionString = databaseUrl.includes("sslmode=")
+  ? databaseUrl
+  : `${databaseUrl}${databaseUrl.includes("?") ? "&" : "?"}sslmode=verify-full`;
+const sslDisabled = new URL(connectionString).searchParams.get("sslmode") === "disable";
 
-const pool = new Pool({ connectionString, ssl: { rejectUnauthorized: true } });
+const pool = new Pool({ connectionString, ssl: sslDisabled ? false : { rejectUnauthorized: true } });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 

@@ -2,7 +2,17 @@ import { Resend } from 'resend';
 import { render } from '@react-email/components';
 import { ResetPasswordEmail, VerificationEmail } from '@/emails';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend: Resend | undefined;
+
+function getResendClient() {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is required to send email.");
+  }
+
+  resend ??= new Resend(apiKey);
+  return resend;
+}
 
 const FROM_EMAIL =
   process.env.FROM_EMAIL ?? 'RapidAuth <onboarding@resend.dev>';
@@ -23,7 +33,7 @@ export async function sendVerificationEmail({
     }),
   );
 
-  const { error } = await resend.emails.send({
+  const { error } = await getResendClient().emails.send({
     from: FROM_EMAIL,
     to: email,
     subject: 'Verify your email address',
@@ -52,7 +62,7 @@ export async function sendResetPasswordEmail({
     }),
   );
 
-  const { error } = await resend.emails.send({
+  const { error } = await getResendClient().emails.send({
     from: FROM_EMAIL,
     to: email,
     subject: 'Reset your password',

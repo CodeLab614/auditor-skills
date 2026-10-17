@@ -26,27 +26,7 @@ Todo entorno que ejecute `next build` necesita ambas claves reales disponibles d
 
 `NEXT_PUBLIC_TURNSTILE_SITE_KEY` se incrusta en el bundle del cliente durante la compilación. Cambiarla requiere compilar de nuevo. Esto aplica a plataformas como Vercel, Netlify, Railway, Render y Coolify, además de imágenes Docker para un VPS.
 
-Con Docker, la site key pública puede pasarse como argumento de build. No pases `TURNSTILE_SECRET_KEY` como `ARG`, `ENV` ni `--build-arg`: Docker documenta que los argumentos y variables de build permanecen en la imagen o sus metadatos. Usa un secreto de BuildKit durante la compilación y configura el secreto por separado para el contenedor en ejecución.
-
-Coloca la directiva de sintaxis al inicio del Dockerfile, declara la clave pública antes del build y monta el secreto como variable de entorno para la instrucción `RUN`:
-
-```dockerfile
-# syntax=docker/dockerfile:1
-ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
-RUN --mount=type=secret,id=turnstile_secret_key,env=TURNSTILE_SECRET_KEY \\
-    bun run build
-```
-
-Pasa la clave pública con `--build-arg` y toma el secreto de un entorno de build protegido:
-
-```sh
-docker build \\
-  --build-arg NEXT_PUBLIC_TURNSTILE_SITE_KEY="$NEXT_PUBLIC_TURNSTILE_SITE_KEY" \\
-  --secret id=turnstile_secret_key,env=TURNSTILE_SECRET_KEY \\
-  -t rapidauth .
-```
-
-El contenedor en ejecución también necesita `TURNSTILE_SECRET_KEY`; inyéctala mediante el mecanismo de secretos runtime de tu plataforma. Consulta la [documentación de secretos de build de Docker](https://docs.docker.com/build/building/secrets/).
+Con Docker, pasa la clave pública como argumento de build y monta `TURNSTILE_SECRET_KEY` como secreto de BuildKit. El contenedor también necesita la clave secreta al ejecutarse. Sigue la [guía de Docker](03-docker.md#produccion-con-docker) para ver el Dockerfile y los comandos completos. Consulta la [documentación de secretos de build de Docker](https://docs.docker.com/build/building/secrets/).
 
 Por ejemplo, en Vercel agrega ambas variables en **Project Settings → Environment Variables** para cada entorno que compile la app, incluidas las vistas previas si se usan. En CI, proporciona la clave pública como variable de build y la clave secreta como secreto protegido para el paso de compilación.
 
@@ -88,4 +68,4 @@ Configura `NEXT_PUBLIC_TURNSTILE_SITE_KEY` y `TURNSTILE_SECRET_KEY` en el provee
 
 ---
 
-← [Variables de entorno](01-environment-variables.md) · [Índice en español](README.md) · [Documentación del proyecto →](../README.md)
+← [Variables de entorno](01-environment-variables.md) · [Índice en español](README.md) · [Siguiente: Docker →](03-docker.md) · [Documentación del proyecto →](../README.md)

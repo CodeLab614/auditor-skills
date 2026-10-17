@@ -38,6 +38,7 @@ A production-ready Next.js 16+ authentication boilerplate with Better Auth, desi
 
 - [Bun](https://bun.sh/) (recommended) or Node.js 20.9+
 - PostgreSQL database ([Neon](https://neon.tech) recommended)
+- A Docker engine with Compose v2 and Buildx (Docker Desktop, OrbStack, Colima, or Docker Engine; the Docker setup includes a local database and does not require Bun or PostgreSQL on your computer)
 - [Resend](https://resend.com) account for emails
 - OAuth credentials (optional)
 
@@ -67,6 +68,10 @@ The setup wizard will guide you through:
 ### Manual setup
 
 To configure each step yourself, follow the [English manual setup guide](docs/en/00-manual-setup.md) or the [guía de setup manual en español](docs/es/00-manual-setup.md).
+
+### Docker
+
+To start the app and a local PostgreSQL database with Docker, follow the [English Docker guide](docs/en/03-docker.md) or the [guía de Docker en español](docs/es/03-docker.md).
 
 Browse all guides from the [documentation index](docs/README.md).
 
@@ -347,22 +352,7 @@ Every hostname serving the app must be covered by the widget's **Hostnames**. Cl
 
 ### Docker
 
-```dockerfile
-# syntax=docker/dockerfile:1
-FROM oven/bun:1 as base
-WORKDIR /app
-COPY package.json bun.lockb ./
-RUN bun install --frozen-lockfile
-COPY . .
-# The public key is safe as a build argument; mount the secret with BuildKit.
-ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
-RUN --mount=type=secret,id=turnstile_secret_key,env=TURNSTILE_SECRET_KEY \\
-    bun run build
-EXPOSE 3000
-CMD ["bun", "run", "start"]
-```
-
-Pass `NEXT_PUBLIC_TURNSTILE_SITE_KEY` with `--build-arg` and pass the protected `TURNSTILE_SECRET_KEY` with `--secret id=turnstile_secret_key,env=TURNSTILE_SECRET_KEY`. Also configure `TURNSTILE_SECRET_KEY` for the running container. See [Docker's Build secrets documentation](https://docs.docker.com/build/building/secrets/).
+Use the [Docker guide](docs/en/03-docker.md) for local development and production builds, or read the [guía en español](docs/es/03-docker.md). It covers BuildKit secrets and runtime environment variables.
 
 ## Contributing
 
