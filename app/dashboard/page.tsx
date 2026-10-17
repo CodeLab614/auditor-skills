@@ -33,7 +33,7 @@ export default async function DashboardPage() {
   }
 
   // For non-admin users, show welcome page
-  const result = await getUserData(session.user.id);
+  const result = await getUserData();
 
   if (result.response === 'error' || !result.data) {
     redirect("/auth/login");

@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/auth';
 
 // ============================================
 // TYPES
@@ -28,6 +29,11 @@ export const getActivityLogs = async (): Promise<{
   data: ActivityLog[] | null;
 }> => {
   try {
+    const session = await getSession();
+    if (!session || session.user.role !== 'admin') {
+      return { response: 'error', message: 'Unauthorized', data: null };
+    }
+
     const logs = await prisma.activityLog.findMany({
       orderBy: {
         createdAt: 'desc',

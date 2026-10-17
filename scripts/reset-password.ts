@@ -4,6 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { hashPassword } from "better-auth/crypto";
 import dotenv from "dotenv";
+import { generatePassword } from "./generate-password";
 
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
@@ -16,8 +17,7 @@ const pool = new Pool({ connectionString, ssl: { rejectUnauthorized: true } });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-const EMAIL = "admin@admin.com";
-const NEW_PASSWORD = "Admin123!";
+const EMAIL = process.argv[2] || "admin@admin.com";
 
 async function main() {
   const user = await prisma.user.findUnique({ where: { email: EMAIL } });
@@ -26,7 +26,8 @@ async function main() {
     process.exit(1);
   }
 
-  const hashed = await hashPassword(NEW_PASSWORD);
+  const newPassword = generatePassword();
+  const hashed = await hashPassword(newPassword);
 
   await prisma.account.updateMany({
     where: { userId: user.id, providerId: "credential" },
@@ -34,6 +35,7 @@ async function main() {
   });
 
   console.log(`✓ Password updated for ${EMAIL}`);
+  console.log(`New password: ${newPassword}`);
 }
 
 main()

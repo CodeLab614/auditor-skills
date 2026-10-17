@@ -924,6 +924,11 @@ export async function getUsers(): Promise<{
   data: User[] | null;
 }> {
   try {
+    const session = await getSession();
+    if (!session || session.user.role !== 'admin') {
+      return { response: 'error', message: 'Unauthorized', data: null };
+    }
+
     const usersData = await prisma.user.findMany({
       orderBy: {
         createdAt: "desc",

@@ -1147,6 +1147,9 @@ async function runSetup() {
     await runSeed();
     println();
     println(`  ${colors.green}${icons.success} Database seeded${colors.reset}`);
+    await question(
+      `     ${colors.yellow}${icons.arrow}${colors.reset} ${colors.dim}If an admin password was shown above, save it now. Press Enter to continue${colors.reset}`,
+    );
   } catch {
     println(
       `  ${colors.yellow}${icons.warning} Seed skipped (may already exist)${colors.reset}`,
@@ -1198,9 +1201,9 @@ async function runSetup() {
     [
       'Your RapidAuth application is ready to use.',
       '',
-      'Admin credentials:',
-      `  Email:    admin@admin.com`,
-      `  Password: Admin123!`,
+      'The admin password was shown once during the database step.',
+      'Save it and change it after your first login.',
+      'If the admin already existed, its password was kept.',
       '',
       "Run 'bun dev' to start the development server.",
     ],

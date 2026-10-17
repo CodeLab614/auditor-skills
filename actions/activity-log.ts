@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
+import { getSession } from "@/lib/auth";
 
 export type ActivityAction =
   | "login"
@@ -80,6 +81,11 @@ export async function getUserActivityLogs(
   options?: { limit?: number; offset?: number }
 ) {
   try {
+    const session = await getSession();
+    if (!session || (session.user.id !== userId && session.user.role !== "admin")) {
+      return { success: false as const, error: "Unauthorized" };
+    }
+
     const { limit = 50, offset = 0 } = options || {};
 
     const logs = await prisma.activityLog.findMany({

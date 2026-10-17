@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/auth';
 
 // ============================================
 // TYPES
@@ -46,14 +47,19 @@ export interface ProfilePageData {
 // GET PROFILE DATA ACTION
 // ============================================
 
-export const getProfileData = async (
-  userId: string
-): Promise<{
+export const getProfileData = async (): Promise<{
   response: 'success' | 'error';
   message: string;
   data: ProfilePageData | null;
 }> => {
   try {
+    const session = await getSession();
+    if (!session) {
+      return { response: 'error', message: 'Unauthorized', data: null };
+    }
+
+    const userId = session.user.id;
+
     // Get current session token
     const cookieStore = await cookies();
     const currentSessionToken = cookieStore.get('better-auth.session_token')?.value;

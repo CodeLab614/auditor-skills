@@ -4,6 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { hashPassword } from "better-auth/crypto";
 import dotenv from "dotenv";
+import { generatePassword } from "./generate-password";
 
 // Load environment variables
 dotenv.config({ path: ".env" });
@@ -47,26 +48,25 @@ const icons = {
 // SEED DATA
 // ============================================================================
 
-const ADMIN_USER = {
-  name: "Administrator",
-  email: "admin@admin.com",
-  password: "Admin123!",
-  role: "admin",
-  emailVerified: true,
-};
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "admin@admin.com";
 
 // ============================================================================
 // MAIN SEED FUNCTION
 // ============================================================================
 
 async function main() {
+  const configuredPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (configuredPassword !== undefined && configuredPassword.length < 8) {
+    throw new Error("SEED_ADMIN_PASSWORD must be at least 8 characters long");
+  }
+
   console.log();
   console.log(`${colors.cyan}${icons.arrow} Seeding database...${colors.reset}`);
   console.log();
 
   // Check if admin already exists
   const existingAdmin = await prisma.user.findUnique({
-    where: { email: ADMIN_USER.email },
+    where: { email: ADMIN_EMAIL },
   });
 
   if (existingAdmin) {
@@ -75,17 +75,18 @@ async function main() {
   }
 
   // Create admin user
-  const hashedPassword = await hashPassword(ADMIN_USER.password);
+  const password = configuredPassword ?? generatePassword();
+  const hashedPassword = await hashPassword(password);
 
   const admin = await prisma.user.create({
     data: {
-      name: ADMIN_USER.name,
-      email: ADMIN_USER.email,
-      emailVerified: ADMIN_USER.emailVerified,
-      role: ADMIN_USER.role,
+      name: "Administrator",
+      email: ADMIN_EMAIL,
+      emailVerified: true,
+      role: "admin",
       accounts: {
         create: {
-          accountId: ADMIN_USER.email,
+          accountId: ADMIN_EMAIL,
           providerId: "credential",
           password: hashedPassword,
         },
@@ -94,9 +95,10 @@ async function main() {
   });
 
   console.log(`${colors.green}${icons.success} Created admin user:${colors.reset}`);
-  console.log(`   ${colors.dim}Email:    ${ADMIN_USER.email}${colors.reset}`);
-  console.log(`   ${colors.dim}Password: ${ADMIN_USER.password}${colors.reset}`);
-  console.log(`   ${colors.dim}Role:     ${ADMIN_USER.role}${colors.reset}`);
+  console.log(`   ${colors.dim}Email:    ${ADMIN_EMAIL}${colors.reset}`);
+  console.log(`   ${colors.dim}Password: ${password}${colors.reset}`);
+  console.log(`   ${colors.yellow}Save this password and change it after your first login.${colors.reset}`);
+  console.log(`   ${colors.dim}Role:     admin${colors.reset}`);
   console.log();
 
   // Log admin creation activity

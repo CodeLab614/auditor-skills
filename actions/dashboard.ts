@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/auth';
 
 // ============================================
 // TYPES
@@ -50,6 +51,11 @@ export const getDashboardMetrics = async (): Promise<{
   data: DashboardData | null;
 }> => {
   try {
+    const session = await getSession();
+    if (!session || session.user.role !== 'admin') {
+      return { response: 'error', message: 'Unauthorized', data: null };
+    }
+
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -171,16 +177,19 @@ export const getDashboardMetrics = async (): Promise<{
 // GET USER DATA ACTION
 // ============================================
 
-export const getUserData = async (
-  userId: string
-): Promise<{
+export const getUserData = async (): Promise<{
   response: 'success' | 'error';
   message: string;
   data: UserData | null;
 }> => {
   try {
+    const session = await getSession();
+    if (!session) {
+      return { response: 'error', message: 'Unauthorized', data: null };
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: session.user.id },
       select: {
         name: true,
         email: true,

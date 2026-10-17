@@ -10,7 +10,7 @@ export default async function ProfilePage() {
     redirect("/auth/login");
   }
 
-  const result = await getProfileData(session.user.id);
+  const result = await getProfileData();
 
   if (result.response === 'error' || !result.data) {
     return (

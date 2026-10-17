@@ -63,11 +63,9 @@ The setup wizard will guide you through:
 5. Database migration
 6. Admin user creation
 
-### Default Admin Credentials
+### Admin Account
 
-After setup, you can log in with:
-- **Email:** admin@admin.com
-- **Password:** Admin123!
+The setup seed prints a randomly generated admin password once. Save it and change it after your first login. Set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` to customize the seed credentials; a configured password must be at least 8 characters. If the admin already exists, the seed keeps its current password. To reset it, run `bun run scripts/reset-password.ts [email]` (defaults to `admin@admin.com`); the new password is printed once.
 
 ## Tech Stack
 
