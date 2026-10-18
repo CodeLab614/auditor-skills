@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { render } from '@react-email/components';
+import { render } from 'react-email';
 import { ResetPasswordEmail, VerificationEmail } from '@/emails';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';

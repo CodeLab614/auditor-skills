@@ -43,13 +43,15 @@ For **each environment** (development, staging, and production), run `bun run db
 
 Upgrade one major package or a tightly coupled package set at a time. Follow its migration guide, update project code and configuration, and check peer dependency requirements. Complete the full checklist above before accepting each major upgrade.
 
+**Stage 3 completed (October 18, 2026):** TypeScript is pinned to 6.0.3 with `typescript-eslint` 8.71.2 as a direct development dependency, so `eslint-config-next` and every `@typescript-eslint/*` package resolve to that same version without overrides. TypeScript stays on 6.0.x because `typescript-eslint` requires TypeScript `<6.1.0`. TypeScript 7 remains pending until `typescript-eslint` supports it. `dotenv` is pinned to 18.0.8, React Email to 6.11.3, and Recharts to 3.10.1. React Email components and rendering now come from `react-email`, which is a production dependency because the app renders emails with it at runtime; its preview server is not included in the production build. Also, `bun run email:preview` opens the templates at `http://localhost:3200`.
+
 ### Stage 4: shadcn components
 
 Use the project's pinned shadcn CLI to update or add the affected components, for example `bunx shadcn add button`. Review the generated diff against local customizations and restore or merge those customizations deliberately; do not replace customized components blindly. Then run `bun run theme:sync-classic` to copy the shared UI changes into the Classic theme, inspect the result, and run `bun run theme:sync-classic --check`. Complete the full checklist above before accepting the component updates.
 
 ## Toolchain limits
 
-- **TypeScript:** keep it below 6.1 while the project’s TypeScript ESLint tooling does not support 6.1 or newer. Check the installed tooling’s peer dependency range before selecting an update.
+- **TypeScript:** stay on 6.0.x while `typescript-eslint` requires TypeScript `<6.1.0`. TypeScript 7 remains pending until `typescript-eslint` supports it. Check the installed tooling’s peer dependency range before selecting an update.
 - **ESLint:** stay on version 9. The `eslint-plugin-react` version included by `eslint-config-next` currently supports ESLint 9, so review that compatibility before moving to a newer major.
 - **Node.js:** use an active LTS release. Dependabot major updates for Node are ignored so the project can move deliberately to the next LTS.
 
@@ -58,6 +60,10 @@ To move Node to the next LTS, update the Node base image in every stage of `Dock
 ## Add or update a dependency
 
 Add a dependency with its complete exact version, such as `bun add package@1.2.3`, or omit the version with `bun add package`. Do not use incomplete versions such as `bun add package@7`, which Bun stores as a range. `bunfig.toml` makes exact installs the default and `bun run deps:check` verifies every direct dependency. For a deliberate upgrade, change to the selected exact version, run `bun install`, and review that `bun.lock` changes only as expected. Follow the applicable stage and full checklist above. Keep `bun install --frozen-lockfile` passing so CI installs the committed resolution without changing it.
+
+## Preview email templates
+
+Run `bun run email:preview` to open the templates from `emails/` at `http://localhost:3200`. The preview server uses a port separate from the app and the E2E servers.
 
 ## Run end-to-end tests locally
 

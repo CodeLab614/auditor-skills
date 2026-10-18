@@ -9,7 +9,7 @@ import {
   Section,
   Text,
   Button,
-} from "@react-email/components";
+} from "react-email";
 
 interface VerificationEmailProps {
   name: string;

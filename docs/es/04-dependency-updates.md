@@ -43,13 +43,15 @@ En **cada entorno** (desarrollo, staging y producción), ejecuta `bun run db:pus
 
 Actualiza un paquete mayor o un conjunto estrechamente relacionado a la vez. Sigue su guía de migración, actualiza el código y la configuración del proyecto, y revisa los requisitos de dependencias pares. Completa la lista de comprobación antes de aceptar cada actualización mayor.
 
+**Etapa 3 completada (18 de octubre de 2026):** TypeScript está fijado en 6.0.3 y `typescript-eslint` en 8.71.2 como dependencia directa de desarrollo, así `eslint-config-next` y todos los paquetes `@typescript-eslint/*` usan esa misma versión sin overrides. TypeScript permanece en 6.0.x porque `typescript-eslint` requiere TypeScript `<6.1.0`. TypeScript 7 queda pendiente hasta que `typescript-eslint` lo admita. `dotenv` está fijado en 18.0.8, React Email en 6.11.3 y Recharts en 3.10.1. Los componentes y el render de React Email ahora se importan de `react-email`, que es dependencia de producción porque la app genera los correos con él; su servidor de vista previa no se incluye en el build de producción. Además, `bun run email:preview` abre las plantillas en `http://localhost:3200`.
+
 ### Etapa 4: componentes de shadcn
 
 Usa la herramienta de línea de comandos de shadcn fijada por el proyecto para actualizar o agregar los componentes afectados, por ejemplo `bunx shadcn add button`. Compara el diff generado con las personalizaciones locales y restáuralas o combínalas de forma deliberada; no reemplaces componentes personalizados a ciegas. Después ejecuta `bun run theme:sync-classic` para copiar los cambios de UI compartida al tema Classic, inspecciona el resultado y ejecuta `bun run theme:sync-classic --check`. Completa la lista de comprobación antes de aceptar las actualizaciones de componentes.
 
 ## Límites de herramientas
 
-- **TypeScript:** mantenlo por debajo de 6.1 mientras las herramientas TypeScript ESLint del proyecto no sean compatibles con 6.1 o posterior. Antes de elegir una versión, revisa el rango de dependencia par de las herramientas instaladas.
+- **TypeScript:** permanece en 6.0.x mientras `typescript-eslint` requiera TypeScript `<6.1.0`. TypeScript 7 queda pendiente hasta que `typescript-eslint` lo admita. Antes de elegir una versión, revisa el rango de dependencia par de las herramientas instaladas.
 - **ESLint:** permanece en la versión 9. La versión de `eslint-plugin-react` incluida por `eslint-config-next` actualmente admite ESLint 9; revisa esa compatibilidad antes de pasar a una versión mayor más nueva.
 - **Node.js:** usa una versión LTS con soporte activo. Dependabot ignora las actualizaciones mayores de Node para que el proyecto pase manualmente a la siguiente LTS.
 
@@ -58,6 +60,10 @@ Para pasar Node a la siguiente LTS, actualiza la imagen base de Node en cada eta
 ## Agregar o actualizar una dependencia
 
 Agrega una dependencia con su versión completa exacta, por ejemplo `bun add paquete@1.2.3`, o no indiques la versión con `bun add paquete`. No uses versiones incompletas como `bun add paquete@7`, porque Bun las guarda como un rango. `bunfig.toml` establece versiones exactas por defecto y `bun run deps:check` las verifica. Para una actualización deliberada, cambia a la versión exacta elegida, ejecuta `bun install` y revisa que `bun.lock` cambie solo como se esperaba. Sigue la etapa aplicable y su lista de comprobación. Mantén `bun install --frozen-lockfile` funcionando para que CI instale la resolución confirmada sin cambiarla.
+
+## Vista previa de plantillas de correo
+
+Ejecuta `bun run email:preview` para abrir las plantillas de `emails/` en `http://localhost:3200`. El servidor de vista previa usa un puerto separado de la app y de los servidores E2E.
 
 ## Ejecutar pruebas de punta a punta en local
 
