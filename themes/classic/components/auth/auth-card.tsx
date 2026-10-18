@@ -43,12 +43,16 @@ export function AuthCard({
 interface AuthLinkProps {
   href: string;
   children: React.ReactNode;
+  target?: React.HTMLAttributeAnchorTarget;
+  rel?: string;
 }
 
-export function AuthLink({ href, children }: AuthLinkProps) {
+export function AuthLink({ href, children, target, rel }: AuthLinkProps) {
   return (
     <Link
       href={href}
+      target={target}
+      rel={rel}
       className="text-foreground underline-offset-4 hover:underline font-medium"
     >
       {children}

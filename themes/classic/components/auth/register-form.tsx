@@ -248,8 +248,8 @@ export function RegisterForm() {
                 <div className="space-y-1 leading-none">
                   <FormLabel className="inline cursor-pointer gap-0 text-sm font-normal">
                     I agree to the{" "}
-                    <AuthLink href="/terms">Terms of Service</AuthLink>{" "}and{" "}
-                    <AuthLink href="/privacy">Privacy Policy</AuthLink>
+                    <AuthLink href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</AuthLink>{" "}and{" "}
+                    <AuthLink href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</AuthLink>
                   </FormLabel>
                   <FormMessage />
                 </div>

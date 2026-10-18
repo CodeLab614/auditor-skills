@@ -928,7 +928,7 @@ export function LandingContent({ user }: { user?: LandingUser | null }) {
               &copy; {new Date().getFullYear()}
             </span>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
             <a
               href="#features"
               className="text-xs tracking-wide text-muted-foreground/50 transition-colors hover:text-foreground/70"
@@ -952,6 +952,18 @@ export function LandingContent({ user }: { user?: LandingUser | null }) {
               className="text-xs tracking-wide text-muted-foreground/50 transition-colors hover:text-foreground/70"
             >
               Dashboard
+            </Link>
+            <Link
+              href="/terms"
+              className="text-xs tracking-wide text-muted-foreground/50 transition-colors hover:text-foreground/70"
+            >
+              Terms
+            </Link>
+            <Link
+              href="/privacy"
+              className="text-xs tracking-wide text-muted-foreground/50 transition-colors hover:text-foreground/70"
+            >
+              Privacy
             </Link>
           </div>
         </div>

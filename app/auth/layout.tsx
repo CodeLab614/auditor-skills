@@ -44,6 +44,10 @@ export default function AuthLayout({
           </div>
 
           {children}
+          <footer className='mt-8 flex justify-center gap-5 text-xs text-muted-foreground'>
+            <Link href='/terms' className='transition-colors hover:text-foreground'>Terms</Link>
+            <Link href='/privacy' className='transition-colors hover:text-foreground'>Privacy</Link>
+          </footer>
         </div>
       </div>
     </div>

@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+public/uploads/avatars/*
+!public/uploads/avatars/.gitkeep
 /.e2e-outbox/
 /playwright-report/
 /test-results/

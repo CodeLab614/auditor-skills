@@ -136,6 +136,7 @@ Abre [http://localhost:3000](http://localhost:3000), entra a la página de inici
 
 ## Antes de desplegar
 
+- Revisa y personaliza los Términos de servicio (`/terms`) y la Política de privacidad (`/privacy`) antes de publicar. Configura `legalEntityName`, `contactEmail`, `governingLaw` y `lastUpdated` en `config/site.ts`; después adapta el texto de `app/(legal)/terms/page.tsx` y `app/(legal)/privacy/page.tsx` a tu servicio. Estos documentos son plantillas, no asesoría legal; pide a un abogado que los revise.
 - Configura un `BETTER_AUTH_SECRET` único, el `BETTER_AUTH_URL` público correcto y un `DATABASE_URL` de producción.
 - Configura `RESEND_API_KEY` y un remitente `FROM_EMAIL` con dominio verificado.
 - Proporciona claves reales de Turnstile a cada compilación, incluidas staging, vistas previas y CI. Con Docker, monta `TURNSTILE_SECRET_KEY` con BuildKit durante el build y vuelve a proporcionarla en runtime; pasa la site key pública como argumento de build. Consulta [Cloudflare Turnstile](02-turnstile.md).
@@ -143,6 +144,8 @@ Abre [http://localhost:3000](http://localhost:3000), entra a la página de inici
 - Si habilitaste OAuth, configura las URLs de callback con el `BETTER_AUTH_URL` publicado.
 - Elige un email de admin y contraseña segura, o guarda la contraseña generada que solo se muestra una vez y cámbiala tras iniciar sesión.
 - Mantén `.env`, `.env.local` y todos los secretos fuera del control de versiones y de los argumentos de build de imágenes.
+
+Los avatares que suben los usuarios se guardan en el disco del servidor, en `public/uploads/avatars`. En Docker o en un hosting sin disco persistente, se pueden perder al reiniciar o quizá no se puedan escribir. Para producción se necesita un volumen persistente montado en esa ruta o almacenamiento externo de archivos.
 
 ---
 

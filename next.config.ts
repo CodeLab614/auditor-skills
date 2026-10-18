@@ -1,8 +1,22 @@
 import type { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import { getTurnstileConfigError } from "./lib/turnstile-config";
+import { siteConfig } from "./config/site";
 
 const nextConfig = (phase: string): NextConfig => {
+  if (phase === PHASE_PRODUCTION_BUILD) {
+    const exampleValues = [
+      siteConfig.legalEntityName.startsWith("REPLACE_WITH_") && "legalEntityName",
+      siteConfig.contactEmail.startsWith("REPLACE_WITH_") && "contactEmail",
+      siteConfig.governingLaw.startsWith("REPLACE_WITH_") && "governingLaw",
+    ].filter(Boolean);
+    if (exampleValues.length > 0) {
+      console.warn(
+        `\n⚠️  LEGAL CONFIGURATION: ${exampleValues.join(", ")} still use example values in config/site.ts. Replace them before deploying ${siteConfig.appName}.\n`,
+      );
+    }
+  }
+
   if (
     phase === PHASE_PRODUCTION_BUILD &&
     process.env.RAPIDAUTH_SKIP_TURNSTILE_BUILD_CHECK !== "1"
