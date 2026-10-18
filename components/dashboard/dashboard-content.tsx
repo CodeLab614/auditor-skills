@@ -12,6 +12,7 @@ import {
   type StatusType,
 } from "@/components/dashboard";
 import { Users, UserCheck, UserX, UserPlus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface RecentUser {
   id: string;
@@ -40,8 +41,8 @@ const userStatusMap: Record<string, { status: StatusType; label: string }> = {
 };
 
 const roleColors: Record<string, string> = {
-  admin: "text-purple-400 bg-purple-500/10 border-purple-500/20",
-  moderator: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+  admin: "text-purple-400 bg-purple-50 border-purple-200 dark:bg-purple-500/10 dark:border-purple-500/20",
+  moderator: "text-blue-400 bg-blue-50 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/20",
   user: "text-muted-foreground bg-muted border-border",
 };
 
@@ -60,13 +61,14 @@ const columns: Column<RecentUser>[] = [
     key: "role",
     header: "Role",
     render: (item) => (
-      <span
-        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-normal border capitalize ${
+      <Badge
+        variant="outline"
+        className={`h-auto font-normal capitalize ${
           roleColors[item.role] || roleColors.user
         }`}
       >
         {item.role}
-      </span>
+      </Badge>
     ),
   },
   {

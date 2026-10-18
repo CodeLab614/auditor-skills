@@ -277,7 +277,7 @@ function ActivitySkeleton() {
 export function ActivityLog({ activities, isLoading }: ActivityLogProps) {
   if (isLoading) {
     return (
-      <Card className="p-6">
+      <Card className="gap-y-0 p-6">
         <h3 className="text-lg font-medium mb-1">Registro de Actividad</h3>
         <p className="text-sm text-muted-foreground mb-4">
           Historial de acciones en tu cuenta.
@@ -292,7 +292,7 @@ export function ActivityLog({ activities, isLoading }: ActivityLogProps) {
   }
 
   return (
-    <Card className="p-6">
+    <Card className="gap-y-0 p-6">
       <h3 className="text-lg font-medium mb-1">Registro de Actividad</h3>
       <p className="text-sm text-muted-foreground mb-4">
         Historial de acciones en tu cuenta.

@@ -239,15 +239,16 @@ export function RegisterForm() {
               <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                 <FormControl>
                   <Checkbox
+                    className="dark:border-foreground/60"
                     checked={field.value}
                     onCheckedChange={field.onChange}
                     disabled={isPending}
                   />
                 </FormControl>
                 <div className="space-y-1 leading-none">
-                  <FormLabel className="text-sm font-normal cursor-pointer">
-                    I agree to the{" "}
-                    <AuthLink href="/terms">Terms of Service</AuthLink> and{" "}
+                  <FormLabel className="inline cursor-pointer gap-0 text-sm font-normal">
+                    I agree to the{" "}
+                    <AuthLink href="/terms">Terms of Service</AuthLink>{" "}and{" "}
                     <AuthLink href="/privacy">Privacy Policy</AuthLink>
                   </FormLabel>
                   <FormMessage />

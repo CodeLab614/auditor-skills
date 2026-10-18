@@ -19,6 +19,17 @@ const eslintConfig = defineConfig([
   ]),
   {
     rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "cn",
+              message: "Import cn from '@/lib/utils'.",
+            },
+          ],
+        },
+      ],
       // Disable React Compiler incompatible library warnings for React Hook Form
       // This is a false positive - form.watch() works fine
       "react-hooks/incompatible-library": "off",

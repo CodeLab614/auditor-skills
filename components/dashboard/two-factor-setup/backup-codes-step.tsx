@@ -44,7 +44,7 @@ export function BackupCodesStep({ backupCodes, onComplete }: BackupCodesStepProp
 
   return (
     <div className="space-y-4 py-4">
-      <Card className="p-4 bg-amber-500/10 border-amber-500/30">
+      <Card className="gap-y-0 p-4 bg-amber-500/10 ring-amber-500/30">
         <div className="flex items-start gap-2">
           <KeyRound className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
           <div className="text-sm">

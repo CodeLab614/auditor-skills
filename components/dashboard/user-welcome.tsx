@@ -47,7 +47,7 @@ export function UserWelcome({ user }: UserWelcomeProps) {
       />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="col-span-full bg-gradient-to-br from-primary/10 via-background to-background border-primary/20">
+        <Card className="col-span-full bg-gradient-to-br from-primary/10 via-background to-background ring-primary/20">
           <CardHeader>
             <CardTitle className="text-xl">Account Overview</CardTitle>
             <CardDescription>Your account information at a glance</CardDescription>
@@ -81,7 +81,7 @@ export function UserWelcome({ user }: UserWelcomeProps) {
         </Card>
 
         {quickActions.map((action) => (
-          <Card key={action.title} className="group hover:border-primary/40 transition-colors">
+          <Card key={action.title} className="group hover:ring-primary/40 transition-colors">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="h-10 w-10 bg-primary/10 border border-primary/20 flex items-center justify-center">

@@ -47,7 +47,15 @@ Actualiza un paquete mayor o un conjunto estrechamente relacionado a la vez. Sig
 
 ### Etapa 4: componentes de shadcn
 
-Usa la herramienta de línea de comandos de shadcn fijada por el proyecto para actualizar o agregar los componentes afectados, por ejemplo `bunx shadcn add button`. Compara el diff generado con las personalizaciones locales y restáuralas o combínalas de forma deliberada; no reemplaces componentes personalizados a ciegas. Después ejecuta `bun run theme:sync-classic` para copiar los cambios de UI compartida al tema Classic, inspecciona el resultado y ejecuta `bun run theme:sync-classic --check`. Completa la lista de comprobación antes de aceptar las actualizaciones de componentes.
+Usa la CLI local de shadcn 4.22.0 fijada por el proyecto para actualizar o agregar componentes, por ejemplo `bunx shadcn add button`. `components.json` usa `radix-vega`: el estilo antiguo `default` está congelado, mientras que `radix-vega` conserva la familia de primitivas Radix y ofrece el conjunto actual de componentes shadcn. Cambiar el estilo no requiere cambiar los colores ni las fuentes del proyecto.
+
+**Etapa 4 completada (18 de octubre de 2026):** Se regeneraron los 46 componentes de UI existentes con `radix-vega` y se agregaron estos 14: `attachment`, `bubble`, `button-group`, `direction`, `empty`, `field`, `item`, `kbd`, `marker`, `message`, `native-select`, `resizable`, `spinner` y `trace`. La dependencia común de primitivas queda fijada exactamente como `radix-ui` 1.8.1; se quitan las dependencias individuales `@radix-ui/react-*` cuando ningún archivo del repositorio las importa. Se reutiliza la dependencia existente `react-resizable-panels`.
+
+Actualmente la CLI importa `cn` del paquete independiente `cn` y agrega esa dependencia, aunque este proyecto conserva su helper `cn`, basado en `clsx` y `tailwind-merge`, en `@/lib/utils`. El esquema de `components.json` admite el alias `utils`, pero no ofrece una opción para elegir el paquete desde el que se importa `cn`. Por eso, todos los imports generados usan `@/lib/utils` y ESLint rechaza los imports del paquete `cn` con un mensaje que indica el helper local. La CLI también bajó Recharts a 3.8.0; se restauró la versión fijada 3.10.1. Además, se borró el duplicado `hooks/use-mobile.ts` y se conserva el hook existente `.tsx`.
+
+Se excluyeron deliberadamente estos componentes: `combobox` (agrega `@base-ui/react`, una familia de primitivas distinta), `code-block` (agrega `shiki`), `message-scroller` y `questionnaire` (ambos agregan `@shadcn/react`). Después de la migración se revisan en ambos temas el contraste de la casilla de términos del registro y el espacio alrededor de los enlaces Terms of Service y Privacy Policy.
+
+Compara el diff generado con las personalizaciones locales y restáuralas o combínalas de forma deliberada; no reemplaces componentes personalizados a ciegas. Ejecuta `bun run theme:sync-classic` para copiar los cambios de UI compartida al tema Classic, inspecciona el resultado y ejecuta `bun run theme:sync-classic --check`. Completa la lista de comprobación antes de aceptar las actualizaciones de componentes.
 
 ## Límites de herramientas
 

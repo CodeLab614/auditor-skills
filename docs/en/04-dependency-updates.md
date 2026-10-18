@@ -47,7 +47,15 @@ Upgrade one major package or a tightly coupled package set at a time. Follow its
 
 ### Stage 4: shadcn components
 
-Use the project's pinned shadcn CLI to update or add the affected components, for example `bunx shadcn add button`. Review the generated diff against local customizations and restore or merge those customizations deliberately; do not replace customized components blindly. Then run `bun run theme:sync-classic` to copy the shared UI changes into the Classic theme, inspect the result, and run `bun run theme:sync-classic --check`. Complete the full checklist above before accepting the component updates.
+Use the project's pinned local shadcn CLI 4.22.0 to update or add components, for example `bunx shadcn add button`. `components.json` uses `radix-vega`: the old `default` style is frozen, while `radix-vega` keeps the Radix primitive family and provides the current shadcn component set. Changing the style does not require changing the project's colors or fonts.
+
+**Stage 4 completed (October 18, 2026):** All 46 existing UI components were regenerated in `radix-vega`, and these 14 components were added: `attachment`, `bubble`, `button-group`, `direction`, `empty`, `field`, `item`, `kbd`, `marker`, `message`, `native-select`, `resizable`, `spinner`, and `trace`. The shared primitive dependency is pinned exactly as `radix-ui` 1.8.1; individual `@radix-ui/react-*` dependencies are removed when no repository source imports them. The existing `react-resizable-panels` dependency is reused.
+
+The CLI currently imports `cn` from the standalone `cn` package and adds that dependency, although this project keeps its `cn` helper built on `clsx` and `tailwind-merge` in `@/lib/utils`. The `components.json` schema supports a `utils` alias but has no option to choose the package used for the `cn` import. All generated imports therefore use `@/lib/utils`, and ESLint rejects imports from `cn` with a message pointing to the local helper. The CLI also changed Recharts to 3.8.0, so it was restored to the project's pinned 3.10.1, and its duplicate `hooks/use-mobile.ts` was removed in favor of the existing `.tsx` hook.
+
+The following components were deliberately excluded: `combobox` (it adds `@base-ui/react`, which is a different primitive family), `code-block` (it adds `shiki`), `message-scroller`, and `questionnaire` (both add `@shadcn/react`). The registration form's terms checkbox contrast and the spacing around its Terms of Service and Privacy Policy links are checked in both themes after the migration.
+
+Review the generated diff against local customizations and restore or merge those customizations deliberately; do not replace customized components blindly. Run `bun run theme:sync-classic` to copy shared UI changes into the Classic theme, inspect the result, and run `bun run theme:sync-classic --check`. Complete the full checklist above before accepting the component updates.
 
 ## Toolchain limits
 

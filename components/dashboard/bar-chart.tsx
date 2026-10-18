@@ -46,7 +46,7 @@ export function BarChart({
   const maxValue = Math.max(...data.map((d) => d.value));
 
   return (
-    <Card className={cn("p-6 flex flex-col", className)}>
+    <Card className={cn("gap-y-0 p-6 flex flex-col", className)}>
       <div className="flex justify-between items-start mb-8">
         <div>
           <h2 className="text-base font-normal tracking-tight mb-1">{title}</h2>

@@ -130,7 +130,7 @@ export function ProfileContent({
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">
-          <Card className="p-6">
+          <Card className="gap-y-0 p-6">
             <h3 className="text-lg font-medium mb-1">Profile Information</h3>
             <p className="text-sm text-muted-foreground mb-6">
               Update your personal details and profile picture.
@@ -244,7 +244,7 @@ export function ProfileContent({
         </TabsContent>
 
         {!isOAuthUser && <TabsContent value="security" className="space-y-6">
-          <Card className="p-6">
+          <Card className="gap-y-0 p-6">
               <h3 className="text-lg font-medium mb-1">Change Password</h3>
               <p className="text-sm text-muted-foreground mb-6">
                 Update your password to keep your account secure.
@@ -306,7 +306,7 @@ export function ProfileContent({
                 </Button>
               </div>
             </Card>
-          <Card className="p-6">
+          <Card className="gap-y-0 p-6">
             <h3 className="text-lg font-medium mb-1">Two-Factor Authentication</h3>
             <p className="text-sm text-muted-foreground mb-6">
               Add an extra layer of security to your account.
@@ -320,7 +320,7 @@ export function ProfileContent({
         </TabsContent>}
 
         <TabsContent value="notifications" className="space-y-6">
-          <Card className="p-6">
+          <Card className="gap-y-0 p-6">
             <h3 className="text-lg font-medium mb-1">Notification Preferences</h3>
             <p className="text-sm text-muted-foreground mb-6">
               Choose how you want to be notified.

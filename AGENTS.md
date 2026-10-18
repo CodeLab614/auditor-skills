@@ -142,7 +142,7 @@ bun dev                        # Development (runs lint first, then next dev + t
 bun run build                  # Build
 bun run typecheck              # Type check
 bun run lint                   # Lint (zero warnings allowed)
-bunx shadcn@latest add [name]  # Add shadcn component
+bunx shadcn add [name]         # Add shadcn component with the pinned local CLI
 bunx prisma generate           # Generate Prisma client
 bunx prisma db push            # Push schema to database
 ```
@@ -153,6 +153,7 @@ bunx prisma db push            # Push schema to database
 2. **Server by Default** - Pages are Server Components
 3. **Client When Needed** - Only use "use client" for interactivity
 4. **shadcn Always** - Use shadcn components, don't reinvent
+   - The project style is `radix-vega` in `components.json`; generated `cn` imports must use `@/lib/utils`.
 5. **Actions in `actions/`** - Never in `lib/` or page files
 6. **Export from index** - Always add new components to barrel exports
 7. **router.refresh()** - Reload server data after mutations

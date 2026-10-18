@@ -239,7 +239,7 @@ export function ActiveSessions({
   const otherSessionsCount = localSessions.filter((s) => !s.isCurrent).length;
 
   return (
-    <Card className="p-6">
+    <Card className="gap-y-0 p-6">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="text-lg font-medium mb-1">Sesiones Activas</h3>

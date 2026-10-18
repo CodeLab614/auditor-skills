@@ -29,7 +29,7 @@ export function AuthCard({
         )}
       </div>
 
-      <Card className="p-6">{children}</Card>
+      <Card className="gap-y-0 p-6">{children}</Card>
 
       {footer && (
         <div className="text-center text-sm text-muted-foreground">

@@ -4,6 +4,7 @@ import { DataTable, StatusBadge, type Column, type StatusType } from '@/componen
 import type { User } from '@/actions/users';
 import { UserActions } from './user-actions';
 import { USER_STATUS_MAP, ROLE_COLORS } from './types';
+import { Badge } from '@/components/ui/badge';
 import { PROVIDER_CONFIG } from './provider-icons';
 
 interface UsersTableProps {
@@ -58,13 +59,14 @@ export function UsersTable({
       key: 'role',
       header: 'Role',
       render: (item) => (
-        <span
-          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-normal border capitalize ${
+        <Badge
+          variant="outline"
+          className={`h-auto font-normal capitalize ${
             ROLE_COLORS[item.role] || ROLE_COLORS.user
           }`}
         >
           {item.role}
-        </span>
+        </Badge>
       ),
     },
     {
