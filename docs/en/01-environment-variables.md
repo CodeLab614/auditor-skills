@@ -41,6 +41,21 @@ This reference covers every variable read by the application and setup scripts. 
 
 ## Email
 
+### `EMAIL_DELIVERY`
+
+- **Purpose:** Selects the email transport. The default `resend` sends through Resend; `outbox` writes test messages to disk.
+- **Required:** No.
+- **Values:** `resend` or `outbox`.
+- **Warning:** `outbox` is only for automated tests and is rejected in production.
+- **Secret:** No.
+
+### `EMAIL_OUTBOX_DIR`
+
+- **Purpose:** Directory where `EMAIL_DELIVERY=outbox` writes JSON messages, including the recipient, subject, HTML and primary link.
+- **Required:** No. Defaults to `.e2e-outbox/`.
+- **Warning:** Test use only; the default directory is ignored by Git.
+- **Secret:** No.
+
 ### `RESEND_API_KEY`
 
 - **Purpose:** Authenticates email requests sent through Resend.

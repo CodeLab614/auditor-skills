@@ -41,6 +41,21 @@ Esta referencia cubre todas las variables que leen la aplicación y los scripts 
 
 ## Correo
 
+### `EMAIL_DELIVERY`
+
+- **Propósito:** Elige el transporte de correo. El valor predeterminado `resend` envía mediante Resend; `outbox` guarda los mensajes de prueba en disco.
+- **Obligatoria:** No.
+- **Valores:** `resend` o `outbox`.
+- **Advertencia:** `outbox` es solo para pruebas automatizadas y la aplicación lo rechaza en producción.
+- **Secreta:** No.
+
+### `EMAIL_OUTBOX_DIR`
+
+- **Propósito:** Carpeta donde `EMAIL_DELIVERY=outbox` guarda mensajes JSON, incluidos destinatario, asunto, HTML y enlace principal.
+- **Obligatoria:** No. El valor predeterminado es `.e2e-outbox/`.
+- **Advertencia:** Solo para pruebas; Git ignora la carpeta predeterminada.
+- **Secreta:** No.
+
 ### `RESEND_API_KEY`
 
 - **Propósito:** Autoriza el envío de correo mediante Resend.

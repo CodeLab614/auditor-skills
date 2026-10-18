@@ -1,6 +1,6 @@
 # Dependency updates
 
-RapidAuth keeps every direct dependency at an exact version in `package.json`. This makes installs predictable and ensures a dependency changes only in a reviewed update. Bun uses `bunfig.toml` (`[install] exact = true`), and Dependabot uses `versioning-strategy: increase` so its pull requests keep exact specifiers. Do not merge an update until the required CI checks pass.
+RapidAuth keeps every direct dependency at an exact version in `package.json`. This makes installs predictable and ensures a dependency changes only in a reviewed update. Bun uses `bunfig.toml` (`[install] exact = true`), and Dependabot uses `versioning-strategy: increase` so its pull requests keep exact specifiers. A pull request is accepted only when CI is green, including the end-to-end tests.
 
 ## Review a Dependabot pull request
 
@@ -8,7 +8,7 @@ For each proposed update:
 
 1. Read the release notes and linked changes for the package and every package in the group. Look for breaking changes, removed or renamed APIs, migration steps, security fixes, supported runtime versions, and changes to peer dependencies.
 2. Confirm the new version is stable, supported by this project, and compatible with the other changed packages. Check the exact versions in `package.json` and the resolved changes in `bun.lock`.
-3. Review the CI results and the generated diff. Accept the pull request only when the change is understood, the required checks pass, and the checklist for its update stage is complete.
+3. Review the CI results and the generated diff. Accept the pull request only when the change is understood, every required CI job is green (including E2E), and the checklist for its update stage is complete.
 4. Close or defer it when it is a prerelease, violates a toolchain limit, needs a migration that is not included, breaks a check, or its behavior cannot be verified. Record the reason and revisit it in the relevant planned stage.
 
 Dependabot groups minor and patch updates. A grouped pull request can be split when a package needs separate investigation.
@@ -17,7 +17,7 @@ Dependabot groups minor and patch updates. A grouped pull request can be split w
 
 The October 2026 upgrade is the model: first minor and patch releases, then critical libraries such as Better Auth, then major releases, and finally shadcn components. Keep each stage isolated and finish its checklist before beginning the next one. For **every stage**, require all of these checks:
 
-- [ ] CI is green, including lint, type checking, production build, dependency audit, theme synchronization, and Docker jobs.
+- [ ] CI is green, including lint, exact dependency versions, type checking, E2E, production build, dependency audit, theme synchronization, and Docker jobs.
 - [ ] Sign in and sign out work with valid and invalid credentials.
 - [ ] Password creation, change, and recovery work, including the verification steps used by those flows.
 - [ ] Email verification and verification email resend work.
@@ -51,4 +51,15 @@ To move Node to the next LTS, update the Node base image in every stage of `Dock
 
 ## Add or update a dependency
 
-Add a dependency with an exact version, such as `bun add package@1.2.3`; `bunfig.toml` makes exact installs the default. For a deliberate upgrade, change to the selected exact version, run `bun install`, and review that `bun.lock` changes only as expected. Follow the applicable stage and full checklist above. Keep `bun install --frozen-lockfile` passing so CI installs the committed resolution without changing it.
+Add a dependency with its complete exact version, such as `bun add package@1.2.3`, or omit the version with `bun add package`. Do not use incomplete versions such as `bun add package@7`, which Bun stores as a range. `bunfig.toml` makes exact installs the default and `bun run deps:check` verifies every direct dependency. For a deliberate upgrade, change to the selected exact version, run `bun install`, and review that `bun.lock` changes only as expected. Follow the applicable stage and full checklist above. Keep `bun install --frozen-lockfile` passing so CI installs the committed resolution without changing it.
+
+## Run end-to-end tests locally
+
+Start the dedicated PostgreSQL test container on port `55432`, then run the E2E suite:
+
+```bash
+bun run test:e2e:db
+bun run test:e2e
+```
+
+The test setup refuses non-local database URLs, requires `sslmode=disable`, and uses a separate port from the development database. It starts `next dev` with test Turnstile keys and a filesystem email outbox. E2E tests run in CI on every pull request without repository secrets, including Dependabot pull requests.

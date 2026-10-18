@@ -159,7 +159,8 @@ bunx prisma db push            # Push schema to database
 8. **Auth through server actions** - `/api/auth` stays closed; use `auth.api.*`
 9. **Keep Classic theme in sync** - After changing `app/auth`, `components/auth`, `app/page.tsx`, `components/landing-content.tsx`, `app/globals.css`, `app/layout.tsx`, or `components/ui`, run `bun run theme:sync-classic`. CI checks this with `bun run theme:sync-classic --check`.
 10. **Respect toolchain update limits** - Keep TypeScript below 6.1 because typescript-eslint 8.x does not support 6.1+, ESLint on 9.x because eslint-plugin-react (included by eslint-config-next) supports only ^9, and Node on the current LTS because upgrades must change both Dockerfiles and `@types/node` together.
-11. **Pin dependencies and update them deliberately** - Add dependencies with an exact version (`bun add <package>@<version>`); `bunfig.toml` enforces exact versions. Upgrade dependencies in tested stages following `docs/en/04-dependency-updates.md`.
+11. **Pin dependencies and update them deliberately** - Add dependencies with a complete exact version (`bun add <package>@<x.y.z>`) or omit the version (`bun add <package>`); incomplete versions such as `@7` create a range. `bunfig.toml` enforces exact versions, and `bun run deps:check` verifies them. Upgrade dependencies in tested stages following `docs/en/04-dependency-updates.md`.
+12. **Keep auth E2E coverage current** - Every change to authentication, email delivery, or forms must add or update an independent test in `tests/e2e/`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -80,6 +80,7 @@ const ENV_VARIABLES: EnvVariable[] = [
     },
   },
   // FROM_EMAIL is handled separately in askEmailConfig()
+  // EMAIL_OUTBOX_DIR is E2E-only and intentionally is not managed by this wizard.
 ];
 
 // ============================================================================
@@ -923,7 +924,7 @@ function loadExistingEnv(): Record<string, string> {
 const ENV_SECTION_KEYS: Record<string, string[]> = {
   database: ['DATABASE_URL', 'DB_PORT', 'DOCKER_DATABASE'],
   auth: ['BETTER_AUTH_SECRET', 'BETTER_AUTH_URL'],
-  email: ['RESEND_API_KEY', 'FROM_EMAIL'],
+  email: ['EMAIL_DELIVERY', 'RESEND_API_KEY', 'FROM_EMAIL'],
   captcha: ['NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY'],
   oauth: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'NEXT_PUBLIC_GOOGLE_ENABLED', 'NEXT_PUBLIC_GITHUB_ENABLED'],
 };
@@ -1334,6 +1335,7 @@ async function runSetup() {
       }
     } else if (category.key === 'email') {
       // Handle email category specially
+      newEnv['EMAIL_DELIVERY'] = 'resend';
       const categoryVars = ENV_VARIABLES.filter(
         (v) => v.category === 'email',
       );

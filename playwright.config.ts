@@ -1,0 +1,90 @@
+import { defineConfig, devices } from '@playwright/test';
+import { resolve } from 'node:path';
+
+const port = 3100;
+const rejectPort = 3101;
+const baseURL = `http://127.0.0.1:${port}`;
+const rejectBaseURL = `http://127.0.0.1:${rejectPort}`;
+const databaseUrl = process.env.CI
+  ? process.env.DATABASE_URL ??
+    'postgresql://rapidauth:rapidauth@127.0.0.1:5432/rapidauth?sslmode=disable'
+  : 'postgresql://rapidauth:rapidauth@127.0.0.1:55432/rapidauth?sslmode=disable';
+process.env.DATABASE_URL = databaseUrl;
+const outboxDir = resolve('.e2e-outbox');
+
+export default defineConfig({
+  testDir: './tests/e2e',
+  globalSetup: './tests/e2e/global-setup.ts',
+  globalTeardown: './tests/e2e/global-teardown.ts',
+  fullyParallel: false,
+  forbidOnly: Boolean(process.env.CI),
+  retries: process.env.CI ? 2 : 0,
+  workers: 1,
+  reporter: process.env.CI ? [['html', { open: 'never' }], ['list']] : 'list',
+  outputDir: 'test-results',
+  use: {
+    baseURL,
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'off',
+    ...devices['Desktop Chrome'],
+  },
+  projects: [
+    {
+      name: 'chromium',
+      testIgnore: '**/turnstile-reject.spec.ts',
+      use: { ...devices['Desktop Chrome'], baseURL },
+    },
+    {
+      name: 'turnstile-reject',
+      testMatch: '**/turnstile-reject.spec.ts',
+      use: { ...devices['Desktop Chrome'], baseURL: rejectBaseURL },
+    },
+  ],
+  webServer: [
+    {
+      command: `bunx next dev --hostname 127.0.0.1 --port ${port}`,
+      url: baseURL,
+      // Never reuse an unrelated server that may be connected to another database.
+      reuseExistingServer: false,
+      timeout: 180_000,
+      env: {
+        DATABASE_URL: databaseUrl,
+        BETTER_AUTH_URL: baseURL,
+        BETTER_AUTH_SECRET:
+          'e2e-only-secret-never-use-this-value-outside-local-tests-000000000000',
+        EMAIL_DELIVERY: 'outbox',
+        EMAIL_OUTBOX_DIR: outboxDir,
+        SEED_ADMIN_EMAIL: 'admin@e2e.invalid',
+        SEED_ADMIN_PASSWORD: 'E2e-Admin-Password-123!',
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+        TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA',
+        RAPIDAUTH_NEXT_DIST_DIR: '.next-e2e-normal',
+        NEXT_TELEMETRY_DISABLED: '1',
+        NODE_ENV: 'development',
+      },
+    },
+    {
+      command: `bunx next dev --hostname 127.0.0.1 --port ${rejectPort}`,
+      url: rejectBaseURL,
+      // Never reuse an unrelated server that may be connected to another database.
+      reuseExistingServer: false,
+      timeout: 180_000,
+      env: {
+        DATABASE_URL: databaseUrl,
+        BETTER_AUTH_URL: rejectBaseURL,
+        BETTER_AUTH_SECRET:
+          'e2e-only-secret-never-use-this-value-outside-local-tests-000000000000',
+        EMAIL_DELIVERY: 'outbox',
+        EMAIL_OUTBOX_DIR: outboxDir,
+        SEED_ADMIN_EMAIL: 'admin@e2e.invalid',
+        SEED_ADMIN_PASSWORD: 'E2e-Admin-Password-123!',
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+        TURNSTILE_SECRET_KEY: '2x0000000000000000000000000000000AA',
+        RAPIDAUTH_NEXT_DIST_DIR: '.next-e2e-reject',
+        NEXT_TELEMETRY_DISABLED: '1',
+        NODE_ENV: 'development',
+      },
+    },
+  ],
+});

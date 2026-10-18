@@ -8,7 +8,9 @@ import { generatePassword } from "./generate-password";
 
 // Load environment variables
 dotenv.config({ path: ".env" });
-dotenv.config({ path: ".env.local", override: true });
+if (process.env.RAPIDAUTH_E2E !== "true") {
+  dotenv.config({ path: ".env.local", override: true });
+}
 
 // Create Prisma client with pg adapter (same as lib/prisma.ts)
 const databaseUrl = process.env.DATABASE_URL!;

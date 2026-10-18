@@ -12,6 +12,7 @@ const nextConfig = (phase: string): NextConfig => {
   }
 
   return {
+    distDir: process.env.RAPIDAUTH_NEXT_DIST_DIR ?? ".next",
     reactCompiler: true,
     output: "standalone",
     outputFileTracingIncludes: {

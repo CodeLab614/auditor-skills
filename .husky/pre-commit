@@ -2,13 +2,16 @@
 
 echo "Running pre-commit checks..."
 
-echo "1/3 Running lint..."
+echo "1/4 Checking exact dependency versions..."
+bun run deps:check || exit 1
+
+echo "2/4 Running lint..."
 bun run lint || exit 1
 
-echo "2/3 Running typecheck..."
+echo "3/4 Running typecheck..."
 bun run typecheck || exit 1
 
-echo "3/3 Running build..."
+echo "4/4 Running build..."
 # This local hook build checks compilation only; production builds must always validate Turnstile.
 RAPIDAUTH_SKIP_TURNSTILE_BUILD_CHECK=1 bun run build || exit 1
 
