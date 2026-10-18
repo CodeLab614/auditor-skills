@@ -22,6 +22,8 @@ export default defineConfig({
   workers: 1,
   reporter: process.env.CI ? [['html', { open: 'never' }], ['list']] : 'list',
   outputDir: 'test-results',
+  // next dev compiles each route on first visit, which can exceed 5 s on CI runners.
+  expect: { timeout: 15_000 },
   use: {
     baseURL,
     trace: 'retain-on-failure',
