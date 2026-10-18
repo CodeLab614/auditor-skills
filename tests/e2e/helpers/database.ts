@@ -26,13 +26,14 @@ export async function createTestUser(options: {
       emailVerified: options.emailVerified ?? true,
       role: options.role ?? 'user',
       status: options.status ?? 'active',
-      accounts: {
-        create: {
-          accountId: email,
-          providerId: 'credential',
-          password: hashedPassword,
-        },
-      },
+    },
+  });
+  await prisma.account.create({
+    data: {
+      accountId: user.id,
+      providerId: 'credential',
+      password: hashedPassword,
+      userId: user.id,
     },
   });
   return { user, email, password };

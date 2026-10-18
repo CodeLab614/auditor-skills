@@ -65,6 +65,19 @@ async function main() {
   console.log(`${colors.cyan}${icons.arrow} Seeding database...${colors.reset}`);
   console.log();
 
+  const normalizedLegacyAccounts = await prisma.$executeRaw`
+    UPDATE "account"
+    SET "accountId" = "userId"
+    WHERE "providerId" = 'credential'
+      AND "accountId" <> "userId"
+  `;
+
+  if (normalizedLegacyAccounts > 0) {
+    console.log(
+      `${colors.green}${icons.success} Normalized ${normalizedLegacyAccounts} legacy credential account(s)${colors.reset}`,
+    );
+  }
+
   // Check if admin already exists
   const existingAdmin = await prisma.user.findUnique({
     where: { email: ADMIN_EMAIL },
@@ -79,20 +92,26 @@ async function main() {
   const password = configuredPassword ?? generatePassword();
   const hashedPassword = await hashPassword(password);
 
-  const admin = await prisma.user.create({
-    data: {
-      name: "Administrator",
-      email: ADMIN_EMAIL,
-      emailVerified: true,
-      role: "admin",
-      accounts: {
-        create: {
-          accountId: ADMIN_EMAIL,
-          providerId: "credential",
-          password: hashedPassword,
-        },
+  const admin = await prisma.$transaction(async (transaction) => {
+    const user = await transaction.user.create({
+      data: {
+        name: "Administrator",
+        email: ADMIN_EMAIL,
+        emailVerified: true,
+        role: "admin",
       },
-    },
+    });
+
+    await transaction.account.create({
+      data: {
+        accountId: user.id,
+        providerId: "credential",
+        password: hashedPassword,
+        userId: user.id,
+      },
+    });
+
+    return user;
   });
 
   console.log(`${colors.green}${icons.success} Created admin user:${colors.reset}`);

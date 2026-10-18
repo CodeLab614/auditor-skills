@@ -33,6 +33,12 @@ Review Dependabot’s grouped updates and keep compatible minor and patch change
 
 Update one critical library at a time. Read its migration and security notes, verify the auth configuration and adapters, and exercise login, sessions, passwords, and email flows. Complete the full checklist above before accepting each library update.
 
+**Stage 2 completed (October 18, 2026):** Better Auth is pinned to 1.7.10. Its coordinated runtime and adapter packages are also resolved to 1.7.10; `@better-auth/utils` remains at 0.5.0 because it follows an independent version line and has no 1.7.10 release. The 1.7 schema comparison required only the `verified`, `failedVerificationCount`, and `lockedUntil` fields on `twoFactor`; `account` remains unchanged from 1.6 and `rateLimit` retains `id`, `key`, `count`, and `lastRequest`. The TypeScript, ESLint, and Node.js limits below remain in force, and dependencies remain pinned to exact versions.
+
+#### Update an existing installation to Better Auth 1.7
+
+For **each environment** (development, staging, and production), run `bun run db:push` to add `verified`, `failedVerificationCount`, and `lockedUntil` to `twoFactor`, then run `bun run db:seed` to normalize legacy password accounts. Without this step, an admin created by an older seed cannot sign in with Better Auth 1.7. The seed is safe to repeat and does not delete data.
+
 ### Stage 3: major releases
 
 Upgrade one major package or a tightly coupled package set at a time. Follow its migration guide, update project code and configuration, and check peer dependency requirements. Complete the full checklist above before accepting each major upgrade.

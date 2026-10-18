@@ -33,6 +33,12 @@ Revisa las actualizaciones agrupadas de Dependabot y mantén juntas las versione
 
 Actualiza una librería crítica a la vez. Lee sus notas de migración y seguridad, verifica la configuración de autenticación y los adaptadores, y prueba el inicio de sesión, las sesiones, las contraseñas y los flujos de email. Completa la lista de comprobación antes de aceptar cada actualización.
 
+**Etapa 2 completada (18 de octubre de 2026):** Better Auth está fijado en 1.7.10. Sus paquetes coordinados de runtime y adaptadores también se resolvieron en 1.7.10; `@better-auth/utils` se mantiene en 0.5.0 porque lleva una línea de versiones independiente y no existe una publicación 1.7.10. La comparación del esquema 1.7 solo requirió los campos `verified`, `failedVerificationCount` y `lockedUntil` en `twoFactor`; `account` permanece igual que en 1.6 y `rateLimit` conserva `id`, `key`, `count` y `lastRequest`. Siguen vigentes los límites de TypeScript, ESLint y Node indicados abajo, y las dependencias continúan fijadas a versiones exactas.
+
+#### Actualizar una instalación existente a Better Auth 1.7
+
+En **cada entorno** (desarrollo, staging y producción), ejecuta `bun run db:push` para agregar `verified`, `failedVerificationCount` y `lockedUntil` a `twoFactor`; después ejecuta `bun run db:seed` para normalizar las cuentas de contraseña antiguas. Sin este paso, el administrador creado por un seed anterior no puede iniciar sesión con Better Auth 1.7. El seed se puede repetir de forma segura y no borra datos.
+
 ### Etapa 3: versiones mayores
 
 Actualiza un paquete mayor o un conjunto estrechamente relacionado a la vez. Sigue su guía de migración, actualiza el código y la configuración del proyecto, y revisa los requisitos de dependencias pares. Completa la lista de comprobación antes de aceptar cada actualización mayor.

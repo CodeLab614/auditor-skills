@@ -5,7 +5,7 @@ import { twoFactor } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/lib/prisma";
 import { sendResetPasswordEmail, sendVerificationEmail } from "@/lib/email";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 // Keep auth email links on the configured application origin.
 const baseURL = process.env.BETTER_AUTH_URL;
@@ -242,8 +242,18 @@ export const auth = betterAuth({
 });
 
 export async function getSession() {
+  const requestHeaders = new Headers(await headers());
+  // Better Auth 1.7 can rotate the session inside an action (for example, during TOTP setup verification); cookies() reflects the new cookie.
+  const cookieHeader = (await cookies()).toString();
+
+  if (cookieHeader) {
+    requestHeaders.set("cookie", cookieHeader);
+  } else {
+    requestHeaders.delete("cookie");
+  }
+
   const session = await auth.api.getSession({
-    headers: await headers(),
+    headers: requestHeaders,
   });
   return session;
 }

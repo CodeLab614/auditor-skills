@@ -2,11 +2,11 @@
 
 A production-ready Next.js 16+ authentication boilerplate with Better Auth, designed for rapid application development.
 
-![Next.js](https://img.shields.io/badge/Next.js-16.1.6-black?style=flat-square&logo=next.js)
+![Next.js](https://img.shields.io/badge/Next.js-16.4.2-black?style=flat-square&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?style=flat-square&logo=typescript)
-![Better Auth](https://img.shields.io/badge/Better_Auth-1.5.5-purple?style=flat-square)
+![Better Auth](https://img.shields.io/badge/Better_Auth-1.7.10-purple?style=flat-square)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.x-38B2AC?style=flat-square&logo=tailwind-css)
-![Prisma](https://img.shields.io/badge/Prisma-7.5.0-2D3748?style=flat-square&logo=prisma)
+![Prisma](https://img.shields.io/badge/Prisma-7.10.1-2D3748?style=flat-square&logo=prisma)
 
 ## Features
 
@@ -121,10 +121,10 @@ Run the Docker job steps using the isolated project name and alternate ports sho
 
 | Category | Technology |
 |----------|------------|
-| Framework | Next.js 16+ (App Router, Server Actions) |
+| Framework | Next.js 16.4.2 (App Router, Server Actions) |
 | Language | TypeScript 5.x |
-| Auth | Better Auth 1.5.5 |
-| Database | PostgreSQL + Prisma 7.5.0 |
+| Auth | Better Auth 1.7.10 |
+| Database | PostgreSQL + Prisma 7.10.1 |
 | UI | shadcn/ui + Tailwind CSS 4.x |
 | Forms | React Hook Form + Zod |
 | Email | Resend + React Email |

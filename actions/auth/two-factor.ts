@@ -166,9 +166,17 @@ export const enable2FAAction = async (
     }
 
     const result = await auth.api.enableTwoFactor({
-      body: { password },
+      body: { password, method: 'totp' },
       headers: await headers(),
     });
+
+    if (result.method !== 'totp') {
+      return {
+        response: 'error',
+        message: 'Two-factor setup returned OTP mode; TOTP mode is required.',
+        data: null,
+      };
+    }
 
     if (session?.user?.id) {
       await logActivity(session.user.id, '2fa_enabled');
@@ -220,18 +228,24 @@ export const verify2FASetupAction = async (
       headers: await headers(),
     });
 
-    if (session?.user?.id) {
-      const rateLimit = await checkRateLimit([
-        { key: `2fa-setup:user:${session.user.id}`, window: 60, max: 5 },
-      ]);
+    if (!session?.user?.id) {
+      return {
+        response: 'error',
+        message: 'An authenticated session is required to verify 2FA setup.',
+        data: null,
+      };
+    }
 
-      if (rateLimit.limited) {
-        return {
-          response: 'error',
-          message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
-          data: null,
-        };
-      }
+    const rateLimit = await checkRateLimit([
+      { key: `2fa-setup:user:${session.user.id}`, window: 60, max: 5 },
+    ]);
+
+    if (rateLimit.limited) {
+      return {
+        response: 'error',
+        message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
+        data: null,
+      };
     }
 
     await auth.api.verifyTOTP({
