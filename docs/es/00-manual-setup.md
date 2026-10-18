@@ -142,10 +142,11 @@ Abre [http://localhost:3000](http://localhost:3000), entra a la página de inici
 - Proporciona claves reales de Turnstile a cada compilación, incluidas staging, vistas previas y CI. Con Docker, monta `TURNSTILE_SECRET_KEY` con BuildKit durante el build y vuelve a proporcionarla en runtime; pasa la site key pública como argumento de build. Consulta [Cloudflare Turnstile](02-turnstile.md).
 - Agrega todos los hostnames desde donde se sirve la app, o un hostname padre que cubra sus subdominios, al widget de Turnstile.
 - Si habilitaste OAuth, configura las URLs de callback con el `BETTER_AUTH_URL` publicado.
+- Elige el almacenamiento de avatares para producción: configura `STORAGE_DRIVER=s3` con el bucket, las llaves y la URL pública, o usa Local solo si el servidor tiene disco persistente y escribible. Consulta [Almacenamiento de archivos](05-file-storage.md).
 - Elige un email de admin y contraseña segura, o guarda la contraseña generada que solo se muestra una vez y cámbiala tras iniciar sesión.
 - Mantén `.env`, `.env.local` y todos los secretos fuera del control de versiones y de los argumentos de build de imágenes.
 
-Los avatares que suben los usuarios se guardan en el disco del servidor, en `public/uploads/avatars`. En Docker o en un hosting sin disco persistente, se pueden perder al reiniciar o quizá no se puedan escribir. Para producción se necesita un volumen persistente montado en esa ruta o almacenamiento externo de archivos.
+Al cambiar de motor, primero ejecuta `bun run storage:migrate` para ver el plan y después `bun run storage:migrate --apply` para mover los avatares existentes.
 
 ---
 

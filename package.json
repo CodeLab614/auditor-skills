@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "deps:check": "bun run scripts/check-exact-versions.ts",
     "email:preview": "email dev --dir emails --port 3200",
-    "test:e2e": "playwright test",
+    "test:e2e": "bun run scripts/test-e2e.ts",
+    "storage:migrate": "bun run scripts/migrate-storage.ts",
     "test:e2e:db": "DB_PORT=55432 docker compose -p rapidauth-e2e -f docker/compose.yaml up -d db",
     "prepare": "husky",
     "init:setup": "bun run scripts/setup.ts",
@@ -30,6 +31,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1152.0",
     "@hookform/resolvers": "5.9.2",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",

@@ -14,6 +14,7 @@ import {
   DOCKER_GUIDES,
   ensureDockerDatabase,
 } from './lib/docker';
+import { createS3Storage } from '../lib/storage';
 import { getThemeChangedPaths } from './lib/theme-safety';
 
 // ============================================================================
@@ -28,7 +29,7 @@ interface EnvVariable {
   validate?: (value: string) => boolean | string;
   transform?: (value: string) => string;
   helpUrl?: string;
-  category: 'database' | 'auth' | 'email' | 'captcha' | 'oauth';
+  category: 'database' | 'auth' | 'email' | 'captcha' | 'oauth' | 'storage';
   sensitive?: boolean;
   autoGenerate?: () => string;
 }
@@ -267,6 +268,7 @@ async function askVariable(
     email: icons.email,
     captcha: icons.shield,
     oauth: icons.globe,
+    storage: icons.database,
   };
 
   const icon = categoryIcons[variable.category];
@@ -927,6 +929,7 @@ const ENV_SECTION_KEYS: Record<string, string[]> = {
   email: ['EMAIL_DELIVERY', 'RESEND_API_KEY', 'FROM_EMAIL'],
   captcha: ['NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY'],
   oauth: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'NEXT_PUBLIC_GOOGLE_ENABLED', 'NEXT_PUBLIC_GITHUB_ENABLED'],
+  storage: ['STORAGE_DRIVER', 'S3_ENDPOINT', 'S3_REGION', 'S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_PUBLIC_URL', 'S3_FORCE_PATH_STYLE'],
 };
 
 function updateEnvSections(
@@ -941,6 +944,7 @@ function updateEnvSections(
   const sectionLabels: Record<string, string> = {
     database: '# Database', auth: '# Better Auth', email: '# Email (Resend)',
     captcha: '# Cloudflare Turnstile', oauth: '# OAuth Providers',
+    storage: '# File storage',
   };
   const allSectionLabels = new Set(Object.values(sectionLabels));
   const insertedKeys = new Set<string>();
@@ -1226,18 +1230,88 @@ async function askProviderCredentials(
   return result;
 }
 
+async function askStorageConfig(existingEnv: Record<string, string>): Promise<Record<string, string>> {
+  println(`  ${icons.database} ${colors.bold}File storage${colors.reset}`);
+  println('     [1] Local: on the server disk (development, or your own server with persistent disk)');
+  println('     [2] S3-compatible: Cloudflare R2, Amazon S3, Backblaze, DigitalOcean Spaces, SeaweedFS…');
+  const current = existingEnv.STORAGE_DRIVER === 's3' ? '2' : '1';
+  let choice = '';
+  while (!['1', '2'].includes(choice)) {
+    choice = await question(`     Choose storage [${current}]: `) || current;
+  }
+  if (choice === '1') {
+    println(`     ${colors.dim}Local storage needs persistent disk or a mounted volume in production.${colors.reset}`);
+    println(`     ${colors.dim}Guide: docs/en/05-file-storage.md (or docs/es/05-file-storage.md).${colors.reset}`);
+    const retainedS3 = Object.fromEntries(
+      Object.entries(existingEnv).filter(([key]) => key.startsWith('S3_')),
+    );
+    return { STORAGE_DRIVER: 'local', ...retainedS3 };
+  }
+
+  const variables: EnvVariable[] = [
+    { key: 'S3_ENDPOINT', description: 'S3 API address; leave empty or type none for Amazon S3.', placeholder: 'https://<account>.r2.cloudflarestorage.com', required: false, category: 'storage' },
+    { key: 'S3_REGION', description: 'Region assigned by your storage provider.', placeholder: 'auto for Cloudflare R2', required: true, category: 'storage' },
+    { key: 'S3_BUCKET', description: 'Exact name of the bucket you created.', placeholder: 'avatars', required: true, category: 'storage' },
+    { key: 'S3_ACCESS_KEY_ID', description: 'Access key ID with permission to read, write, and delete objects in this bucket.', placeholder: 'Access key ID', required: true, category: 'storage', sensitive: true },
+    { key: 'S3_SECRET_ACCESS_KEY', description: 'Secret paired with the access key. It stays on the server.', placeholder: 'Secret access key', required: true, category: 'storage', sensitive: true },
+    { key: 'S3_PUBLIC_URL', description: 'Public HTTPS base URL for this bucket or its custom domain.', placeholder: 'https://avatars.example.com', required: true, category: 'storage', helpUrl: 'https://developers.cloudflare.com/r2/buckets/public-buckets/' },
+    { key: 'S3_FORCE_PATH_STYLE', description: 'Set true for S3-compatible services that put the bucket in the URL path; false for Amazon-style bucket hostnames.', placeholder: 'true or false', required: false, category: 'storage', validate: (value) => ['true', 'false'].includes(value.toLowerCase()) || 'Enter true or false.' },
+  ];
+  const values: Record<string, string> = { STORAGE_DRIVER: 's3' };
+  for (;;) {
+    for (const variable of variables) {
+      let value = await askVariable(variable, values[variable.key] ?? existingEnv[variable.key]);
+      if (variable.key === 'S3_ENDPOINT' && ['none', '-'].includes(value.toLowerCase())) value = '';
+      values[variable.key] = value;
+    }
+
+    println(`     ${colors.cyan}${icons.arrow} Checking the S3 connection and public URL...${colors.reset}`);
+    const candidateEnv = { ...process.env, ...existingEnv, ...values };
+    let connectionError: string | null = null;
+    const client = createS3Storage(candidateEnv);
+    const key = `setup-check/${crypto.randomBytes(8).toString('hex')}.txt`;
+    let url: string | null = null;
+    try {
+      url = await client.put(key, Buffer.from('RapidAuth storage check'), 'text/plain');
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok || await response.text() !== 'RapidAuth storage check') {
+        throw new Error(`Public URL returned HTTP ${response.status} or different content.`);
+      }
+    } catch (error) {
+      connectionError = error instanceof Error ? error.message : String(error);
+    } finally {
+      if (url) {
+        try { await client.delete(key); } catch (error) {
+          connectionError ??= error instanceof Error ? error.message : String(error);
+        }
+      }
+    }
+    if (!connectionError) {
+      println(`     ${colors.green}${icons.success} S3 upload, public read, and delete verified.${colors.reset}`);
+      println(`     ${colors.dim}Guide: docs/en/05-file-storage.md (or docs/es/05-file-storage.md).${colors.reset}`);
+      return values;
+    }
+    println(`     ${colors.red}${icons.error} S3 check failed: ${connectionError}${colors.reset}`);
+    println(`     ${colors.dim}Check the endpoint, region, bucket, access key, public access policy, and S3_PUBLIC_URL.${colors.reset}`);
+    const retry = await question('     Correct the storage values and try again? (y/n): ');
+    if (!['y', 'yes'].includes(retry.toLowerCase())) {
+      throw new Error('Storage connection could not be verified. Correct the values and run bun run init:setup --only storage.');
+    }
+  }
+}
+
 // ============================================================================
 // MAIN SETUP FLOW
 // ============================================================================
 
 async function runSetup() {
   const onlyIndex = process.argv.indexOf('--only');
-  const allowedOnly = ['database', 'email', 'turnstile', 'oauth', 'theme'] as const;
+  const allowedOnly = ['database', 'email', 'turnstile', 'oauth', 'theme', 'storage'] as const;
   let forcedSection: (typeof allowedOnly)[number] | undefined;
   if (onlyIndex !== -1) {
     const value = process.argv[onlyIndex + 1];
     if (!value || !allowedOnly.includes(value as (typeof allowedOnly)[number])) {
-      throw new Error('Usage: bun run scripts/setup.ts --only <database|email|turnstile|oauth|theme>');
+      throw new Error('Usage: bun run scripts/setup.ts --only <database|email|turnstile|oauth|theme|storage>');
     }
     forcedSection = value as (typeof allowedOnly)[number];
   }
@@ -1252,15 +1326,16 @@ async function runSetup() {
     println('  [3] Turnstile');
     println('  [4] OAuth');
     println('  [5] Theme');
-    println('  [6] Everything');
-    const choices: Record<string, string> = { '1': 'database', '2': 'email', '3': 'turnstile', '4': 'oauth', '5': 'theme', '6': 'everything' };
+    println('  [6] Storage');
+    println('  [7] Everything');
+    const choices: Record<string, string> = { '1': 'database', '2': 'email', '3': 'turnstile', '4': 'oauth', '5': 'theme', '6': 'storage', '7': 'everything' };
     while (!selection) {
       selection = choices[await question('Select a section: ')] ?? '';
       if (!selection) println('Choose one of the listed options.');
     }
   }
   if (!selection) selection = 'everything';
-  const selectedSections = new Set(selection === 'everything' ? ['database', 'auth', 'email', 'captcha', 'oauth', 'theme'] : [selection === 'turnstile' ? 'captcha' : selection]);
+  const selectedSections = new Set(selection === 'everything' ? ['database', 'auth', 'email', 'captcha', 'oauth', 'theme', 'storage'] : [selection === 'turnstile' ? 'captcha' : selection]);
   const databaseSelected = selectedSections.has('database');
   const themeSelected = selectedSections.has('theme');
   const previousDatabaseUrl = existingEnv.DATABASE_URL;
@@ -1274,6 +1349,7 @@ async function runSetup() {
     { key: 'email', title: 'Email Configuration', icon: icons.email },
     { key: 'captcha', title: 'Bot Protection (Cloudflare Turnstile)', icon: icons.shield },
     { key: 'oauth', title: 'OAuth Providers', icon: icons.globe },
+    { key: 'storage', title: 'File Storage', icon: icons.database },
   ] as const;
 
   let stepNumber = 1;
@@ -1448,6 +1524,8 @@ async function runSetup() {
       // Write NEXT_PUBLIC flags for the frontend
       newEnv['NEXT_PUBLIC_GOOGLE_ENABLED'] = selectedProviders.has('google') ? 'true' : 'false';
       newEnv['NEXT_PUBLIC_GITHUB_ENABLED'] = selectedProviders.has('github') ? 'true' : 'false';
+    } else if (category.key === 'storage') {
+      Object.assign(newEnv, await askStorageConfig(existingEnv));
     }
 
     stepNumber++;
@@ -1455,6 +1533,9 @@ async function runSetup() {
 
   const envSections = [...selectedSections].filter((section) => section !== 'theme');
   if (envSections.length > 0) {
+    if (selectedSections.has('storage') && (existingEnv.STORAGE_DRIVER ?? 'local') !== newEnv.STORAGE_DRIVER) {
+      println(`  ${colors.yellow}${icons.warning} The storage engine changed. Move existing avatars with: bun run storage:migrate${colors.reset}`);
+    }
     const changedDatabase = databaseSelected && previousDatabaseUrl && newEnv.DATABASE_URL !== previousDatabaseUrl ? previousDatabaseUrl : undefined;
     if (changedDatabase) println('Database records are not copied when you switch databases.');
     await spinner('Updating selected .env sections...', async () => {

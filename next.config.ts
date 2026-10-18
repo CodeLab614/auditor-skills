@@ -15,6 +15,12 @@ const nextConfig = (phase: string): NextConfig => {
         `\n⚠️  LEGAL CONFIGURATION: ${exampleValues.join(", ")} still use example values in config/site.ts. Replace them before deploying ${siteConfig.appName}.\n`,
       );
     }
+
+    if ((process.env.STORAGE_DRIVER || 'local').trim().toLowerCase() === 'local') {
+      console.warn(
+        '\n⚠️  FILE STORAGE: STORAGE_DRIVER=local stores uploaded files on this server. Configure persistent disk or mount a volume at /app/storage in production. See docs/en/05-file-storage.md.\n',
+      );
+    }
   }
 
   if (
@@ -26,6 +32,9 @@ const nextConfig = (phase: string): NextConfig => {
   }
 
   return {
+    experimental: {
+      serverActions: { bodySizeLimit: '4.25mb' },
+    },
     distDir: process.env.RAPIDAUTH_NEXT_DIST_DIR ?? ".next",
     reactCompiler: true,
     output: "standalone",

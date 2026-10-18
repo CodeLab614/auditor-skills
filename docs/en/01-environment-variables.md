@@ -142,6 +142,59 @@ For either provider, add its callback URL to the provider's OAuth application: `
 - **Example format:** `false`
 - **Secret:** No. This `NEXT_PUBLIC_*` flag is embedded at compile time. Set it to `true` only with matching GitHub credentials.
 
+## File storage
+
+See the beginner [File storage guide](05-file-storage.md) for creating a bucket and testing its public URL.
+
+### `STORAGE_DRIVER`
+
+- **Purpose:** Chooses where avatars are stored.
+- **Required:** No. Defaults to `local`.
+- **Values:** `local` or `s3`.
+- **Production:** Local requires persistent writable disk; S3 requires all `S3_*` values below.
+- **Secret:** No.
+
+### `S3_ENDPOINT`
+
+- **Purpose:** S3 API endpoint for compatible providers. Leave empty for Amazon S3.
+- **Required:** No.
+- **Example:** `https://<account-id>.r2.cloudflarestorage.com` for Cloudflare R2.
+- **Secret:** No.
+
+### `S3_REGION`
+
+- **Purpose:** Region sent to the S3 API.
+- **Required:** When `STORAGE_DRIVER=s3`.
+- **Examples:** `auto` for Cloudflare R2; the region assigned by Amazon S3 or another provider.
+- **Secret:** No.
+
+### `S3_BUCKET`
+
+- **Purpose:** Bucket name for uploaded avatar objects.
+- **Required:** When `STORAGE_DRIVER=s3`.
+- **Secret:** No.
+
+### `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`
+
+- **Purpose:** Server credentials allowed to read, write, and delete objects in the avatar bucket.
+- **Required:** When `STORAGE_DRIVER=s3`.
+- **Secret:** `S3_ACCESS_KEY_ID` is sensitive; `S3_SECRET_ACCESS_KEY` is secret. Keep both server-side.
+
+### `S3_PUBLIC_URL`
+
+- **Purpose:** Public base URL for the bucket or a custom domain. RapidAuth appends each object key to it.
+- **Required:** When `STORAGE_DRIVER=s3`.
+- **Example:** `https://avatars.example.com` or the provider's public bucket URL.
+- **Secret:** No. Objects are readable by anyone with the URL.
+
+### `S3_FORCE_PATH_STYLE`
+
+- **Purpose:** Tells the S3 client whether to put the bucket name in the URL path (`true`) or hostname (`false`).
+- **Required:** No. Defaults to `false`.
+- **Examples:** Use `true` with Cloudflare R2 and many self-hosted S3 services; use `false` with Amazon S3.
+- **Values:** `true` or `false`.
+- **Secret:** No.
+
 ## Seed
 
 These variables are read only by `bun run db:seed`; they are not needed by the app after seeding.

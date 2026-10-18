@@ -213,7 +213,9 @@ GitHub Actions comprueba lint, tipos, sincronización de Classic, compilación d
 
 ## Producción con Docker
 
-La imagen de producción está separada del Compose de desarrollo. No incluye una base de datos. Conéctala a una base PostgreSQL de producción, por ejemplo Neon, y proporciona todas las variables al iniciar el contenedor.
+La imagen de producción está separada del Compose de desarrollo. No incluye una base de datos. Conéctala a una base PostgreSQL de producción y proporciona todas las variables al iniciar el contenedor. El stack de desarrollo mantiene el almacenamiento local dentro de la carpeta del proyecto montada.
+
+Con `STORAGE_DRIVER=local`, monta un volumen persistente en `/app/storage` para que las fotos sobrevivan al reemplazo del contenedor. Por ejemplo, agrega `-v rapidauth_storage:/app/storage` a `docker run` o configura un volumen con nombre en el servicio de producción de Compose. La imagen crea `/app/storage` con permisos para el usuario `nextjs`. Con S3 no necesitas ese volumen. Consulta [Almacenamiento de archivos](05-file-storage.md).
 
 Cada build de producción necesita claves reales de Turnstile. La site key pública se pasa como argumento de build. La clave secreta se monta con BuildKit y también se proporciona al ejecutar la imagen. El build usa valores ficticios para `DATABASE_URL`, `BETTER_AUTH_URL` y `BETTER_AUTH_SECRET` solo para cargar módulos. No se conecta a una base y esos valores no se guardan en la imagen final.
 

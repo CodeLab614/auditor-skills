@@ -142,6 +142,59 @@ Para cualquiera de los proveedores, agrega la URL de callback correspondiente a 
 - **Formato de ejemplo:** `false`
 - **Secreta:** No. Esta opción `NEXT_PUBLIC_*` se incrusta al compilar. Usa `true` solo si configuraste las credenciales de GitHub correspondientes.
 
+## Almacenamiento de archivos
+
+Consulta la [guía para principiantes](05-file-storage.md) para crear un bucket y comprobar su URL pública.
+
+### `STORAGE_DRIVER`
+
+- **Propósito:** Elige dónde se guardan los avatares.
+- **Requerida:** No. El valor predeterminado es `local`.
+- **Valores:** `local` o `s3`.
+- **Producción:** Local necesita disco persistente y escribible; S3 necesita todas las variables `S3_*` siguientes.
+- **Secreto:** No.
+
+### `S3_ENDPOINT`
+
+- **Propósito:** Dirección de la API S3 para proveedores compatibles. Déjala vacía para Amazon S3.
+- **Requerida:** No.
+- **Ejemplo:** `https://<id-de-cuenta>.r2.cloudflarestorage.com` para Cloudflare R2.
+- **Secreto:** No.
+
+### `S3_REGION`
+
+- **Propósito:** Región que se envía a la API S3.
+- **Requerida:** Cuando `STORAGE_DRIVER=s3`.
+- **Ejemplos:** `auto` para Cloudflare R2; la región asignada por Amazon S3 u otro proveedor.
+- **Secreto:** No.
+
+### `S3_BUCKET`
+
+- **Propósito:** Nombre del bucket donde se guardan los avatares.
+- **Requerida:** Cuando `STORAGE_DRIVER=s3`.
+- **Secreto:** No.
+
+### `S3_ACCESS_KEY_ID` y `S3_SECRET_ACCESS_KEY`
+
+- **Propósito:** Credenciales del servidor con permiso para leer, escribir y borrar objetos del bucket de avatares.
+- **Requeridas:** Cuando `STORAGE_DRIVER=s3`.
+- **Secreto:** `S3_ACCESS_KEY_ID` es sensible y `S3_SECRET_ACCESS_KEY` es secreto. Mantén ambos solo en el servidor.
+
+### `S3_PUBLIC_URL`
+
+- **Propósito:** URL pública base del bucket o de un dominio propio. RapidAuth agrega la clave del objeto al final.
+- **Requerida:** Cuando `STORAGE_DRIVER=s3`.
+- **Ejemplo:** `https://avatars.example.com` o la URL pública del bucket del proveedor.
+- **Secreto:** No. Cualquier persona con la URL puede leer los objetos.
+
+### `S3_FORCE_PATH_STYLE`
+
+- **Propósito:** Indica si el nombre del bucket va en la ruta (`true`) o en el hostname (`false`).
+- **Requerida:** No. El valor predeterminado es `false`.
+- **Ejemplos:** Usa `true` con Cloudflare R2 y muchos servicios S3 propios; usa `false` con Amazon S3.
+- **Valores:** `true` o `false`.
+- **Secreto:** No.
+
 ## Seed
 
 Estas variables solo las lee `bun run db:seed`; no hacen falta en la app después de crear el admin.

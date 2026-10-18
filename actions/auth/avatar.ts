@@ -3,15 +3,13 @@
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { writeFile, mkdir, readdir, unlink } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { logActivity } from '@/lib/activity-log';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { getImageTypeFromBytes, getStorage } from '@/lib/storage';
+import { deleteStoredAvatar } from '@/lib/storage/avatar';
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_SIZE = 4 * 1024 * 1024; // 4MB
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'avatars');
 
 export const uploadAvatarAction = async (
   formData: FormData
@@ -43,15 +41,6 @@ export const uploadAvatarAction = async (
       };
     }
 
-    // Validate file type
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return {
-        response: 'error',
-        message: 'Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed.',
-        data: null,
-      };
-    }
-
     // Validate file size
     if (file.size > MAX_SIZE) {
       return {
@@ -73,35 +62,41 @@ export const uploadAvatarAction = async (
       };
     }
 
-    // Ensure upload directory exists
-    if (!existsSync(UPLOAD_DIR)) {
-      await mkdir(UPLOAD_DIR, { recursive: true });
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const imageType = getImageTypeFromBytes(bytes);
+    if (!imageType) {
+      return {
+        response: 'error',
+        message: 'Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed.',
+        data: null,
+      };
     }
 
-    // Delete previous avatars for this user
-    const existingFiles = await readdir(UPLOAD_DIR);
-    for (const f of existingFiles) {
-      if (f.startsWith(session.user.id + '.')) {
-        await unlink(path.join(UPLOAD_DIR, f));
-      }
-    }
-
-    // Get file extension from mime type
-    const ext = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
-    const fileName = `${session.user.id}.${ext}`;
-    const filePath = path.join(UPLOAD_DIR, fileName);
-
-    // Write file
-    const bytes = await file.arrayBuffer();
-    await writeFile(filePath, Buffer.from(bytes));
-
-    // Update user image in database
-    const imageUrl = `/uploads/avatars/${fileName}?t=${Date.now()}`;
-
-    await prisma.user.update({
+    const previous = await prisma.user.findUnique({
       where: { id: session.user.id },
-      data: { image: imageUrl },
+      select: { image: true },
     });
+    const key = `avatars/${session.user.id}-${randomBytes(8).toString('hex')}.${imageType.extension}`;
+    const storage = getStorage();
+    const imageUrl = await storage.put(key, bytes, imageType.mimeType);
+
+    try {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { image: imageUrl },
+      });
+    } catch (error) {
+      try { await storage.delete(key); } catch (cleanupError) {
+        console.error('Failed to clean up an avatar after the profile update failed:', cleanupError);
+      }
+      throw error;
+    }
+
+    try {
+      await deleteStoredAvatar(previous?.image, session.user.id);
+    } catch (error) {
+      console.error('Failed to delete previous avatar after replacement:', error);
+    }
 
     await logActivity(session.user.id, 'avatar_change');
 

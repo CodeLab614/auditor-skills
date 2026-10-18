@@ -213,7 +213,9 @@ GitHub Actions checks lint, types, Classic sync, production compilation, rejecti
 
 ## Production with Docker
 
-The production image is separate from the development Compose stack. It does not contain a database. Point it at a production PostgreSQL database, such as Neon, and provide all runtime settings when you start it.
+The production image is separate from the development Compose stack. It does not contain a database. Point it at a production PostgreSQL database and provide all runtime settings when you start it. The development Compose stack keeps local file storage inside the bind-mounted project folder.
+
+For `STORAGE_DRIVER=local`, mount a persistent volume at `/app/storage` so uploaded files survive container replacement. For example, add `-v rapidauth_storage:/app/storage` to `docker run`, or add a named volume to the production Compose service. The image creates `/app/storage` writable by its `nextjs` user. For S3, no file volume is needed. See [File storage](05-file-storage.md).
 
 Every production build needs real Turnstile keys. The public site key is passed as a build argument. The secret key is mounted with BuildKit and must also be provided at runtime. The build uses dummy `DATABASE_URL`, `BETTER_AUTH_URL`, and `BETTER_AUTH_SECRET` values only for module loading. It does not connect to a database, and the dummy values are not saved in the final image.
 

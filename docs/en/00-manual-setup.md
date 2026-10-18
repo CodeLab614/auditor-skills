@@ -142,10 +142,11 @@ Open [http://localhost:3000](http://localhost:3000), go to the sign-in page, and
 - Provide real Turnstile keys to every build, including staging, previews, and CI. For Docker, mount `TURNSTILE_SECRET_KEY` with BuildKit during the build and provide it again at runtime; pass the public site key as a build argument. See [Cloudflare Turnstile](02-turnstile.md).
 - Add every serving hostname, or a parent hostname that covers its subdomains, to the Turnstile widget.
 - Set OAuth callback URLs to the deployed `BETTER_AUTH_URL` if social sign-in is enabled.
+- Choose avatar storage for production: set `STORAGE_DRIVER=s3` and configure its bucket, keys, and public URL, or use Local only when the server has persistent writable disk. See [File storage](05-file-storage.md).
 - Use a deliberate admin email and secure seed password, or save the one-time generated password and change it after the first login.
 - Keep `.env`, `.env.local`, and all secret values out of version control and image build arguments.
 
-Avatars uploaded by users are stored on the server filesystem in `public/uploads/avatars`. In Docker or hosting without persistent writable disk, those files can be lost on restart or uploads may not be writable. Production needs a persistent volume mounted at that path or external file storage.
+When changing storage engines, run `bun run storage:migrate` first to preview, then `bun run storage:migrate --apply` to move existing avatars.
 
 ---
 

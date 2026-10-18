@@ -7,6 +7,7 @@ import { headers } from 'next/headers';
 import { APIError } from 'better-auth/api';
 import { auth, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { deleteStoredAvatar } from '@/lib/storage/avatar';
 import {
   addUserSchema,
   changeRoleSchema,
@@ -463,7 +464,7 @@ export const deleteUser = async (
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, image: true },
     });
 
     if (!user) {
@@ -480,6 +481,12 @@ export const deleteUser = async (
       prisma.activityLog.deleteMany({ where: { userId } }),
       prisma.user.delete({ where: { id: userId } }),
     ]);
+
+    try {
+      await deleteStoredAvatar(user.image, userId);
+    } catch (error) {
+      console.error('Failed to delete avatar after user deletion:', error);
+    }
 
     await logActivity(session.user.id, 'profile_update', {
       action: 'user_deleted',

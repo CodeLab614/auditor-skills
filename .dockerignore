@@ -17,6 +17,7 @@ coverage
 out
 build
 public/uploads/avatars
+/storage
 *.log
 *.md
 !.dockerignore
