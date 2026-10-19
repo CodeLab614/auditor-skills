@@ -18,6 +18,7 @@ export type ActivityAction =
   | "oauth_login"
   | "oauth_link"
   | "terms_accepted"
+  | "invitation_accepted"
   | "session_revoked";
 
 export interface ActivityDetails {

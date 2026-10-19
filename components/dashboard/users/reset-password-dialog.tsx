@@ -116,7 +116,7 @@ export function ResetPasswordDialog({
             </DialogTitle>
             <DialogDescription className='text-muted-foreground'>
               Share this password with {user?.name}. They must change it on
-              first login.
+              first login, and it expires in 72 hours.
             </DialogDescription>
           </DialogHeader>
 
@@ -208,36 +208,44 @@ export function ResetPasswordDialog({
                         </div>
                       </button>
 
-                      <button
-                        type='button'
-                        onClick={() => field.onChange('manual')}
-                        className={`w-full p-4 rounded-md border text-left transition-colors ${
-                          field.value === 'manual'
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border bg-background hover:bg-muted/50'
-                        }`}
-                      >
-                        <div className='flex items-center gap-3'>
-                          <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                              field.value === 'manual'
-                                ? 'bg-primary/10 text-primary'
-                                : 'bg-muted text-muted-foreground'
-                            }`}
-                          >
-                            <KeyRound className='h-5 w-5' />
+                      {user?.role !== 'admin' && (
+                        <button
+                          type='button'
+                          onClick={() => field.onChange('manual')}
+                          className={`w-full p-4 rounded-md border text-left transition-colors ${
+                            field.value === 'manual'
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border bg-background hover:bg-muted/50'
+                          }`}
+                        >
+                          <div className='flex items-center gap-3'>
+                            <div
+                              className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                field.value === 'manual'
+                                  ? 'bg-primary/10 text-primary'
+                                  : 'bg-muted text-muted-foreground'
+                              }`}
+                            >
+                              <KeyRound className='h-5 w-5' />
+                            </div>
+                            <div>
+                              <p className='text-sm font-medium'>
+                                Generate Temporary Password
+                              </p>
+                              <p className='text-xs text-muted-foreground'>
+                                Create a password that must be changed on login
+                                and expires in 72 hours
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className='text-sm font-medium'>
-                              Generate Temporary Password
-                            </p>
-                            <p className='text-xs text-muted-foreground'>
-                              Create a one-time password that must be changed on
-                              login
-                            </p>
-                          </div>
-                        </div>
-                      </button>
+                        </button>
+                      )}
+
+                      {user?.role === 'admin' && (
+                        <p className='text-xs text-muted-foreground'>
+                          Admin passwords can only be reset by email link.
+                        </p>
+                      )}
                     </div>
                   </FormControl>
                 </FormItem>

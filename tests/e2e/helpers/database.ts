@@ -2,6 +2,11 @@ import { hashPassword, makeSignature, symmetricEncrypt } from 'better-auth/crypt
 import { createEmailVerificationToken } from 'better-auth/api';
 import { siteConfig } from '../../../config/site';
 import { prisma } from '../../../lib/prisma';
+import {
+  getInvitationExpiration,
+  getInvitationIdentifier,
+  USER_INVITATION_PREFIX,
+} from '../../../lib/user-invitation-token';
 
 export const E2E_PASSWORD = 'E2e-User-Password-123!';
 export const E2E_SECRET =
@@ -21,6 +26,8 @@ export async function createTestUser(options: {
   emailVerified?: boolean;
   termsAccepted?: boolean;
   termsVersion?: string | null;
+  mustChangePassword?: boolean;
+  temporaryPasswordExpiresAt?: Date | null;
 } = {}) {
   const email = options.email ?? `e2e-${Date.now()}-${nextUserId++}@e2e.invalid`;
   const password = options.password ?? E2E_PASSWORD;
@@ -37,6 +44,9 @@ export async function createTestUser(options: {
       termsVersion: termsAccepted
         ? (options.termsVersion ?? siteConfig.termsVersion)
         : null,
+      mustChangePassword: options.mustChangePassword ?? false,
+      temporaryPasswordExpiresAt:
+        options.temporaryPasswordExpiresAt ?? null,
     },
   });
   await prisma.account.create({
@@ -151,7 +161,26 @@ export async function createExpiredResetToken(token: string) {
   });
 }
 
+export async function createTestInvitation(
+  userId: string,
+  options: { token?: string; expiresAt?: Date } = {},
+) {
+  const token = options.token ?? `e2e-invite-${crypto.randomUUID()}`;
+  await prisma.verification.create({
+    data: {
+      identifier: getInvitationIdentifier(token),
+      value: userId,
+      expiresAt: options.expiresAt ?? getInvitationExpiration(),
+    },
+  });
+
+  return token;
+}
+
 export async function cleanE2EData() {
+  await prisma.verification.deleteMany({
+    where: { identifier: { startsWith: USER_INVITATION_PREFIX } },
+  });
   await prisma.user.deleteMany({
     where: { email: { startsWith: 'e2e-' } },
   });

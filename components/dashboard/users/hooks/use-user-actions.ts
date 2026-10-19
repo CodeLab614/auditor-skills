@@ -6,6 +6,7 @@ import {
   bulkChangeRole,
   bulkDeleteUsers,
   bulkToggleStatus,
+  resendUserInvitationAction,
   toggleUserStatus,
   type User,
 } from '@/actions/users';
@@ -66,6 +67,23 @@ export function useUserActions({
       toast.error(error instanceof Error ? error.message : 'Failed to delete user');
     }
   }, [selectedUser, router]);
+
+  const handleResendInvitation = useCallback(async (user: User) => {
+    try {
+      const result = await resendUserInvitationAction(user.id);
+      if (result.response === 'error') {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to resend invitation:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to resend invitation',
+      );
+    }
+  }, [router]);
 
 
   // Bulk actions
@@ -140,6 +158,7 @@ export function useUserActions({
   return {
     handleToggleStatus,
     handleDeleteUser,
+    handleResendInvitation,
     handleBulkActivate,
     handleBulkDeactivate,
     handleBulkChangeRole,

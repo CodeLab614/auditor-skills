@@ -17,6 +17,7 @@ interface UsersTableProps {
   onDelete: (user: User) => void;
   onChangeRole: (user: User) => void;
   onResetPassword: (user: User) => void;
+  onResendInvitation: (user: User) => void;
   onToggleStatus: (user: User) => void;
 }
 
@@ -30,6 +31,7 @@ export function UsersTable({
   onDelete,
   onChangeRole,
   onResetPassword,
+  onResendInvitation,
   onToggleStatus,
 }: UsersTableProps) {
   const columns: Column<User>[] = [
@@ -108,6 +110,7 @@ export function UsersTable({
           onDelete={onDelete}
           onChangeRole={onChangeRole}
           onResetPassword={onResetPassword}
+          onResendInvitation={onResendInvitation}
           onToggleStatus={onToggleStatus}
         />
       ),

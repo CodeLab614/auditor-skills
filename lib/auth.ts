@@ -22,6 +22,10 @@ import {
   resolveTermsAcceptance,
   TERMS_ACCEPTANCE_HEADER,
 } from "@/lib/terms-acceptance";
+import {
+  hasExpiredTemporaryPassword,
+  TEMPORARY_PASSWORD_EXPIRED_MESSAGE,
+} from "@/lib/temporary-password";
 import { cookies, headers } from "next/headers";
 
 // Keep auth email links on the configured application origin.
@@ -119,12 +123,22 @@ export const auth = betterAuth({
           // All sign-in paths create a session, making this the single enforcement point.
           const user = await prisma.user.findUnique({
             where: { id: session.userId },
-            select: { status: true },
+            select: {
+              status: true,
+              mustChangePassword: true,
+              temporaryPasswordExpiresAt: true,
+            },
           });
 
           if (user?.status === "inactive") {
             throw new APIError("FORBIDDEN", {
               message: "This account has been deactivated.",
+            });
+          }
+
+          if (user && hasExpiredTemporaryPassword(user)) {
+            throw new APIError("FORBIDDEN", {
+              message: TEMPORARY_PASSWORD_EXPIRED_MESSAGE,
             });
           }
         },
@@ -229,6 +243,14 @@ export const auth = betterAuth({
       });
     },
     onPasswordReset: async ({ user }) => {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          mustChangePassword: false,
+          temporaryPasswordExpiresAt: null,
+        },
+      });
+
       try {
         await prisma.activityLog.create({
           data: {
@@ -349,6 +371,16 @@ export const auth = betterAuth({
       },
       termsVersion: {
         type: "string",
+        required: false,
+        input: false,
+      },
+      mustChangePassword: {
+        type: "boolean",
+        defaultValue: false,
+        input: false,
+      },
+      temporaryPasswordExpiresAt: {
+        type: "date",
         required: false,
         input: false,
       },

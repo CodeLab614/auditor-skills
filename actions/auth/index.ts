@@ -8,6 +8,7 @@ export { signUpAction } from './sign-up';
 // Sign Out
 export { signOut } from './sign-out';
 export { acceptTermsAction } from './accept-terms';
+export { acceptInviteAction } from './accept-invite';
 
 // Password
 export {

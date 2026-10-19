@@ -13,6 +13,11 @@ import {
 import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { sendSecurityNoticeEmail } from '@/lib/email';
+import { prisma } from '@/lib/prisma';
+import {
+  hasExpiredTemporaryPassword,
+  TEMPORARY_PASSWORD_EXPIRED_MESSAGE,
+} from '@/lib/temporary-password';
 
 type ForgotPasswordData = {
   email: string;
@@ -174,14 +179,30 @@ export const changePasswordAction = async (
       };
     }
 
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const requestHeaders = await headers();
+    const session = await auth.api.getSession({ headers: requestHeaders });
 
     if (!session?.user?.id) {
       return {
         response: 'error',
         message: 'Unauthorized',
+        data: null,
+      };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        mustChangePassword: true,
+        temporaryPasswordExpiresAt: true,
+      },
+    });
+
+    if (user && hasExpiredTemporaryPassword(user)) {
+      await auth.api.signOut({ headers: requestHeaders });
+      return {
+        response: 'error',
+        message: TEMPORARY_PASSWORD_EXPIRED_MESSAGE,
         data: null,
       };
     }
@@ -204,7 +225,15 @@ export const changePasswordAction = async (
         newPassword: validation.data.newPassword,
         revokeOtherSessions: true,
       },
-      headers: await headers(),
+      headers: requestHeaders,
+    });
+
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        mustChangePassword: false,
+        temporaryPasswordExpiresAt: null,
+      },
     });
 
     await logActivity(session.user.id, 'password_change');

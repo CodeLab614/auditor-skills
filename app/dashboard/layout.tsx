@@ -21,10 +21,15 @@ export default async function DashboardLayout({
     where: { id: session.user.id },
     select: {
       image: true,
+      mustChangePassword: true,
       termsAcceptedAt: true,
       termsVersion: true,
     },
   });
+
+  if (dbUser?.mustChangePassword) {
+    redirect("/auth/change-password");
+  }
 
   if (!dbUser || !hasAcceptedCurrentTerms(dbUser)) {
     redirect("/auth/accept-terms");

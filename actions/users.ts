@@ -12,9 +12,15 @@ import {
   getAdminAccess,
   getAdminMutationError,
 } from '@/lib/admin-access';
-import { sendSecurityNoticeEmail } from '@/lib/email';
+import { sendInvitationEmail, sendSecurityNoticeEmail } from '@/lib/email';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { deleteStoredAvatar } from '@/lib/storage/avatar';
+import { getTemporaryPasswordExpiration } from '@/lib/temporary-password';
+import {
+  getInvitationUrl,
+  issueUserInvitation,
+} from '@/lib/user-invitations';
 import {
   addUserSchema,
   changeRoleSchema,
@@ -103,7 +109,7 @@ export const addUserAction = async (
       };
     }
 
-    const { name, role, sendInvite } = data;
+    const { name, role } = data;
     const email = data.email.trim().toLowerCase();
 
     // Check if user already exists
@@ -130,25 +136,39 @@ export const addUserAction = async (
       },
     });
 
-    // Log activity
-    await logActivity(session.user.id, 'profile_update', {
-      action: 'user_created',
-      targetUserId: newUser.id,
-      targetUserName: name,
-      targetUserEmail: email,
-      role,
-      inviteSent: sendInvite,
-    });
+    try {
+      await logActivity(session.user.id, 'profile_update', {
+        action: 'user_created',
+        targetUserId: newUser.id,
+        targetUserName: name,
+        targetUserEmail: email,
+        role,
+      });
+    } catch (error) {
+      console.error('Failed to log user creation activity:', error);
+    }
 
-    // TODO: Send invitation email if sendInvite is true
+    let invitationSent = true;
+    try {
+      const token = await issueUserInvitation(newUser.id);
+      await sendInvitationEmail({
+        email: newUser.email,
+        name: newUser.name,
+        invitedByName: session.user.name,
+        url: getInvitationUrl(token),
+      });
+    } catch (error) {
+      invitationSent = false;
+      console.error('Failed to send user invitation:', error);
+    }
 
     revalidatePath('/dashboard/users');
 
     return {
       response: 'success',
-      message: sendInvite
+      message: invitationSent
         ? 'User created and invitation sent'
-        : 'User created successfully',
+        : 'User created, but the invitation email could not be sent. Use Resend invitation',
       data: {
         id: newUser.id,
         name: newUser.name,
@@ -161,6 +181,106 @@ export const addUserAction = async (
     return {
       response: 'error',
       message: 'Failed to create user',
+      data: null,
+    };
+  }
+};
+
+export const resendUserInvitationAction = async (
+  userId: string,
+): Promise<{
+  response: 'success' | 'error';
+  message: string;
+  data: null;
+}> => {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return { response: 'error', message: 'Unauthorized', data: null };
+    }
+
+    const adminAccess = await getAdminAccess(session);
+    if (adminAccess !== 'admin') {
+      return {
+        response: 'error',
+        message:
+          adminAccess === 'two-factor-required'
+            ? ADMIN_TWO_FACTOR_REQUIRED_MESSAGE
+            : 'Only admins can resend invitations',
+        data: null,
+      };
+    }
+
+    if (!z.string().min(1).safeParse(userId).success) {
+      return { response: 'error', message: 'Invalid user', data: null };
+    }
+
+    const rateLimit = await checkRateLimit([
+      { key: `invite:user:${userId}`, window: 600, max: 3 },
+    ]);
+    if (rateLimit.limited) {
+      return {
+        response: 'error',
+        message: `Too many attempts. Try again in ${rateLimit.retryAfter} seconds.`,
+        data: null,
+      };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        emailVerified: true,
+        accounts: {
+          where: { providerId: 'credential' },
+          select: { id: true },
+          take: 1,
+        },
+      },
+    });
+
+    if (!user) {
+      return { response: 'error', message: 'User not found', data: null };
+    }
+
+    if (user.emailVerified || user.accounts.length > 0) {
+      return {
+        response: 'error',
+        message: 'This user no longer has a pending invitation',
+        data: null,
+      };
+    }
+
+    const token = await issueUserInvitation(user.id);
+    await sendInvitationEmail({
+      email: user.email,
+      name: user.name,
+      invitedByName: session.user.name,
+      url: getInvitationUrl(token),
+    });
+
+    try {
+      await logActivity(session.user.id, 'profile_update', {
+        action: 'user_invitation_resent',
+        targetUserId: user.id,
+        targetUserName: user.name,
+      });
+    } catch (error) {
+      console.error('Failed to log invitation resend activity:', error);
+    }
+
+    return {
+      response: 'success',
+      message: `Invitation resent to ${user.email}`,
+      data: null,
+    };
+  } catch (error) {
+    console.error('Resend invitation error:', error);
+    return {
+      response: 'error',
+      message: 'Invitation email could not be sent',
       data: null,
     };
   }
@@ -950,6 +1070,8 @@ export interface User {
   provider: AuthProvider;
   createdAt: string;
   lastActive: string;
+  emailVerified: boolean;
+  hasCredentialAccount: boolean;
 }
 
 // ============================================
@@ -1008,7 +1130,7 @@ export const resetPasswordAction = async (
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, role: true },
     });
 
     if (!user) {
@@ -1045,6 +1167,14 @@ export const resetPasswordAction = async (
       };
     }
 
+    if (user.role === 'admin') {
+      return {
+        response: 'error',
+        message: "Admins can only reset another admin's password by email link",
+        data: null,
+      };
+    }
+
     if (session.user.id === userId) {
       return {
         response: 'error',
@@ -1072,8 +1202,21 @@ export const resetPasswordAction = async (
     const temporaryPassword = generateTemporaryPassword();
     const ctx = await auth.$context;
     const hash = await ctx.password.hash(temporaryPassword);
-    await ctx.internalAdapter.updatePassword(userId, hash);
-    await prisma.session.deleteMany({ where: { userId } });
+    const temporaryPasswordExpiresAt = getTemporaryPasswordExpiration();
+    await prisma.$transaction([
+      prisma.account.update({
+        where: { id: credentialAccount.id },
+        data: { password: hash },
+      }),
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          mustChangePassword: true,
+          temporaryPasswordExpiresAt,
+        },
+      }),
+      prisma.session.deleteMany({ where: { userId } }),
+    ]);
 
     await logActivity(session.user.id, 'profile_update', {
       action: 'password_reset_manual',
@@ -1237,6 +1380,10 @@ export async function getUsers(): Promise<{
           year: "numeric",
         }),
         lastActive,
+        emailVerified: user.emailVerified,
+        hasCredentialAccount: user.accounts.some(
+          (account) => account.providerId === 'credential',
+        ),
       };
     });
 

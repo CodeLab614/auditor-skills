@@ -11,6 +11,16 @@ import {
 } from '../../lib/terms-acceptance';
 import { siteConfig } from '../../config/site';
 import {
+  getInvitationExpiration,
+  getInvitationIdentifier,
+  isInvitationExpired,
+  USER_INVITATION_PREFIX,
+} from '../../lib/user-invitation-token';
+import {
+  getTemporaryPasswordExpiration,
+  hasExpiredTemporaryPassword,
+} from '../../lib/temporary-password';
+import {
   cleanE2EData,
   createOAuthTestUser,
   createTestUser,
@@ -119,4 +129,31 @@ test('configured social providers disable implicit sign-up', () => {
 
   expect(providers.google?.disableImplicitSignUp).toBe(true);
   expect(providers.github?.disableImplicitSignUp).toBe(true);
+});
+
+test('invitation identifiers hash the token and expire after seven days', () => {
+  const now = new Date('2026-10-19T12:00:00.000Z');
+  const token = 'plain-invitation-token';
+  const identifier = getInvitationIdentifier(token);
+  const expiresAt = getInvitationExpiration(now);
+
+  expect(identifier).toMatch(new RegExp(`^${USER_INVITATION_PREFIX}[a-f0-9]{64}$`));
+  expect(identifier).not.toContain(token);
+  expect(expiresAt.toISOString()).toBe('2026-10-26T12:00:00.000Z');
+  expect(isInvitationExpired(expiresAt, expiresAt)).toBe(true);
+});
+
+test('temporary password expiration is enforced after 72 hours', () => {
+  const now = new Date('2026-10-19T12:00:00.000Z');
+  const expiresAt = getTemporaryPasswordExpiration(now);
+
+  expect(expiresAt.toISOString()).toBe('2026-10-22T12:00:00.000Z');
+  expect(hasExpiredTemporaryPassword({
+    mustChangePassword: true,
+    temporaryPasswordExpiresAt: expiresAt,
+  }, expiresAt)).toBe(true);
+  expect(hasExpiredTemporaryPassword({
+    mustChangePassword: false,
+    temporaryPasswordExpiresAt: new Date(now.getTime() - 1),
+  }, now)).toBe(false);
 });

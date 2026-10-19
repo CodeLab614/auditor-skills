@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import { render } from 'react-email';
 import {
   AccountDeletedEmail,
+  InvitationEmail,
   ResetPasswordEmail,
   SecurityNoticeEmail,
   VerificationEmail,
@@ -110,6 +111,34 @@ export async function sendResetPasswordEmail({
   await deliverEmail({
     to: email,
     subject: 'Reset your password',
+    html,
+    url,
+  });
+}
+
+export async function sendInvitationEmail({
+  email,
+  name,
+  invitedByName,
+  url,
+}: {
+  email: string;
+  name: string;
+  invitedByName: string;
+  url: string;
+}) {
+  const html = await render(
+    InvitationEmail({
+      name,
+      invitedByName,
+      appName: siteConfig.appName,
+      invitationUrl: url,
+    }),
+  );
+
+  await deliverEmail({
+    to: email,
+    subject: `You're invited to ${siteConfig.appName}`,
     html,
     url,
   });

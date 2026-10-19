@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -60,7 +59,6 @@ export function AddUserDialog({
       name: '',
       email: '',
       role: 'user',
-      sendInvite: true,
     },
   });
 
@@ -88,7 +86,6 @@ export function AddUserDialog({
     onOpenChange(newOpen);
   };
 
-   
   const selectedRole = form.watch('role');
 
   const getRoleDescription = (role: string) => {
@@ -110,7 +107,8 @@ export function AddUserDialog({
         <DialogHeader>
           <DialogTitle className="font-medium">Add New User</DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Create a new user account. An invitation email will be sent.
+            The user will receive an email to set a password and activate the
+            account.
           </DialogDescription>
         </DialogHeader>
 
@@ -189,27 +187,6 @@ export function AddUserDialog({
                     {getRoleDescription(selectedRole)}
                   </FormDescription>
                   <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="sendInvite"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled={isPending}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="text-sm font-normal text-muted-foreground cursor-pointer">
-                      Send invitation email
-                    </FormLabel>
-                  </div>
                 </FormItem>
               )}
             />

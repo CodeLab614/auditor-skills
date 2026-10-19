@@ -78,6 +78,7 @@ export function UsersContent({
   const {
     handleToggleStatus,
     handleDeleteUser,
+    handleResendInvitation,
     handleBulkActivate,
     handleBulkDeactivate,
     handleBulkChangeRole,
@@ -142,6 +143,7 @@ export function UsersContent({
           onDelete={openDeleteDialog}
           onChangeRole={openRoleDialog}
           onResetPassword={openResetPasswordDialog}
+          onResendInvitation={handleResendInvitation}
           onToggleStatus={openStatusDialog}
         />
       </div>

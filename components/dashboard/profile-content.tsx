@@ -83,6 +83,7 @@ export function ProfileContent({
       const result = await changePasswordAction({
         currentPassword: passwords.current,
         newPassword: passwords.new,
+        confirmPassword: passwords.confirm,
       });
 
       if (result.response === 'error') {

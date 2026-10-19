@@ -40,8 +40,10 @@ const hasOAuth = googleEnabled || githubEnabled;
 
 export function LoginForm({
   oauthSignupDisabledProvider,
+  notice,
 }: {
   oauthSignupDisabledProvider?: 'Google' | 'GitHub';
+  notice?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -135,6 +137,11 @@ export function LoginForm({
         </>
       }
     >
+      {notice && (
+        <Alert className="mb-4">
+          <AlertDescription>{notice}</AlertDescription>
+        </Alert>
+      )}
       {oauthSignupDisabledProvider && (
         <Alert className="mb-4">
           <AlertDescription>

@@ -7,18 +7,20 @@ datasource db {
 }
 
 model User {
-  id               String    @id @default(cuid())
-  name             String
-  email            String    @unique
-  emailVerified    Boolean   @default(false)
-  image            String?
-  role             String    @default("user")
-  status           String    @default("active")
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  twoFactorEnabled Boolean?  @default(false)
-  termsAcceptedAt  DateTime?
-  termsVersion     String?
+  id                         String    @id @default(cuid())
+  name                       String
+  email                      String    @unique
+  emailVerified              Boolean   @default(false)
+  image                      String?
+  role                       String    @default("user")
+  status                     String    @default("active")
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+  twoFactorEnabled           Boolean?  @default(false)
+  termsAcceptedAt            DateTime?
+  termsVersion               String?
+  mustChangePassword         Boolean   @default(false)
+  temporaryPasswordExpiresAt DateTime?
 
   sessions     Session[]
   accounts     Account[]
@@ -100,8 +102,8 @@ model TwoFactor {
 model ActivityLog {
   id        String   @id @default(cuid())
   userId    String
-  action    String   // e.g., "login", "logout", "profile_update", "password_change", "2fa_enabled", etc.
-  details   String?  // JSON string with additional details
+  action    String // e.g., "login", "logout", "profile_update", "password_change", "2fa_enabled", etc.
+  details   String? // JSON string with additional details
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
