@@ -83,7 +83,7 @@ bun run db:push
 bun run db:seed
 ```
 
-The seed creates the first admin account. `SEED_ADMIN_EMAIL` defaults to `admin@admin.com`. You can set `SEED_ADMIN_PASSWORD` to a password of at least 8 characters before seeding. If it is unset, the seed generates a password and prints it once; save it because the seed will not show it again. If the admin already exists, the seed skips creating another account.
+The seed creates the first admin account. `SEED_ADMIN_EMAIL` defaults to `admin@admin.com`. You can set `SEED_ADMIN_PASSWORD` to a password of at least 8 characters before seeding. If it is unset, the seed generates a password and prints it once; save it because the seed will not show it again. If the admin already exists, the seed skips creating another account. After signing in, this password admin must activate two-factor authentication under **Profile → Security** before using the admin panel. OAuth-only admins are exempt because their provider supplies the second factor.
 
 ## 8. Optionally select an auth theme
 
@@ -130,13 +130,17 @@ Production builds always need real Turnstile keys. The pre-commit bypass is neve
 
 Signed-in users can permanently delete their account from **Profile → Security**. Deletion removes their profile data, sessions, connected accounts, two-factor settings, activity history, and stored avatar, then sends an email notice. A password is required for password accounts; OAuth-only accounts need a session created in the last 10 minutes. The last active administrator must add another active admin before deleting their account.
 
+## Security notices
+
+RapidAuth sends the account owner an email notice when their password is changed from the profile, reset from an email link, or replaced with a temporary password by an admin. It also sends a notice after two-factor authentication is confirmed as enabled or is disabled. These notices contain the UTC time and support address, but never include passwords, TOTP secrets, or backup codes.
+
 ## 9. Start the app and verify the admin login
 
 ```sh
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), go to the sign-in page, and log in with `SEED_ADMIN_EMAIL` and the password printed or configured during seeding. Confirm that the admin dashboard loads.
+Open [http://localhost:3000](http://localhost:3000), go to the sign-in page, and log in with `SEED_ADMIN_EMAIL` and the password printed or configured during seeding. Open **Profile → Security**, activate two-factor authentication, and then confirm that the admin dashboard loads.
 
 ## Before deploying
 

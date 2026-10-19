@@ -2,6 +2,10 @@
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import {
+  ADMIN_TWO_FACTOR_REQUIRED_MESSAGE,
+  getAdminAccess,
+} from "@/lib/admin-access";
 
 export async function getUserActivityLogs(
   userId: string,
@@ -9,8 +13,21 @@ export async function getUserActivityLogs(
 ) {
   try {
     const session = await getSession();
-    if (!session || (session.user.id !== userId && session.user.role !== "admin")) {
+    if (!session) {
       return { success: false as const, error: "Unauthorized" };
+    }
+
+    if (session.user.id !== userId) {
+      const adminAccess = await getAdminAccess(session);
+      if (adminAccess !== 'admin') {
+        return {
+          success: false as const,
+          error:
+            adminAccess === 'two-factor-required'
+              ? ADMIN_TWO_FACTOR_REQUIRED_MESSAGE
+              : 'Unauthorized',
+        };
+      }
     }
 
     const requestedLimit = options?.limit ?? 50;

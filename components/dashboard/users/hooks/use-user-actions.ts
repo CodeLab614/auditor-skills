@@ -38,8 +38,12 @@ export function useUserActions({
     if (!selectedUser) return;
     try {
       const activate = selectedUser.status !== 'active';
-      await toggleUserStatus(selectedUser.id, activate);
-      toast.success(`User ${activate ? 'activated' : 'deactivated'} successfully`);
+      const result = await toggleUserStatus(selectedUser.id, activate);
+      if (result.response === 'error') {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
       router.refresh();
     } catch (error) {
       console.error('Failed to toggle user status:', error);
@@ -50,8 +54,12 @@ export function useUserActions({
   const handleDeleteUser = useCallback(async () => {
     if (!selectedUser) return;
     try {
-      await deleteUser(selectedUser.id);
-      toast.success('User deleted successfully');
+      const result = await deleteUser(selectedUser.id);
+      if (result.response === 'error') {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
       router.refresh();
     } catch (error) {
       console.error('Failed to delete user:', error);
@@ -63,8 +71,12 @@ export function useUserActions({
   // Bulk actions
   const handleBulkActivate = useCallback(async () => {
     try {
-      await bulkToggleStatus(selectedIds, true);
-      toast.success(`Activated ${selectedIds.length} user(s)`);
+      const result = await bulkToggleStatus(selectedIds, true);
+      if (result.response === 'error') {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
       router.refresh();
     } catch (error) {
       console.error('Failed to bulk activate:', error);
@@ -76,8 +88,12 @@ export function useUserActions({
 
   const handleBulkDeactivate = useCallback(async () => {
     try {
-      await bulkToggleStatus(selectedIds, false);
-      toast.success(`Deactivated ${selectedIds.length} user(s)`);
+      const result = await bulkToggleStatus(selectedIds, false);
+      if (result.response === 'error') {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
       router.refresh();
     } catch (error) {
       console.error('Failed to bulk deactivate:', error);
@@ -89,8 +105,12 @@ export function useUserActions({
 
   const handleBulkChangeRole = useCallback(async () => {
     try {
-      await bulkChangeRole(selectedIds, bulkRole);
-      toast.success(`Updated role for ${selectedIds.length} user(s)`);
+      const result = await bulkChangeRole(selectedIds, bulkRole);
+      if (result.response === 'error') {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
       router.refresh();
     } catch (error) {
       console.error('Failed to bulk change roles:', error);
@@ -102,8 +122,12 @@ export function useUserActions({
 
   const handleBulkDelete = useCallback(async () => {
     try {
-      await bulkDeleteUsers(selectedIds);
-      toast.success(`Deleted ${selectedIds.length} user(s)`);
+      const result = await bulkDeleteUsers(selectedIds);
+      if (result.response === 'error') {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
       router.refresh();
     } catch (error) {
       console.error('Failed to bulk delete:', error);

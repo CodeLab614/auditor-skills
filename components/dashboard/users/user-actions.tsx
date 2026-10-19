@@ -23,6 +23,7 @@ import type { User } from '@/actions/users';
 interface UserActionsProps {
   user: User;
   isAdmin: boolean;
+  isCurrentUser: boolean;
   onEdit: (user: User) => void;
   onDelete: (user: User) => void;
   onChangeRole: (user: User) => void;
@@ -33,6 +34,7 @@ interface UserActionsProps {
 export function UserActions({
   user,
   isAdmin,
+  isCurrentUser,
   onEdit,
   onDelete,
   onChangeRole,
@@ -76,7 +78,7 @@ export function UserActions({
           </DropdownMenuItem>
         )}
 
-        {isAdmin && (
+        {isAdmin && !isCurrentUser && (
           <DropdownMenuItem
             onClick={() => onChangeRole(user)}
             className='cursor-pointer'

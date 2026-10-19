@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { getAdminAccess } from "@/lib/admin-access";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/dashboard";
 
@@ -26,9 +27,14 @@ export default async function DashboardLayout({
     role: session.user.role ?? "User",
     avatar: dbUser?.image ?? session.user.image ?? undefined,
   };
+  const hasAdminAccess = (await getAdminAccess(session)) === 'admin';
 
   return (
-    <DashboardShell user={user} brandName="R A P I D">
+    <DashboardShell
+      user={user}
+      brandName="R A P I D"
+      hasAdminAccess={hasAdminAccess}
+    >
       {children}
     </DashboardShell>
   );

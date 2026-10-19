@@ -83,7 +83,7 @@ bun run db:push
 bun run db:seed
 ```
 
-El seed crea la primera cuenta de admin. `SEED_ADMIN_EMAIL` tiene como valor predeterminado `admin@admin.com`. Puedes configurar `SEED_ADMIN_PASSWORD` con una contraseña de al menos 8 caracteres antes de ejecutar el seed. Si no la defines, el seed genera una y la muestra una sola vez; guárdala porque el seed no volverá a mostrarla. Si el admin ya existe, el seed no crea otra cuenta.
+El seed crea la primera cuenta de admin. `SEED_ADMIN_EMAIL` tiene como valor predeterminado `admin@admin.com`. Puedes configurar `SEED_ADMIN_PASSWORD` con una contraseña de al menos 8 caracteres antes de ejecutar el seed. Si no la defines, el seed genera una y la muestra una sola vez; guárdala porque el seed no volverá a mostrarla. Si el admin ya existe, el seed no crea otra cuenta. Después de iniciar sesión, este admin con contraseña debe activar la autenticación de dos factores en **Profile → Security** antes de usar el panel de administración. Los admins solo OAuth quedan exentos porque su proveedor aporta el segundo factor.
 
 ## 8. Elige un tema de auth (opcional)
 
@@ -130,13 +130,17 @@ Los builds de producción siempre necesitan claves reales de Turnstile. El bypas
 
 Las personas con sesión iniciada pueden borrar permanentemente su cuenta desde **Profile → Security**. Se eliminan los datos del perfil, las sesiones, las cuentas conectadas, la configuración de 2FA, el historial de actividad y el avatar almacenado; después se envía un email de aviso. Las cuentas con contraseña deben confirmarla. Las cuentas solo OAuth necesitan una sesión creada en los últimos 10 minutos. El último administrador activo debe añadir a otra persona como admin activo antes de eliminar su cuenta.
 
+## Avisos de seguridad
+
+RapidAuth envía un aviso por email al dueño de la cuenta cuando cambia su contraseña desde el perfil, la restablece mediante el enlace del email o un admin crea una contraseña temporal. También envía un aviso después de confirmar la activación del 2FA o al desactivarlo. Estos avisos incluyen la hora UTC y el email de soporte, pero nunca contraseñas, secretos TOTP ni códigos de respaldo.
+
 ## 9. Inicia la app y comprueba el acceso de admin
 
 ```sh
 bun dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000), entra a la página de inicio de sesión e ingresa con `SEED_ADMIN_EMAIL` y la contraseña impresa o configurada durante el seed. Confirma que cargue el panel de admin.
+Abre [http://localhost:3000](http://localhost:3000), entra a la página de inicio de sesión e ingresa con `SEED_ADMIN_EMAIL` y la contraseña impresa o configurada durante el seed. Abre **Profile → Security**, activa la autenticación de dos factores y después confirma que cargue el panel de admin.
 
 ## Antes de desplegar
 

@@ -6,6 +6,13 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { APIError } from 'better-auth/api';
 import { auth, getSession } from '@/lib/auth';
+import {
+  ADMIN_TWO_FACTOR_REQUIRED_MESSAGE,
+  assertActiveAdminRemains,
+  getAdminAccess,
+  getAdminMutationError,
+} from '@/lib/admin-access';
+import { sendSecurityNoticeEmail } from '@/lib/email';
 import { prisma } from '@/lib/prisma';
 import { deleteStoredAvatar } from '@/lib/storage/avatar';
 import {
@@ -73,10 +80,14 @@ export const addUserAction = async (
       };
     }
 
-    if (session.user.role !== 'admin') {
+    const adminAccess = await getAdminAccess(session);
+    if (adminAccess !== 'admin') {
       return {
         response: 'error',
-        message: 'Only admins can add users',
+        message:
+          adminAccess === 'two-factor-required'
+            ? ADMIN_TWO_FACTOR_REQUIRED_MESSAGE
+            : 'Only admins can add users',
         data: null,
       };
     }
@@ -185,10 +196,14 @@ export const editUserAction = async (
     }
 
     // Only admins can edit users
-    if (session.user.role !== 'admin') {
+    const adminAccess = await getAdminAccess(session);
+    if (adminAccess !== 'admin') {
       return {
         response: 'error',
-        message: 'Only admins can edit users',
+        message:
+          adminAccess === 'two-factor-required'
+            ? ADMIN_TWO_FACTOR_REQUIRED_MESSAGE
+            : 'Only admins can edit users',
         data: null,
       };
     }
@@ -341,10 +356,22 @@ export const changeRoleAction = async (
       };
     }
 
-    if (session.user.role !== 'admin') {
+    const adminAccess = await getAdminAccess(session);
+    if (adminAccess !== 'admin') {
       return {
         response: 'error',
-        message: 'Only admins can change roles',
+        message:
+          adminAccess === 'two-factor-required'
+            ? ADMIN_TWO_FACTOR_REQUIRED_MESSAGE
+            : 'Only admins can change roles',
+        data: null,
+      };
+    }
+
+    if (userId === session.user.id) {
+      return {
+        response: 'error',
+        message: 'You cannot change your own role',
         data: null,
       };
     }
@@ -385,10 +412,16 @@ export const changeRoleAction = async (
 
     const previousRole = user.role;
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: { role: newRole },
-    });
+    await prisma.$transaction(
+      async (transaction) => {
+        await transaction.user.update({
+          where: { id: userId },
+          data: { role: newRole },
+        });
+        await assertActiveAdminRemains(transaction);
+      },
+      { isolationLevel: 'Serializable' }
+    );
 
     await logActivity(session.user.id, 'profile_update', {
       action: 'role_change',
@@ -411,9 +444,10 @@ export const changeRoleAction = async (
     };
   } catch (error) {
     console.error('Change role error:', error);
+    const adminMutationError = getAdminMutationError(error);
     return {
       response: 'error',
-      message: 'Failed to change user role',
+      message: adminMutationError ?? 'Failed to change user role',
       data: null,
     };
   }
@@ -446,10 +480,14 @@ export const deleteUser = async (
       };
     }
 
-    if (session.user.role !== 'admin') {
+    const adminAccess = await getAdminAccess(session);
+    if (adminAccess !== 'admin') {
       return {
         response: 'error',
-        message: 'Only admins can delete users',
+        message:
+          adminAccess === 'two-factor-required'
+            ? ADMIN_TWO_FACTOR_REQUIRED_MESSAGE
+            : 'Only admins can delete users',
         data: null,
       };
     }
@@ -475,12 +513,16 @@ export const deleteUser = async (
       };
     }
 
-    await prisma.$transaction([
-      prisma.session.deleteMany({ where: { userId } }),
-      prisma.account.deleteMany({ where: { userId } }),
-      prisma.activityLog.deleteMany({ where: { userId } }),
-      prisma.user.delete({ where: { id: userId } }),
-    ]);
+    await prisma.$transaction(
+      async (transaction) => {
+        await transaction.session.deleteMany({ where: { userId } });
+        await transaction.account.deleteMany({ where: { userId } });
+        await transaction.activityLog.deleteMany({ where: { userId } });
+        await transaction.user.delete({ where: { id: userId } });
+        await assertActiveAdminRemains(transaction);
+      },
+      { isolationLevel: 'Serializable' }
+    );
 
     try {
       await deleteStoredAvatar(user.image, userId);
@@ -504,9 +546,10 @@ export const deleteUser = async (
     };
   } catch (error) {
     console.error('Delete user error:', error);
+    const adminMutationError = getAdminMutationError(error);
     return {
       response: 'error',
-      message: 'Failed to delete user',
+      message: adminMutationError ?? 'Failed to delete user',
       data: null,
     };
   }
@@ -540,10 +583,14 @@ export const toggleUserStatus = async (
       };
     }
 
-    if (session.user.role !== 'admin') {
+    const adminAccess = await getAdminAccess(session);
+    if (adminAccess !== 'admin') {
       return {
         response: 'error',
-        message: 'Only admins can toggle user status',
+        message:
+          adminAccess === 'two-factor-required'
+            ? ADMIN_TWO_FACTOR_REQUIRED_MESSAGE
+            : 'Only admins can toggle user status',
         data: null,
       };
     }
@@ -572,13 +619,17 @@ export const toggleUserStatus = async (
     const newStatus = activate ? 'active' : 'inactive';
 
     if (newStatus === 'inactive') {
-      await prisma.$transaction(async (tx) => {
-        await tx.user.update({
-          where: { id: userId },
-          data: { status: newStatus },
-        });
-        await tx.session.deleteMany({ where: { userId } });
-      });
+      await prisma.$transaction(
+        async (transaction) => {
+          await transaction.user.update({
+            where: { id: userId },
+            data: { status: newStatus },
+          });
+          await transaction.session.deleteMany({ where: { userId } });
+          await assertActiveAdminRemains(transaction);
+        },
+        { isolationLevel: 'Serializable' }
+      );
     } else {
       await prisma.user.update({
         where: { id: userId },
@@ -603,9 +654,10 @@ export const toggleUserStatus = async (
     };
   } catch (error) {
     console.error('Toggle user status error:', error);
+    const adminMutationError = getAdminMutationError(error);
     return {
       response: 'error',
-      message: 'Failed to change user status',
+      message: adminMutationError ?? 'Failed to change user status',
       data: null,
     };
   }
@@ -639,10 +691,14 @@ export const bulkToggleStatus = async (
       };
     }
 
-    if (session.user.role !== 'admin') {
+    const adminAccess = await getAdminAccess(session);
+    if (adminAccess !== 'admin') {
       return {
         response: 'error',
-        message: 'Only admins can toggle user status',
+        message:
+          adminAccess === 'two-factor-required'
+            ? ADMIN_TWO_FACTOR_REQUIRED_MESSAGE
+            : 'Only admins can toggle user status',
         data: null,
       };
     }
@@ -658,13 +714,19 @@ export const bulkToggleStatus = async (
     const newStatus = activate ? 'active' : 'inactive';
 
     if (newStatus === 'inactive') {
-      await prisma.$transaction(async (tx) => {
-        await tx.user.updateMany({
-          where: { id: { in: userIds } },
-          data: { status: newStatus },
-        });
-        await tx.session.deleteMany({ where: { userId: { in: userIds } } });
-      });
+      await prisma.$transaction(
+        async (transaction) => {
+          await transaction.user.updateMany({
+            where: { id: { in: userIds } },
+            data: { status: newStatus },
+          });
+          await transaction.session.deleteMany({
+            where: { userId: { in: userIds } },
+          });
+          await assertActiveAdminRemains(transaction);
+        },
+        { isolationLevel: 'Serializable' }
+      );
     } else {
       await prisma.user.updateMany({
         where: { id: { in: userIds } },
@@ -688,9 +750,10 @@ export const bulkToggleStatus = async (
     };
   } catch (error) {
     console.error('Bulk toggle status error:', error);
+    const adminMutationError = getAdminMutationError(error);
     return {
       response: 'error',
-      message: 'Failed to change user status',
+      message: adminMutationError ?? 'Failed to change user status',
       data: null,
     };
   }
@@ -724,26 +787,45 @@ export const bulkChangeRole = async (
       };
     }
 
-    if (session.user.role !== 'admin') {
+    const adminAccess = await getAdminAccess(session);
+    if (adminAccess !== 'admin') {
       return {
         response: 'error',
-        message: 'Only admins can change roles',
+        message:
+          adminAccess === 'two-factor-required'
+            ? ADMIN_TWO_FACTOR_REQUIRED_MESSAGE
+            : 'Only admins can change roles',
         data: null,
       };
     }
 
-    if (!['admin', 'moderator', 'user'].includes(newRole)) {
+    if (userIds.includes(session.user.id)) {
       return {
         response: 'error',
-        message: 'Invalid role',
+        message: 'You cannot change your own role',
         data: null,
       };
     }
 
-    await prisma.user.updateMany({
-      where: { id: { in: userIds } },
-      data: { role: newRole },
-    });
+    const parsedRole = changeRoleSchema.safeParse({ role: newRole });
+    if (!parsedRole.success) {
+      return {
+        response: 'error',
+        message: parsedRole.error.issues[0]?.message ?? 'Invalid role',
+        data: null,
+      };
+    }
+
+    await prisma.$transaction(
+      async (transaction) => {
+        await transaction.user.updateMany({
+          where: { id: { in: userIds } },
+          data: { role: parsedRole.data.role },
+        });
+        await assertActiveAdminRemains(transaction);
+      },
+      { isolationLevel: 'Serializable' }
+    );
 
     await logActivity(session.user.id, 'profile_update', {
       action: 'bulk_role_change',
@@ -761,9 +843,10 @@ export const bulkChangeRole = async (
     };
   } catch (error) {
     console.error('Bulk change role error:', error);
+    const adminMutationError = getAdminMutationError(error);
     return {
       response: 'error',
-      message: 'Failed to change roles',
+      message: adminMutationError ?? 'Failed to change roles',
       data: null,
     };
   }
@@ -795,10 +878,14 @@ export const bulkDeleteUsers = async (
       };
     }
 
-    if (session.user.role !== 'admin') {
+    const adminAccess = await getAdminAccess(session);
+    if (adminAccess !== 'admin') {
       return {
         response: 'error',
-        message: 'Only admins can delete users',
+        message:
+          adminAccess === 'two-factor-required'
+            ? ADMIN_TWO_FACTOR_REQUIRED_MESSAGE
+            : 'Only admins can delete users',
         data: null,
       };
     }
@@ -811,12 +898,22 @@ export const bulkDeleteUsers = async (
       };
     }
 
-    await prisma.$transaction([
-      prisma.session.deleteMany({ where: { userId: { in: userIds } } }),
-      prisma.account.deleteMany({ where: { userId: { in: userIds } } }),
-      prisma.activityLog.deleteMany({ where: { userId: { in: userIds } } }),
-      prisma.user.deleteMany({ where: { id: { in: userIds } } }),
-    ]);
+    await prisma.$transaction(
+      async (transaction) => {
+        await transaction.session.deleteMany({
+          where: { userId: { in: userIds } },
+        });
+        await transaction.account.deleteMany({
+          where: { userId: { in: userIds } },
+        });
+        await transaction.activityLog.deleteMany({
+          where: { userId: { in: userIds } },
+        });
+        await transaction.user.deleteMany({ where: { id: { in: userIds } } });
+        await assertActiveAdminRemains(transaction);
+      },
+      { isolationLevel: 'Serializable' }
+    );
 
     await logActivity(session.user.id, 'profile_update', {
       action: 'bulk_user_deleted',
@@ -833,9 +930,10 @@ export const bulkDeleteUsers = async (
     };
   } catch (error) {
     console.error('Bulk delete users error:', error);
+    const adminMutationError = getAdminMutationError(error);
     return {
       response: 'error',
-      message: 'Failed to delete users',
+      message: adminMutationError ?? 'Failed to delete users',
       data: null,
     };
   }
@@ -883,10 +981,14 @@ export const resetPasswordAction = async (
       };
     }
 
-    if (session.user.role !== 'admin') {
+    const adminAccess = await getAdminAccess(session);
+    if (adminAccess !== 'admin') {
       return {
         response: 'error',
-        message: 'Only admins can reset passwords',
+        message:
+          adminAccess === 'two-factor-required'
+            ? ADMIN_TWO_FACTOR_REQUIRED_MESSAGE
+            : 'Only admins can reset passwords',
         data: null,
       };
     }
@@ -980,6 +1082,17 @@ export const resetPasswordAction = async (
       method: 'manual',
     });
 
+    try {
+      await sendSecurityNoticeEmail({
+        to: user.email,
+        userName: user.name,
+        event: 'temporary-password-created',
+        occurredAt: new Date(),
+      });
+    } catch (error) {
+      console.error('Temporary password security notice error:', error);
+    }
+
     return {
       response: 'success',
       message: 'Temporary password generated',
@@ -1037,8 +1150,20 @@ export async function getUsers(): Promise<{
 }> {
   try {
     const session = await getSession();
-    if (!session || session.user.role !== 'admin') {
+    if (!session) {
       return { response: 'error', message: 'Unauthorized', data: null };
+    }
+
+    const adminAccess = await getAdminAccess(session);
+    if (adminAccess !== 'admin') {
+      return {
+        response: 'error',
+        message:
+          adminAccess === 'two-factor-required'
+            ? ADMIN_TWO_FACTOR_REQUIRED_MESSAGE
+            : 'Unauthorized',
+        data: null,
+      };
     }
 
     const usersData = await prisma.user.findMany({

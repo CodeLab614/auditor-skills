@@ -19,9 +19,14 @@ import { ResetPasswordDialog } from './reset-password-dialog';
 interface UsersContentProps {
   users: User[];
   isAdmin?: boolean;
+  currentUserId: string;
 }
 
-export function UsersContent({ users, isAdmin = true }: UsersContentProps) {
+export function UsersContent({
+  users,
+  isAdmin = true,
+  currentUserId,
+}: UsersContentProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const {
@@ -132,6 +137,7 @@ export function UsersContent({ users, isAdmin = true }: UsersContentProps) {
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           isAdmin={isAdmin}
+          currentUserId={currentUserId}
           onEdit={openEditDialog}
           onDelete={openDeleteDialog}
           onChangeRole={openRoleDialog}

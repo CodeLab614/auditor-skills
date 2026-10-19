@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { getAdminAccess } from "@/lib/admin-access";
 import { getActivityLogs } from "@/actions/activity";
 import { ActivityLogsContent } from "@/components/dashboard/activity-logs-content";
 
@@ -10,7 +11,7 @@ export default async function ActivityPage() {
     redirect("/auth/login");
   }
 
-  if (session.user.role !== "admin") {
+  if ((await getAdminAccess(session)) !== 'admin') {
     redirect("/dashboard");
   }
 

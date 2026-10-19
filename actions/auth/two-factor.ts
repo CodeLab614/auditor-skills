@@ -7,6 +7,8 @@ import { APIError } from 'better-auth/api';
 import { logActivity } from '@/lib/activity-log';
 import { twoFactorSchema, verifyTotpSetupSchema } from '@/validations/auth';
 import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
+import { sendSecurityNoticeEmail } from '@/lib/email';
+import { prisma } from '@/lib/prisma';
 
 const checkTwoFactorRateLimit = async () => {
   const clientIp = await getClientIp();
@@ -178,10 +180,6 @@ export const enable2FAAction = async (
       };
     }
 
-    if (session?.user?.id) {
-      await logActivity(session.user.id, '2fa_enabled');
-    }
-
     return {
       response: 'success',
       message: 'Two-factor authentication enabled',
@@ -248,10 +246,30 @@ export const verify2FASetupAction = async (
       };
     }
 
+    const twoFactor = await prisma.twoFactor.findFirst({
+      where: { userId: session.user.id },
+      select: { verified: true },
+    });
+
     await auth.api.verifyTOTP({
       body: { code: data.code },
       headers: await headers(),
     });
+
+    if (twoFactor && !twoFactor.verified) {
+      await logActivity(session.user.id, '2fa_enabled');
+
+      try {
+        await sendSecurityNoticeEmail({
+          to: session.user.email,
+          userName: session.user.name,
+          event: 'two-factor-enabled',
+          occurredAt: new Date(),
+        });
+      } catch (error) {
+        console.error('2FA enabled security notice error:', error);
+      }
+    }
 
     return {
       response: 'success',
@@ -307,6 +325,17 @@ export const disable2FAAction = async (
 
     if (session?.user?.id) {
       await logActivity(session.user.id, '2fa_disabled');
+
+      try {
+        await sendSecurityNoticeEmail({
+          to: session.user.email,
+          userName: session.user.name,
+          event: 'two-factor-disabled',
+          occurredAt: new Date(),
+        });
+      } catch (error) {
+        console.error('2FA disabled security notice error:', error);
+      }
     }
 
     return {

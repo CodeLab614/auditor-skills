@@ -12,6 +12,7 @@ interface UsersTableProps {
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
   isAdmin: boolean;
+  currentUserId: string;
   onEdit: (user: User) => void;
   onDelete: (user: User) => void;
   onChangeRole: (user: User) => void;
@@ -24,6 +25,7 @@ export function UsersTable({
   selectedIds,
   onSelectionChange,
   isAdmin,
+  currentUserId,
   onEdit,
   onDelete,
   onChangeRole,
@@ -101,6 +103,7 @@ export function UsersTable({
         <UserActions
           user={item}
           isAdmin={isAdmin}
+          isCurrentUser={item.id === currentUserId}
           onEdit={onEdit}
           onDelete={onDelete}
           onChangeRole={onChangeRole}

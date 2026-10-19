@@ -2,6 +2,10 @@
 
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import {
+  ADMIN_TWO_FACTOR_REQUIRED_MESSAGE,
+  getAdminAccess,
+} from '@/lib/admin-access';
 
 // ============================================
 // TYPES
@@ -30,8 +34,20 @@ export const getActivityLogs = async (): Promise<{
 }> => {
   try {
     const session = await getSession();
-    if (!session || session.user.role !== 'admin') {
+    if (!session) {
       return { response: 'error', message: 'Unauthorized', data: null };
+    }
+
+    const adminAccess = await getAdminAccess(session);
+    if (adminAccess !== 'admin') {
+      return {
+        response: 'error',
+        message:
+          adminAccess === 'two-factor-required'
+            ? ADMIN_TWO_FACTOR_REQUIRED_MESSAGE
+            : 'Unauthorized',
+        data: null,
+      };
     }
 
     const logs = await prisma.activityLog.findMany({

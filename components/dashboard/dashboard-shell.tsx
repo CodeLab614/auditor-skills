@@ -41,6 +41,7 @@ interface DashboardShellProps {
   children: React.ReactNode;
   user?: UserProfile;
   brandName?: string;
+  hasAdminAccess?: boolean;
 }
 
 export function DashboardShell({
@@ -51,13 +52,13 @@ export function DashboardShell({
     role: "Admin",
   },
   brandName = "R A P I D",
+  hasAdminAccess = false,
 }: DashboardShellProps) {
   const handleLogout = async () => {
     await signOut();
   };
 
-  const isAdmin = user.role.toLowerCase() === "admin";
-  const navigation = getNavigation(isAdmin);
+  const navigation = getNavigation(hasAdminAccess);
 
   const sidebarProps = {
     brandName,

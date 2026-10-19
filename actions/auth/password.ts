@@ -12,6 +12,7 @@ import {
 } from '@/validations/auth';
 import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
+import { sendSecurityNoticeEmail } from '@/lib/email';
 
 type ForgotPasswordData = {
   email: string;
@@ -207,6 +208,17 @@ export const changePasswordAction = async (
     });
 
     await logActivity(session.user.id, 'password_change');
+
+    try {
+      await sendSecurityNoticeEmail({
+        to: session.user.email,
+        userName: session.user.name,
+        event: 'password-changed',
+        occurredAt: new Date(),
+      });
+    } catch (error) {
+      console.error('Password change security notice error:', error);
+    }
 
     return {
       response: 'success',

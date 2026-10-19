@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { createOAuthTestUser, createTestUser, cleanE2EData, prisma } from './helpers';
+import {
+  cleanE2EData,
+  createAdminWith2FA,
+  createOAuthTestUser,
+  createTestUser,
+  prisma,
+  signInWithPasswordAndTotp,
+} from './helpers';
 import { getOutboxMessage } from './helpers/outbox';
 import { getStorage } from '../../lib/storage';
 import { siteConfig } from '../../config/site';
@@ -97,8 +104,10 @@ test('successful deletion removes account data, avatar and sessions, sends notic
 
 test('only the last active administrator is prevented from deleting their account', async ({ page }) => {
   await prisma.user.update({ where: { email: 'admin@e2e.invalid' }, data: { status: 'inactive' } });
-  const { user, email, password } = await createTestUser({ role: 'admin' });
-  await signIn(page, email, password);
+  const { user, email, password, secret } = await createAdminWith2FA();
+  await signInWithPasswordAndTotp(page, email, password, secret);
+  await page.goto('/dashboard/profile');
+  await page.getByRole('tab', { name: 'Security' }).click();
   await page.getByRole('button', { name: 'Delete account' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Password').fill(password);

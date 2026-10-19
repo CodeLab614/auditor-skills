@@ -3,12 +3,13 @@ import {
   cleanE2EData,
   createTestSession,
   createTestUser,
+  enableSeededAdminTwoFactor,
   prisma,
+  signInWithPasswordAndTotp,
 } from './helpers';
-import { getOutboxMessage } from './helpers/outbox';
+import { getOutboxMessage, getOutboxMessages } from './helpers/outbox';
 
 const ADMIN_EMAIL = 'admin@e2e.invalid';
-const ADMIN_PASSWORD = 'E2e-Admin-Password-123!';
 
 test.beforeEach(async ({ page }) => {
   await page.context().setExtraHTTPHeaders({
@@ -22,11 +23,8 @@ test.afterEach(async () => {
 });
 
 async function signInAdmin(page: import('@playwright/test').Page) {
-  await page.goto('/auth/login');
-  await page.getByPlaceholder('name@example.com').fill(ADMIN_EMAIL);
-  await page.getByPlaceholder('Enter your password').fill(ADMIN_PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(/\/dashboard/);
+  const admin = await enableSeededAdminTwoFactor();
+  await signInWithPasswordAndTotp(page, admin.email, admin.password, admin.secret);
 }
 
 test('admin resets another user by email and generates a working temporary password', async ({ page, browser }) => {
@@ -60,6 +58,10 @@ test('admin resets another user by email and generates a working temporary passw
   const temporaryPassword = (await passwordText.textContent())?.trim();
   expect(temporaryPassword?.length).toBeGreaterThanOrEqual(12);
   expect(await prisma.session.count({ where: { userId: temporaryPasswordUser.user.id } })).toBe(0);
+  const manualNotices = (await getOutboxMessages(temporaryPasswordUser.email))
+    .filter((message) => message.subject === 'A temporary password was created for your account');
+  expect(manualNotices).toHaveLength(1);
+  expect(manualNotices[0]!.html).not.toContain(temporaryPassword ?? '');
 
   const client = await browser.newPage();
   await client.context().setExtraHTTPHeaders({ 'x-forwarded-for': `192.0.2.${Math.floor(Math.random() * 200) + 1}` });

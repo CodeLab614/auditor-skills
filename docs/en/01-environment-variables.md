@@ -201,7 +201,7 @@ These variables are read only by `bun run db:seed`; they are not needed by the a
 
 ### `SEED_ADMIN_EMAIL`
 
-- **Purpose:** Email address of the initial admin account.
+- **Purpose:** Email address of the initial admin account. After the first password sign-in, activate 2FA under **Profile → Security** before using the admin panel.
 - **Required:** Not required. The seed defaults to `admin@admin.com`.
 - **Where to get it:** Choose an email address you control.
 - **Example format:** `admin@example.com`

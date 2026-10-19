@@ -9,7 +9,7 @@ import {
   installTestTurnstileWidget,
   prisma,
 } from './helpers';
-import { getOutboxMessage } from './helpers/outbox';
+import { getOutboxMessage, getOutboxMessages } from './helpers/outbox';
 
 test.beforeEach(async ({ page }) => {
   await page.context().setExtraHTTPHeaders({
@@ -93,6 +93,10 @@ test('password reset revokes sessions, invalidates the old password and rejects 
   await page.getByRole('button', { name: 'Reset password' }).click();
   await expect(page.getByRole('heading', { name: 'Password reset successful' })).toBeVisible();
   expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
+  const resetNotices = (await getOutboxMessages(email))
+    .filter((item) => item.subject === 'Your password was reset');
+  expect(resetNotices).toHaveLength(1);
+  expect(resetNotices[0]!.html).toContain('UTC');
 
   await page.goto('/auth/login');
   await page.getByPlaceholder('name@example.com').fill(email);

@@ -1,6 +1,11 @@
 import { Resend } from 'resend';
 import { render } from 'react-email';
-import { AccountDeletedEmail, ResetPasswordEmail, VerificationEmail } from '@/emails';
+import {
+  AccountDeletedEmail,
+  ResetPasswordEmail,
+  SecurityNoticeEmail,
+  VerificationEmail,
+} from '@/emails';
 import { siteConfig } from '@/config/site';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -125,6 +130,74 @@ export async function sendAccountDeletedEmail({ email, name, deletedAt }: {
   await deliverEmail({
     to: email,
     subject: 'Your account has been deleted',
+    html,
+    url: '',
+  });
+}
+
+export type SecurityNoticeEvent =
+  | 'password-changed'
+  | 'password-reset'
+  | 'temporary-password-created'
+  | 'two-factor-enabled'
+  | 'two-factor-disabled';
+
+const securityNotices: Record<
+  SecurityNoticeEvent,
+  { subject: string; description: string }
+> = {
+  'password-changed': {
+    subject: 'Your password was changed',
+    description: `Your ${siteConfig.appName} password was changed`,
+  },
+  'password-reset': {
+    subject: 'Your password was reset',
+    description: `Your ${siteConfig.appName} password was reset`,
+  },
+  'temporary-password-created': {
+    subject: 'A temporary password was created for your account',
+    description: `A temporary password was created for your ${siteConfig.appName} account`,
+  },
+  'two-factor-enabled': {
+    subject: 'Two-factor authentication was enabled',
+    description: `Two-factor authentication was enabled for your ${siteConfig.appName} account`,
+  },
+  'two-factor-disabled': {
+    subject: 'Two-factor authentication was disabled',
+    description: `Two-factor authentication was disabled for your ${siteConfig.appName} account`,
+  },
+};
+
+export async function sendSecurityNoticeEmail({
+  to,
+  userName,
+  event,
+  occurredAt,
+}: {
+  to: string;
+  userName: string;
+  event: SecurityNoticeEvent;
+  occurredAt: Date;
+}) {
+  const notice = securityNotices[event];
+  const occurredAtUtc = `${occurredAt.toLocaleString('en-US', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  })} UTC`;
+  const html = await render(
+    SecurityNoticeEmail({
+      name: userName,
+      eventDescription: notice.description,
+      occurredAt: occurredAtUtc,
+      contactEmail: siteConfig.contactEmail,
+      appName: siteConfig.appName,
+    })
+  );
+
+  await deliverEmail({
+    to,
+    subject: notice.subject,
     html,
     url: '',
   });

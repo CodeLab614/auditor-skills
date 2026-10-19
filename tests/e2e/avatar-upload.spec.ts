@@ -1,13 +1,17 @@
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { createTestUser, prisma } from './helpers';
+import {
+  createTestUser,
+  enableSeededAdminTwoFactor,
+  prisma,
+  signInWithPasswordAndTotp,
+} from './helpers';
 import { getStorage } from '../../lib/storage';
 
 const storage = getStorage();
 
 const ADMIN_EMAIL = 'admin@e2e.invalid';
-const ADMIN_PASSWORD = 'E2e-Admin-Password-123!';
 const png = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/XwAAAABJRU5ErkJggg==',
   'base64',
@@ -22,11 +26,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function signInAdmin(page: import('@playwright/test').Page) {
-  await page.goto('/auth/login');
-  await page.getByPlaceholder('name@example.com').fill(ADMIN_EMAIL);
-  await page.getByPlaceholder('Enter your password').fill(ADMIN_PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(/\/dashboard/);
+  const admin = await enableSeededAdminTwoFactor();
+  await signInWithPasswordAndTotp(page, admin.email, admin.password, admin.secret);
 }
 
 async function upload(page: import('@playwright/test').Page, buffer: Buffer, name = 'avatar.png') {

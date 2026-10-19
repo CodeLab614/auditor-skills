@@ -16,10 +16,10 @@ export function AccountDeletedEmail({ name, deletedAt, contactEmail, appName }: 
         <Container style={container}>
           <Section style={box}>
             <Heading style={heading}>R A P I D</Heading>
-            <Text style={paragraph}>Hi {name},</Text>
+            <Text style={paragraph}>{`Hi ${name},`}</Text>
             <Text style={paragraph}>{`Your ${appName} account was deleted on ${deletedAt}.`}</Text>
             <Text style={paragraph}>
-              If you did not delete this account, contact us at {contactEmail}.
+              {`If you did not delete this account, contact us at ${contactEmail}.`}
             </Text>
           </Section>
         </Container>

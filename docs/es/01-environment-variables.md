@@ -201,7 +201,7 @@ Estas variables solo las lee `bun run db:seed`; no hacen falta en la app despué
 
 ### `SEED_ADMIN_EMAIL`
 
-- **Propósito:** Correo de la cuenta admin inicial.
+- **Propósito:** Correo de la cuenta admin inicial. Después del primer inicio de sesión con contraseña, activa el 2FA en **Profile → Security** antes de usar el panel de administración.
 - **Obligatoria:** No. El seed usa `admin@admin.com` si no la configuras.
 - **Dónde obtenerla:** Elige una dirección de correo que controles.
 - **Formato de ejemplo:** `admin@example.com`

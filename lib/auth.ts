@@ -4,7 +4,12 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { twoFactor } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/lib/prisma";
-import { sendAccountDeletedEmail, sendResetPasswordEmail, sendVerificationEmail } from "@/lib/email";
+import {
+  sendAccountDeletedEmail,
+  sendResetPasswordEmail,
+  sendSecurityNoticeEmail,
+  sendVerificationEmail,
+} from "@/lib/email";
 import { deleteStoredAvatar } from "@/lib/storage/avatar";
 import { cookies, headers } from "next/headers";
 
@@ -187,6 +192,17 @@ export const auth = betterAuth({
         });
       } catch (error) {
         console.error("Failed to log password reset activity:", error);
+      }
+
+      try {
+        await sendSecurityNoticeEmail({
+          to: user.email,
+          userName: user.name,
+          event: 'password-reset',
+          occurredAt: new Date(),
+        });
+      } catch (error) {
+        console.error('Failed to send password reset security notice:', error);
       }
     },
   },

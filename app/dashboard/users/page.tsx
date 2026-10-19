@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { getAdminAccess } from "@/lib/admin-access";
 import { getUsers } from "@/actions/users";
 import { UsersContent } from "@/components/dashboard";
 
@@ -10,8 +11,7 @@ export default async function UsersPage() {
     redirect("/auth/login");
   }
 
-  // Only admins can access this page
-  if (session.user.role !== "admin") {
+  if ((await getAdminAccess(session)) !== 'admin') {
     redirect("/dashboard");
   }
 
@@ -25,5 +25,11 @@ export default async function UsersPage() {
     );
   }
 
-  return <UsersContent users={result.data} isAdmin={true} />;
+  return (
+    <UsersContent
+      users={result.data}
+      isAdmin={true}
+      currentUserId={session.user.id}
+    />
+  );
 }
