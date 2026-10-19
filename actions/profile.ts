@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { reportError } from '@/lib/report-error';
 
 // ============================================
 // TYPES
@@ -136,7 +137,7 @@ export const getProfileData = async (): Promise<{
       },
     };
   } catch (error) {
-    console.error('Error fetching profile data:', error);
+    reportError(error, { area: 'profile.read' });
     return {
       response: 'error',
       message: 'Failed to fetch profile data',

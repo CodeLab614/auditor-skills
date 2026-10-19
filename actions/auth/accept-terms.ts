@@ -6,6 +6,7 @@ import { siteConfig } from "@/config/site";
 import { getSession } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-log";
 import { prisma } from "@/lib/prisma";
+import { reportError } from "@/lib/report-error";
 import { acceptTermsSchema } from "@/validations/auth";
 
 export const acceptTermsAction = async (
@@ -55,7 +56,7 @@ export const acceptTermsAction = async (
       data: null,
     };
   } catch (error) {
-    console.error("Accept terms error:", error);
+    reportError(error, { area: "auth.accept-terms" });
     return {
       response: "error",
       message: "Failed to save your acceptance",

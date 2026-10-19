@@ -9,6 +9,7 @@ import { twoFactorSchema, verifyTotpSetupSchema } from '@/validations/auth';
 import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 import { sendSecurityNoticeEmail } from '@/lib/email';
 import { prisma } from '@/lib/prisma';
+import { reportError } from '@/lib/report-error';
 
 const checkTwoFactorRateLimit = async () => {
   const clientIp = await getClientIp();
@@ -73,7 +74,7 @@ export const verifyTotpAction = async (
         data: null,
       };
     }
-    console.error('Verify TOTP error:', error);
+    reportError(error, { area: 'auth.verify-totp' });
     return {
       response: 'error',
       message: 'An unexpected error occurred',
@@ -127,7 +128,7 @@ export const verifyBackupCodeAction = async (
         data: null,
       };
     }
-    console.error('Verify backup code error:', error);
+    reportError(error, { area: 'auth.verify-backup-code' });
     return {
       response: 'error',
       message: 'An unexpected error occurred',
@@ -267,7 +268,7 @@ export const verify2FASetupAction = async (
           occurredAt: new Date(),
         });
       } catch (error) {
-        console.error('2FA enabled security notice error:', error);
+        reportError(error, { area: 'auth.two-factor-enabled-notice' });
       }
     }
 
@@ -334,7 +335,7 @@ export const disable2FAAction = async (
           occurredAt: new Date(),
         });
       } catch (error) {
-        console.error('2FA disabled security notice error:', error);
+        reportError(error, { area: 'auth.two-factor-disabled-notice' });
       }
     }
 

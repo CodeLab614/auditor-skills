@@ -10,6 +10,7 @@ import { twoFactor } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { siteConfig } from "@/config/site";
 import { prisma } from "@/lib/prisma";
+import { reportError } from "@/lib/report-error";
 import {
   sendAccountDeletedEmail,
   sendResetPasswordEmail,
@@ -111,7 +112,7 @@ export const auth = betterAuth({
                 },
               });
             } catch (error) {
-              console.error("Failed to log OAuth account linking activity:", error);
+              reportError(error, { area: "auth.oauth-link-activity" });
             }
           }
         },
@@ -155,7 +156,7 @@ export const auth = betterAuth({
               },
             });
           } catch (error) {
-            console.error("Failed to log login activity:", error);
+            reportError(error, { area: "auth.login-activity" });
           }
         },
       },
@@ -199,7 +200,7 @@ export const auth = betterAuth({
               },
             });
           } catch (error) {
-            console.error("Failed to log registration activity:", error);
+            reportError(error, { area: "auth.registration-activity" });
           }
 
           if (
@@ -219,7 +220,7 @@ export const auth = betterAuth({
                 },
               });
             } catch (error) {
-              console.error("Failed to log terms acceptance activity:", error);
+              reportError(error, { area: "auth.terms-activity" });
             }
           }
         },
@@ -262,7 +263,7 @@ export const auth = betterAuth({
           },
         });
       } catch (error) {
-        console.error("Failed to log password reset activity:", error);
+        reportError(error, { area: "auth.password-reset-activity" });
       }
 
       try {
@@ -273,7 +274,7 @@ export const auth = betterAuth({
           occurredAt: new Date(),
         });
       } catch (error) {
-        console.error('Failed to send password reset security notice:', error);
+        reportError(error, { area: 'auth.password-reset-notice' });
       }
     },
   },
@@ -292,7 +293,7 @@ export const auth = betterAuth({
           },
         });
       } catch (error) {
-        console.error("Failed to log email verification activity:", error);
+        reportError(error, { area: "auth.email-verification-activity" });
       }
     },
     sendVerificationEmail: async ({ user, url }) => {
@@ -332,7 +333,7 @@ export const auth = betterAuth({
         try {
           await deleteStoredAvatar(user.image, user.id);
         } catch (error) {
-          console.error("Failed to delete account avatar:", error);
+          reportError(error, { area: "auth.delete-account-avatar" });
         }
 
         try {
@@ -340,7 +341,7 @@ export const auth = betterAuth({
             where: { OR: [{ value: user.id }, { identifier: user.email }] },
           });
         } catch (error) {
-          console.error("Failed to delete account verification records:", error);
+          reportError(error, { area: "auth.delete-account-verifications" });
         }
 
         try {
@@ -354,7 +355,7 @@ export const auth = betterAuth({
             }) + " UTC",
           });
         } catch (error) {
-          console.error("Failed to send account deletion notice:", error);
+          reportError(error, { area: "auth.delete-account-notice" });
         }
       },
     },

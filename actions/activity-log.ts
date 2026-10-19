@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { reportError } from "@/lib/report-error";
 import {
   ADMIN_TWO_FACTOR_REQUIRED_MESSAGE,
   getAdminAccess,
@@ -54,7 +55,7 @@ export async function getUserActivityLogs(
       })),
     };
   } catch (error) {
-    console.error("Failed to get activity logs:", error);
+    reportError(error, { area: "activity-log.list" });
     return { success: false as const, error: "Failed to get activity logs" };
   }
 }

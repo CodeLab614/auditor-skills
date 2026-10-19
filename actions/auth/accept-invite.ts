@@ -4,6 +4,7 @@ import * as z from "zod";
 import { siteConfig } from "@/config/site";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { reportError } from "@/lib/report-error";
 import {
   consumeUserInvitation,
   getValidUserInvitation,
@@ -119,7 +120,7 @@ export const acceptInviteAction = async (
       data: null,
     };
   } catch (error) {
-    console.error("Accept invitation error:", error);
+    reportError(error, { area: "auth.accept-invite" });
     return {
       response: "error",
       message: "Failed to accept invitation",

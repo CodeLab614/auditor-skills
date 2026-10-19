@@ -7,6 +7,7 @@ import { headers } from 'next/headers';
 import { auth, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { reportError } from '@/lib/report-error';
 
 const deleteAccountSchema = z.object({
   password: z.string().max(128).optional(),
@@ -79,10 +80,10 @@ export async function deleteOwnAccountAction(
       if (/last administrator/i.test(error.message)) {
         return errorResponse(error.message);
       }
-      console.error('Delete account action failed:', error.message);
+      reportError(error, { area: 'auth.delete-account' });
       return errorResponse('Unable to delete your account. Please try again.');
     }
-    console.error('Delete account action failed:', error);
+    reportError(error, { area: 'auth.delete-account' });
     return errorResponse('Unable to delete your account. Please try again.');
   }
 

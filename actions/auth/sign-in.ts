@@ -7,10 +7,15 @@ import { APIError } from 'better-auth/api';
 import { loginSchema } from '@/validations/auth';
 import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
+import { reportError } from '@/lib/report-error';
 
 type SignInData = {
   twoFactorRequired?: boolean;
 };
+
+const e2eErrorReportingEnabled =
+  process.env.NODE_ENV !== 'production' &&
+  process.env.RAPIDAUTH_E2E_ERROR_REPORTING === 'true';
 
 export const signInAction = async (
   values: z.infer<typeof loginSchema>
@@ -31,6 +36,12 @@ export const signInAction = async (
     }
 
     const { email, password } = data;
+    if (
+      e2eErrorReportingEnabled &&
+      email.trim().toLowerCase() === 'sentry-error@e2e.invalid'
+    ) {
+      throw new Error('Synthetic E2E error for the reportError integration.');
+    }
     const clientIp = await getClientIp();
     const normalizedEmail = email.trim().toLowerCase();
     const rateLimit = await checkRateLimit([
@@ -73,7 +84,7 @@ export const signInAction = async (
         data: null,
       };
     }
-    console.error('Sign in error:', error);
+    reportError(error, { area: 'auth.sign-in' });
     return {
       response: 'error',
       message: 'An unexpected error occurred',

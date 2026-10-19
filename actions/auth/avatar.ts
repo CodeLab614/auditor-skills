@@ -8,6 +8,7 @@ import { logActivity } from '@/lib/activity-log';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { getImageTypeFromBytes, getStorage } from '@/lib/storage';
 import { deleteStoredAvatar } from '@/lib/storage/avatar';
+import { reportError } from '@/lib/report-error';
 
 const MAX_SIZE = 4 * 1024 * 1024; // 4MB
 
@@ -87,7 +88,7 @@ export const uploadAvatarAction = async (
       });
     } catch (error) {
       try { await storage.delete(key); } catch (cleanupError) {
-        console.error('Failed to clean up an avatar after the profile update failed:', cleanupError);
+        reportError(cleanupError, { area: 'auth.avatar.cleanup-upload' });
       }
       throw error;
     }
@@ -95,7 +96,7 @@ export const uploadAvatarAction = async (
     try {
       await deleteStoredAvatar(previous?.image, session.user.id);
     } catch (error) {
-      console.error('Failed to delete previous avatar after replacement:', error);
+      reportError(error, { area: 'auth.avatar.cleanup-previous' });
     }
 
     await logActivity(session.user.id, 'avatar_change');
@@ -106,7 +107,7 @@ export const uploadAvatarAction = async (
       data: { imageUrl },
     };
   } catch (error) {
-    console.error('Avatar upload error:', error);
+    reportError(error, { area: 'auth.avatar.upload' });
     return {
       response: 'error',
       message: 'Failed to upload avatar',

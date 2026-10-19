@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { reportError } from '@/lib/report-error';
 
 // ============================================
 // REVOKE SESSION ACTION
@@ -63,7 +64,7 @@ export const revokeSession = async (
       data: { sessionId },
     };
   } catch (error) {
-    console.error('Error revoking session:', error);
+    reportError(error, { area: 'sessions.revoke' });
     return {
       response: 'error',
       message: 'Failed to revoke session',
@@ -111,7 +112,7 @@ export const revokeAllOtherSessions = async (): Promise<{
       data: { count: result.count },
     };
   } catch (error) {
-    console.error('Error revoking all sessions:', error);
+    reportError(error, { area: 'sessions.revoke-all' });
     return {
       response: 'error',
       message: 'Failed to revoke sessions',

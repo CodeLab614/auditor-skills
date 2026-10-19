@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 
 const port = 3100;
 const rejectPort = 3101;
+const sentryCollectorPort = 3102;
 const baseURL = `http://127.0.0.1:${port}`;
 const rejectBaseURL = `http://127.0.0.1:${rejectPort}`;
 const databaseUrl = process.env.CI
@@ -46,6 +47,15 @@ export default defineConfig({
   ],
   webServer: [
     {
+      command: 'bun run tests/e2e/helpers/sentry-collector-server.ts',
+      url: `http://127.0.0.1:${sentryCollectorPort}/health`,
+      reuseExistingServer: false,
+      timeout: 30_000,
+      env: {
+        SENTRY_COLLECTOR_PORT: String(sentryCollectorPort),
+      },
+    },
+    {
       command: `bunx next dev --hostname 127.0.0.1 --port ${port}`,
       url: baseURL,
       // Never reuse an unrelated server that may be connected to another database.
@@ -65,12 +75,14 @@ export default defineConfig({
         GITHUB_CLIENT_ID: 'e2e-github-client-id',
         GITHUB_CLIENT_SECRET: 'e2e-github-client-secret',
         NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+        NEXT_PUBLIC_SENTRY_DSN: `http://public@127.0.0.1:${sentryCollectorPort}/1`,
         NEXT_PUBLIC_GOOGLE_ENABLED: 'true',
         NEXT_PUBLIC_GITHUB_ENABLED: 'true',
         TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA',
         RAPIDAUTH_NEXT_DIST_DIR: '.next-e2e-normal',
         NEXT_TELEMETRY_DISABLED: '1',
         NODE_ENV: 'development',
+        RAPIDAUTH_E2E_ERROR_REPORTING: 'true',
       },
     },
     {

@@ -90,6 +90,32 @@ Esta referencia cubre todas las variables que leen la aplicación y los scripts 
 - **Formato de ejemplo:** `tu-secret-key-real-de-turnstile`
 - **Secreta:** Sí. Mantenla en el servidor. En Docker, móntala con BuildKit durante el build y vuelve a proporcionarla al contenedor en ejecución.
 
+## Monitoreo de errores (Sentry)
+
+Todas las variables de Sentry son opcionales. Si `NEXT_PUBLIC_SENTRY_DSN` está vacía o no es válida, el SDK no se inicializa ni hace peticiones. Consulta la [guía paso a paso de monitoreo de errores](06-error-monitoring.md).
+
+### `NEXT_PUBLIC_SENTRY_DSN`
+
+- **Propósito:** Activa los reportes de errores de Sentry en el servidor y el navegador.
+- **Obligatoria:** No. Déjala vacía para mantener Sentry completamente apagado.
+- **Dónde obtenerla:** Sentry Project Settings → Client Keys (DSN).
+- **Secreta:** No. Un DSN es una clave pública de enrutamiento y se incrusta en el bundle del cliente.
+- **Validación:** Un valor inválido deja Sentry apagado y produce un solo aviso al arrancar.
+
+### `SENTRY_ORG`, `SENTRY_PROJECT` y `SENTRY_AUTH_TOKEN`
+
+- **Propósito:** Suben los source maps durante el build para mostrar los archivos y líneas originales en las pilas de producción.
+- **Obligatorias:** No. La subida solo ocurre cuando están presentes los tres valores.
+- **Dónde obtenerlas:** Copia los slugs de organización y proyecto desde Sentry Settings. Crea el token en Organization Settings → Developer Settings → Auth Tokens con solo `org:read` y `project:releases`.
+- **Secreta:** Solo `SENTRY_AUTH_TOKEN` es secreto. Se usa únicamente en el build, nunca llega al navegador y Docker debe montarlo como secreto de BuildKit, no como argumento ni capa de entorno.
+
+### `SENTRY_TRACES_SAMPLE_RATE`
+
+- **Propósito:** Define la fracción de trazas de rendimiento enviadas a Sentry.
+- **Obligatoria:** No. El valor predeterminado es `0`, por lo que solo se reportan errores.
+- **Valores:** Un número entre `0` y `1`; por ejemplo, `0.1` toma aproximadamente el diez por ciento de las trazas.
+- **Secreta:** No.
+
 ## OAuth
 
 Para cualquiera de los proveedores, agrega la URL de callback correspondiente a la aplicación OAuth: `<BETTER_AUTH_URL>/api/auth/callback/google` o `<BETTER_AUTH_URL>/api/auth/callback/github`. Por ejemplo, el callback local de Google es `http://localhost:3000/api/auth/callback/google`.

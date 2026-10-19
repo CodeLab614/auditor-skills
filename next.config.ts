@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import { getTurnstileConfigError } from "./lib/turnstile-config";
+import {
+  getSentryBuildConfig,
+  getSentryEnvironment,
+  getSentryRuntimeConfig,
+} from "./lib/sentry-config";
 import { siteConfig } from "./config/site";
 
 const nextConfig = (phase: string): NextConfig => {
@@ -35,6 +41,12 @@ const nextConfig = (phase: string): NextConfig => {
     experimental: {
       serverActions: { bodySizeLimit: '4.25mb' },
     },
+    env: {
+      NEXT_PUBLIC_SENTRY_ENVIRONMENT: getSentryEnvironment(process.env),
+      SENTRY_TRACES_SAMPLE_RATE:
+        process.env.SENTRY_TRACES_SAMPLE_RATE?.trim() || '0',
+    },
+    logging: { serverFunctions: false },
     distDir: process.env.RAPIDAUTH_NEXT_DIST_DIR ?? ".next",
     reactCompiler: true,
     output: "standalone",
@@ -54,4 +66,16 @@ const nextConfig = (phase: string): NextConfig => {
   };
 };
 
-export default nextConfig;
+const runtimeConfig = getSentryRuntimeConfig(process.env);
+const buildConfig = getSentryBuildConfig(process.env);
+
+export default runtimeConfig.enabled
+  ? withSentryConfig(nextConfig, {
+      authToken: buildConfig.authToken,
+      org: buildConfig.org,
+      project: buildConfig.project,
+      silent: true,
+      sourcemaps: { disable: !buildConfig.enabled },
+      telemetry: false,
+    })
+  : nextConfig;

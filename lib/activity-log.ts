@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
+import { reportError } from "@/lib/report-error";
 
 export type ActivityAction =
   | "login"
@@ -52,7 +53,7 @@ export async function logActivity(
       },
     });
   } catch (error) {
-    console.error("Failed to log activity:", error);
+    reportError(error, { area: "activity-log.write" });
   }
 }
 
@@ -73,6 +74,6 @@ export async function logActivityWithContext(
       },
     });
   } catch (error) {
-    console.error("Failed to log activity:", error);
+    reportError(error, { area: "activity-log.write-context" });
   }
 }

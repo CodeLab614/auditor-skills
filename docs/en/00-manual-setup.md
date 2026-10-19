@@ -10,6 +10,7 @@ This guide installs and configures RapidAuth without running `bun run init:setup
 - Create a [Resend](https://resend.com/) account for email delivery.
 - For production builds, create a free Cloudflare account and real Turnstile keys. See [Cloudflare Turnstile](02-turnstile.md).
 - OAuth credentials are optional. Create Google and/or GitHub OAuth applications only if you want social sign-in.
+- Sentry error monitoring is optional. The app makes no Sentry requests without a valid DSN; see [Error monitoring](06-error-monitoring.md) if you want to enable it.
 
 Clone the project and enter its directory:
 
@@ -77,6 +78,8 @@ Google and GitHub sign-in only opens existing accounts. New users must start fro
 For `next dev`, Turnstile may be left empty or configured with Cloudflare test keys. Every `next build` requires both real keys at build time, even for staging, previews, or CI. Follow the [Turnstile guide](02-turnstile.md) to create a widget, set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`, and authorize the hostnames where the app will be served.
 
 ## 7. Push the schema and seed the admin
+
+Sentry remains optional. Run `bun run setup:sentry` at any time for a guided setup, or follow the [manual Sentry guide](06-error-monitoring.md). Skipping it does not affect builds or application features.
 
 With `DATABASE_URL` set in `.env`, run:
 

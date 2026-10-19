@@ -90,6 +90,32 @@ This reference covers every variable read by the application and setup scripts. 
 - **Example format:** `your-real-turnstile-secret-key`
 - **Secret:** Yes. Keep it server-side. Docker builds must mount it with BuildKit; also provide it to the running container.
 
+## Error monitoring (Sentry)
+
+All Sentry variables are optional. With an empty or invalid `NEXT_PUBLIC_SENTRY_DSN`, the SDK is not initialized and sends no requests. See the step-by-step [Error monitoring guide](06-error-monitoring.md).
+
+### `NEXT_PUBLIC_SENTRY_DSN`
+
+- **Purpose:** Activates Sentry error reporting in the server and browser.
+- **Required:** No. Leave it empty to keep Sentry fully disabled.
+- **Where to get it:** Sentry Project Settings → Client Keys (DSN).
+- **Secret:** No. A DSN is a public routing key and is embedded in the client bundle.
+- **Validation:** An invalid value leaves Sentry disabled and produces one startup warning.
+
+### `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN`
+
+- **Purpose:** Upload source maps during a build so production stack traces show original source files and lines.
+- **Required:** No. Uploading occurs only when all three values are present.
+- **Where to get them:** Copy the organization and project slugs from Sentry Settings. Create the token under Organization Settings → Developer Settings → Auth Tokens with only `org:read` and `project:releases`.
+- **Secret:** Only `SENTRY_AUTH_TOKEN` is secret. It is build-only, never exposed to the browser, and Docker must mount it as a BuildKit secret rather than an argument or environment layer.
+
+### `SENTRY_TRACES_SAMPLE_RATE`
+
+- **Purpose:** Chooses the fraction of performance traces sent to Sentry.
+- **Required:** No. The default is `0`, so only errors are reported.
+- **Values:** A number from `0` to `1`; for example, `0.1` samples about ten percent of traces.
+- **Secret:** No.
+
 ## OAuth
 
 For either provider, add its callback URL to the provider's OAuth application: `<BETTER_AUTH_URL>/api/auth/callback/google` or `<BETTER_AUTH_URL>/api/auth/callback/github`. For example, the local Google callback is `http://localhost:3000/api/auth/callback/google`.

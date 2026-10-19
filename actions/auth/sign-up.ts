@@ -8,6 +8,7 @@ import { registerSchema } from '@/validations/auth';
 import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { TERMS_ACCEPTANCE_HEADER } from '@/lib/terms-acceptance';
+import { reportError } from '@/lib/report-error';
 
 type SignUpData = {
   email: string;
@@ -91,7 +92,7 @@ export const signUpAction = async (
         data: null,
       };
     }
-    console.error('Sign up error:', error);
+    reportError(error, { area: 'auth.sign-up' });
     return {
       response: 'error',
       message: 'An unexpected error occurred',

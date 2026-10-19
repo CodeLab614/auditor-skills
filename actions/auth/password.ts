@@ -14,6 +14,7 @@ import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { sendSecurityNoticeEmail } from '@/lib/email';
 import { prisma } from '@/lib/prisma';
+import { reportError } from '@/lib/report-error';
 import {
   hasExpiredTemporaryPassword,
   TEMPORARY_PASSWORD_EXPIRED_MESSAGE,
@@ -101,7 +102,7 @@ export const forgotPasswordAction = async (
         data: null,
       };
     }
-    console.error('Forgot password error:', error);
+    reportError(error, { area: 'auth.forgot-password' });
     return {
       response: 'error',
       message: 'An unexpected error occurred',
@@ -152,7 +153,7 @@ export const resetPasswordAction = async (
         data: null,
       };
     }
-    console.error('Reset password error:', error);
+    reportError(error, { area: 'auth.reset-password' });
     return {
       response: 'error',
       message: 'An unexpected error occurred',
@@ -246,7 +247,7 @@ export const changePasswordAction = async (
         occurredAt: new Date(),
       });
     } catch (error) {
-      console.error('Password change security notice error:', error);
+      reportError(error, { area: 'auth.password-change-notice' });
     }
 
     return {
@@ -263,7 +264,7 @@ export const changePasswordAction = async (
         data: null,
       };
     }
-    console.error('Change password error:', error);
+    reportError(error, { area: 'auth.change-password' });
     return {
       response: 'error',
       message: 'An unexpected error occurred',

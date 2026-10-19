@@ -11,6 +11,7 @@ import { siteConfig } from '@/config/site';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { reportError } from '@/lib/report-error';
 
 const emailDelivery = process.env.EMAIL_DELIVERY ?? 'resend';
 if (emailDelivery === 'outbox' && process.env.NODE_ENV === 'production') {
@@ -63,8 +64,9 @@ async function deliverEmail({
   });
 
   if (error) {
-    console.error('Failed to send email:', error);
-    throw new Error('Failed to send email');
+    const deliveryError = new Error('Failed to send email', { cause: error });
+    reportError(deliveryError, { area: 'email.delivery' });
+    throw deliveryError;
   }
 }
 

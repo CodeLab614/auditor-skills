@@ -9,6 +9,10 @@ import {
   isTurnstileTestSiteKey,
 } from '../lib/turnstile-config';
 import {
+  createSentryEnvValues,
+  isValidSentryDsn,
+} from '../lib/sentry-config';
+import {
   checkDockerPrerequisites,
   commandErrorOutput,
   DOCKER_GUIDES,
@@ -29,7 +33,7 @@ interface EnvVariable {
   validate?: (value: string) => boolean | string;
   transform?: (value: string) => string;
   helpUrl?: string;
-  category: 'database' | 'auth' | 'email' | 'captcha' | 'oauth' | 'storage';
+  category: 'database' | 'auth' | 'email' | 'captcha' | 'oauth' | 'storage' | 'monitoring';
   sensitive?: boolean;
   autoGenerate?: () => string;
 }
@@ -269,6 +273,7 @@ async function askVariable(
     captcha: icons.shield,
     oauth: icons.globe,
     storage: icons.database,
+    monitoring: icons.shield,
   };
 
   const icon = categoryIcons[variable.category];
@@ -473,6 +478,148 @@ async function askTurnstileConfig(
   }
 
   return { siteKey, secretKey };
+}
+
+async function askSentryConfig(
+  existingEnv: Record<string, string>,
+): Promise<Record<string, string>> {
+  const hasExistingValues = Boolean(
+    existingEnv.NEXT_PUBLIC_SENTRY_DSN ||
+      existingEnv.SENTRY_ORG ||
+      existingEnv.SENTRY_PROJECT ||
+      existingEnv.SENTRY_AUTH_TOKEN,
+  );
+
+  printBox(
+    'Error monitoring with Sentry (optional)',
+    [
+      'Sentry reports unexpected application errors.',
+      'It stays fully disabled when no valid DSN is saved.',
+      'Guide: docs/en/06-error-monitoring.md',
+      'Spanish: docs/es/06-error-monitoring.md',
+    ],
+    'info',
+  );
+
+  if (hasExistingValues) {
+    println('  Sentry already has saved values. Choose what to do:');
+    println('  [1] Keep the current configuration (default)');
+    println('  [2] Change the configuration');
+    println('  [3] Disable Sentry and remove its saved values');
+    let choice = '';
+    while (!['1', '2', '3'].includes(choice)) {
+      choice = (await question('  Select an option [1]: ')) || '1';
+    }
+
+    if (choice === '1') {
+      println(`  ${colors.green}${icons.success} Keeping the current Sentry configuration${colors.reset}`);
+      return createSentryEnvValues({
+        authToken: existingEnv.SENTRY_AUTH_TOKEN,
+        dsn: existingEnv.NEXT_PUBLIC_SENTRY_DSN,
+        org: existingEnv.SENTRY_ORG,
+        project: existingEnv.SENTRY_PROJECT,
+        tracesSampleRate: existingEnv.SENTRY_TRACES_SAMPLE_RATE,
+      });
+    }
+    if (choice === '3') {
+      println(`  ${colors.green}${icons.success} Sentry disabled; its values will be removed from .env${colors.reset}`);
+      return createSentryEnvValues({});
+    }
+  } else {
+    const configure = await question('  Configure Sentry now? [y/N]: ');
+    if (!['y', 'yes'].includes(configure.toLowerCase())) {
+      println(`  ${colors.green}${icons.success} Sentry skipped and remains disabled${colors.reset}`);
+      return createSentryEnvValues({});
+    }
+  }
+
+  println();
+  println('  1. Create an account at https://sentry.io/signup/.');
+  println('  2. Create a new project and choose Next.js as its platform.');
+  println('  3. Open Project Settings → Client Keys (DSN), then copy the DSN.');
+  println();
+
+  const dsn = await askVariable(
+    {
+      key: 'NEXT_PUBLIC_SENTRY_DSN',
+      description: 'Public Sentry DSN used by the server and browser',
+      placeholder: 'https://public-key@o0.ingest.sentry.io/project-id',
+      required: true,
+      category: 'monitoring',
+      helpUrl: 'https://docs.sentry.io/product/sentry-basics/dsn-explainer/',
+      validate: (value) => isValidSentryDsn(value) || 'Enter a valid Sentry DSN.',
+    },
+    existingEnv.NEXT_PUBLIC_SENTRY_DSN,
+  );
+
+  const wantsSourceMaps = await question(
+    '  Upload source maps for readable production stack traces? [y/N]: ',
+  );
+  let org = '';
+  let project = '';
+  let authToken = '';
+  if (['y', 'yes'].includes(wantsSourceMaps.toLowerCase())) {
+    println();
+    println('  Copy the organization and project slugs from their Sentry Settings pages.');
+    println('  Create an organization auth token under Settings → Developer Settings → Auth Tokens.');
+    println('  Grant only org:read and project:releases; keep the token secret and server-side.');
+    println();
+    org = await askVariable({
+      key: 'SENTRY_ORG',
+      description: 'Sentry organization slug',
+      placeholder: 'your-organization',
+      required: true,
+      category: 'monitoring',
+    }, existingEnv.SENTRY_ORG);
+    project = await askVariable({
+      key: 'SENTRY_PROJECT',
+      description: 'Sentry project slug',
+      placeholder: 'your-project',
+      required: true,
+      category: 'monitoring',
+    }, existingEnv.SENTRY_PROJECT);
+    authToken = await askVariable({
+      key: 'SENTRY_AUTH_TOKEN',
+      description: 'Build-only token for source map uploads',
+      placeholder: 'sntrys_...',
+      required: true,
+      sensitive: true,
+      category: 'monitoring',
+    }, existingEnv.SENTRY_AUTH_TOKEN);
+  }
+
+  const tracesSampleRate = await askVariable({
+    key: 'SENTRY_TRACES_SAMPLE_RATE',
+    description: 'Performance trace sample rate; 0 keeps performance monitoring disabled',
+    placeholder: '0',
+    required: false,
+    category: 'monitoring',
+    validate: (value) => {
+      const rate = Number(value);
+      return Number.isFinite(rate) && rate >= 0 && rate <= 1
+        ? true
+        : 'Enter a number from 0 to 1.';
+    },
+  }, existingEnv.SENTRY_TRACES_SAMPLE_RATE || '0');
+
+  printBox(
+    'Sentry configuration ready',
+    [
+      'Error reporting: enabled after the next app restart.',
+      `Source maps: ${org && project && authToken ? 'enabled for builds' : 'disabled'}.`,
+      `Performance traces: ${Number(tracesSampleRate || '0') > 0 ? tracesSampleRate : 'disabled'}.`,
+      'Verify it with the steps in docs/en/06-error-monitoring.md.',
+    ],
+    'success',
+  );
+
+  return createSentryEnvValues({
+    authToken,
+    dsn,
+    org,
+    project,
+    tracesSampleRate,
+  });
 }
 
 // ============================================================================
@@ -928,6 +1075,7 @@ const ENV_SECTION_KEYS: Record<string, string[]> = {
   auth: ['BETTER_AUTH_SECRET', 'BETTER_AUTH_URL'],
   email: ['EMAIL_DELIVERY', 'RESEND_API_KEY', 'FROM_EMAIL'],
   captcha: ['NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY'],
+  monitoring: ['NEXT_PUBLIC_SENTRY_DSN', 'SENTRY_ORG', 'SENTRY_PROJECT', 'SENTRY_AUTH_TOKEN', 'SENTRY_TRACES_SAMPLE_RATE'],
   oauth: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'NEXT_PUBLIC_GOOGLE_ENABLED', 'NEXT_PUBLIC_GITHUB_ENABLED'],
   storage: ['STORAGE_DRIVER', 'S3_ENDPOINT', 'S3_REGION', 'S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_PUBLIC_URL', 'S3_FORCE_PATH_STYLE'],
 };
@@ -945,6 +1093,7 @@ function updateEnvSections(
     database: '# Database', auth: '# Better Auth', email: '# Email (Resend)',
     captcha: '# Cloudflare Turnstile', oauth: '# OAuth Providers',
     storage: '# File storage',
+    monitoring: '# Error monitoring (Sentry)',
   };
   const allSectionLabels = new Set(Object.values(sectionLabels));
   const insertedKeys = new Set<string>();
@@ -1306,12 +1455,12 @@ async function askStorageConfig(existingEnv: Record<string, string>): Promise<Re
 
 async function runSetup() {
   const onlyIndex = process.argv.indexOf('--only');
-  const allowedOnly = ['database', 'email', 'turnstile', 'oauth', 'theme', 'storage'] as const;
+  const allowedOnly = ['database', 'email', 'turnstile', 'oauth', 'theme', 'storage', 'sentry'] as const;
   let forcedSection: (typeof allowedOnly)[number] | undefined;
   if (onlyIndex !== -1) {
     const value = process.argv[onlyIndex + 1];
     if (!value || !allowedOnly.includes(value as (typeof allowedOnly)[number])) {
-      throw new Error('Usage: bun run scripts/setup.ts --only <database|email|turnstile|oauth|theme|storage>');
+      throw new Error('Usage: bun run scripts/setup.ts --only <database|email|turnstile|oauth|theme|storage|sentry>');
     }
     forcedSection = value as (typeof allowedOnly)[number];
   }
@@ -1327,15 +1476,16 @@ async function runSetup() {
     println('  [4] OAuth');
     println('  [5] Theme');
     println('  [6] Storage');
-    println('  [7] Everything');
-    const choices: Record<string, string> = { '1': 'database', '2': 'email', '3': 'turnstile', '4': 'oauth', '5': 'theme', '6': 'storage', '7': 'everything' };
+    println('  [7] Sentry');
+    println('  [8] Everything');
+    const choices: Record<string, string> = { '1': 'database', '2': 'email', '3': 'turnstile', '4': 'oauth', '5': 'theme', '6': 'storage', '7': 'sentry', '8': 'everything' };
     while (!selection) {
       selection = choices[await question('Select a section: ')] ?? '';
       if (!selection) println('Choose one of the listed options.');
     }
   }
   if (!selection) selection = 'everything';
-  const selectedSections = new Set(selection === 'everything' ? ['database', 'auth', 'email', 'captcha', 'oauth', 'theme', 'storage'] : [selection === 'turnstile' ? 'captcha' : selection]);
+  const selectedSections = new Set(selection === 'everything' ? ['database', 'auth', 'email', 'captcha', 'oauth', 'theme', 'storage', 'monitoring'] : [selection === 'turnstile' ? 'captcha' : selection === 'sentry' ? 'monitoring' : selection]);
   const databaseSelected = selectedSections.has('database');
   const themeSelected = selectedSections.has('theme');
   const previousDatabaseUrl = existingEnv.DATABASE_URL;
@@ -1350,6 +1500,7 @@ async function runSetup() {
     { key: 'captcha', title: 'Bot Protection (Cloudflare Turnstile)', icon: icons.shield },
     { key: 'oauth', title: 'OAuth Providers', icon: icons.globe },
     { key: 'storage', title: 'File Storage', icon: icons.database },
+    { key: 'monitoring', title: 'Error monitoring with Sentry (optional)', icon: icons.shield },
   ] as const;
 
   let stepNumber = 1;
@@ -1368,6 +1519,7 @@ async function runSetup() {
       '  • A Resend account for sending emails',
       '  • A free Cloudflare account for Turnstile',
       '  • OAuth credentials (optional)',
+      '  • A Sentry account (optional)',
     ],
     'info',
   );
@@ -1526,6 +1678,8 @@ async function runSetup() {
       newEnv['NEXT_PUBLIC_GITHUB_ENABLED'] = selectedProviders.has('github') ? 'true' : 'false';
     } else if (category.key === 'storage') {
       Object.assign(newEnv, await askStorageConfig(existingEnv));
+    } else if (category.key === 'monitoring') {
+      Object.assign(newEnv, await askSentryConfig(existingEnv));
     }
 
     stepNumber++;

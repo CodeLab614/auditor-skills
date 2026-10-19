@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { reportError } from '@/lib/report-error';
 import {
   ADMIN_TWO_FACTOR_REQUIRED_MESSAGE,
   getAdminAccess,
@@ -180,7 +181,7 @@ export const getDashboardMetrics = async (): Promise<{
       },
     };
   } catch (error) {
-    console.error('Error fetching dashboard metrics:', error);
+    reportError(error, { area: 'dashboard.metrics' });
     return {
       response: 'error',
       message: 'Failed to fetch dashboard metrics',
@@ -239,7 +240,7 @@ export const getUserData = async (): Promise<{
       },
     };
   } catch (error) {
-    console.error('Error fetching user data:', error);
+    reportError(error, { area: 'dashboard.user' });
     return {
       response: 'error',
       message: 'Failed to fetch user data',

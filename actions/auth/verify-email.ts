@@ -5,6 +5,7 @@ import { headers } from 'next/headers';
 import { APIError } from 'better-auth/api';
 import { auth } from '@/lib/auth';
 import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
+import { reportError } from '@/lib/report-error';
 
 const verifyEmailTokenSchema = z.string().min(1).max(4096);
 
@@ -74,7 +75,7 @@ export const verifyEmailAction = async (
         data: null,
       };
     }
-    console.error('Verify email error:', error);
+    reportError(error, { area: 'auth.verify-email' });
     return {
       response: 'error',
       message: 'An unexpected error occurred',

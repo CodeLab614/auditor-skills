@@ -15,6 +15,7 @@ import {
 import { sendInvitationEmail, sendSecurityNoticeEmail } from '@/lib/email';
 import { prisma } from '@/lib/prisma';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { reportError } from '@/lib/report-error';
 import { deleteStoredAvatar } from '@/lib/storage/avatar';
 import { getTemporaryPasswordExpiration } from '@/lib/temporary-password';
 import {
@@ -145,7 +146,7 @@ export const addUserAction = async (
         role,
       });
     } catch (error) {
-      console.error('Failed to log user creation activity:', error);
+      reportError(error, { area: 'users.create-activity' });
     }
 
     let invitationSent = true;
@@ -159,7 +160,7 @@ export const addUserAction = async (
       });
     } catch (error) {
       invitationSent = false;
-      console.error('Failed to send user invitation:', error);
+      reportError(error, { area: 'users.send-invitation' });
     }
 
     revalidatePath('/dashboard/users');
@@ -177,7 +178,7 @@ export const addUserAction = async (
       },
     };
   } catch (error) {
-    console.error('Add user error:', error);
+    reportError(error, { area: 'users.create' });
     return {
       response: 'error',
       message: 'Failed to create user',
@@ -268,7 +269,7 @@ export const resendUserInvitationAction = async (
         targetUserName: user.name,
       });
     } catch (error) {
-      console.error('Failed to log invitation resend activity:', error);
+      reportError(error, { area: 'users.resend-invitation-activity' });
     }
 
     return {
@@ -277,7 +278,7 @@ export const resendUserInvitationAction = async (
       data: null,
     };
   } catch (error) {
-    console.error('Resend invitation error:', error);
+    reportError(error, { area: 'users.resend-invitation' });
     return {
       response: 'error',
       message: 'Invitation email could not be sent',
@@ -411,7 +412,7 @@ export const editUserAction = async (
         });
         message = 'User updated. A verification email was sent to the new address';
       } catch (error) {
-        console.error('Verification email error:', error);
+        reportError(error, { area: 'users.verification-email' });
         message = 'User updated, but the verification email could not be sent';
       }
     }
@@ -438,7 +439,7 @@ export const editUserAction = async (
       },
     };
   } catch (error) {
-    console.error('Edit user error:', error);
+    reportError(error, { area: 'users.update' });
     return {
       response: 'error',
       message: 'Failed to update user',
@@ -563,8 +564,9 @@ export const changeRoleAction = async (
       },
     };
   } catch (error) {
-    console.error('Change role error:', error);
     const adminMutationError = getAdminMutationError(error);
+    if (adminMutationError) console.error('Change role error:', error);
+    else reportError(error, { area: 'users.change-role' });
     return {
       response: 'error',
       message: adminMutationError ?? 'Failed to change user role',
@@ -647,7 +649,7 @@ export const deleteUser = async (
     try {
       await deleteStoredAvatar(user.image, userId);
     } catch (error) {
-      console.error('Failed to delete avatar after user deletion:', error);
+      reportError(error, { area: 'users.delete-avatar' });
     }
 
     await logActivity(session.user.id, 'profile_update', {
@@ -665,8 +667,9 @@ export const deleteUser = async (
       data: { userId, userName: user.name },
     };
   } catch (error) {
-    console.error('Delete user error:', error);
     const adminMutationError = getAdminMutationError(error);
+    if (adminMutationError) console.error('Delete user error:', error);
+    else reportError(error, { area: 'users.delete' });
     return {
       response: 'error',
       message: adminMutationError ?? 'Failed to delete user',
@@ -773,8 +776,9 @@ export const toggleUserStatus = async (
       data: { userId, newStatus },
     };
   } catch (error) {
-    console.error('Toggle user status error:', error);
     const adminMutationError = getAdminMutationError(error);
+    if (adminMutationError) console.error('Toggle user status error:', error);
+    else reportError(error, { area: 'users.toggle-status' });
     return {
       response: 'error',
       message: adminMutationError ?? 'Failed to change user status',
@@ -869,8 +873,9 @@ export const bulkToggleStatus = async (
       data: { count: userIds.length, newStatus },
     };
   } catch (error) {
-    console.error('Bulk toggle status error:', error);
     const adminMutationError = getAdminMutationError(error);
+    if (adminMutationError) console.error('Bulk toggle status error:', error);
+    else reportError(error, { area: 'users.bulk-toggle-status' });
     return {
       response: 'error',
       message: adminMutationError ?? 'Failed to change user status',
@@ -962,8 +967,9 @@ export const bulkChangeRole = async (
       data: { count: userIds.length, newRole },
     };
   } catch (error) {
-    console.error('Bulk change role error:', error);
     const adminMutationError = getAdminMutationError(error);
+    if (adminMutationError) console.error('Bulk change role error:', error);
+    else reportError(error, { area: 'users.bulk-change-role' });
     return {
       response: 'error',
       message: adminMutationError ?? 'Failed to change roles',
@@ -1049,8 +1055,9 @@ export const bulkDeleteUsers = async (
       data: { count: userIds.length },
     };
   } catch (error) {
-    console.error('Bulk delete users error:', error);
     const adminMutationError = getAdminMutationError(error);
+    if (adminMutationError) console.error('Bulk delete users error:', error);
+    else reportError(error, { area: 'users.bulk-delete' });
     return {
       response: 'error',
       message: adminMutationError ?? 'Failed to delete users',
@@ -1233,7 +1240,7 @@ export const resetPasswordAction = async (
         occurredAt: new Date(),
       });
     } catch (error) {
-      console.error('Temporary password security notice error:', error);
+      reportError(error, { area: 'users.temporary-password-notice' });
     }
 
     return {
@@ -1254,7 +1261,7 @@ export const resetPasswordAction = async (
         data: null,
       };
     }
-    console.error('Reset password error:', error);
+    reportError(error, { area: 'users.reset-password' });
     return {
       response: 'error',
       message: 'Failed to reset password',
@@ -1393,7 +1400,7 @@ export async function getUsers(): Promise<{
       data: users,
     };
   } catch (error) {
-    console.error("Error fetching users:", error);
+    reportError(error, { area: "users.list" });
     return {
       response: 'error',
       message: 'Failed to fetch users',

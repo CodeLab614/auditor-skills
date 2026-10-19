@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { reportError } from '@/lib/report-error';
 import {
   ADMIN_TWO_FACTOR_REQUIRED_MESSAGE,
   getAdminAccess,
@@ -83,7 +84,7 @@ export const getActivityLogs = async (): Promise<{
       data,
     };
   } catch (error) {
-    console.error('Error fetching activity logs:', error);
+    reportError(error, { area: 'activity.list' });
     return {
       response: 'error',
       message: 'Failed to fetch activity logs',

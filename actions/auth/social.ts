@@ -4,6 +4,7 @@ import * as z from "zod";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { reportError } from "@/lib/report-error";
 
 const socialRegistrationSchema = z.object({
   acceptTerms: z.literal(true, {
@@ -59,7 +60,7 @@ async function startSocialAuth(
     });
     url = result.url;
   } catch (error) {
-    console.error(`Failed to authenticate with ${provider}:`, error);
+    reportError(error, { area: "auth.social-sign-in", provider });
     return {
       response: "error",
       message: `Failed to authenticate with ${provider === "google" ? "Google" : "GitHub"}`,

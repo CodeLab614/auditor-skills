@@ -13,6 +13,17 @@ test.afterEach(async () => {
   await cleanE2EData();
 });
 
+test('the browser does not contact Sentry when no DSN is configured', async ({ page }) => {
+  const sentryRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('127.0.0.1:3102')) sentryRequests.push(request.url());
+  });
+
+  await page.goto('/auth/login');
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+  expect(sentryRequests).toEqual([]);
+});
+
 test('rejecting Turnstile blocks registration without creating a user or email', async ({ page }) => {
   const email = `e2e-turnstile-signup-${Date.now()}@e2e.invalid`;
   await page.goto('/auth/register');
