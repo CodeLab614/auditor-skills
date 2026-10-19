@@ -1,4 +1,4 @@
-import { hashPassword } from 'better-auth/crypto';
+import { hashPassword, makeSignature } from 'better-auth/crypto';
 import { createEmailVerificationToken } from 'better-auth/api';
 import { prisma } from '../../../lib/prisma';
 
@@ -39,14 +39,32 @@ export async function createTestUser(options: {
   return { user, email, password };
 }
 
-export async function createTestSession(userId: string) {
+export async function createTestSession(userId: string, createdAt = new Date()) {
   return prisma.session.create({
     data: {
       userId,
       token: `e2e-session-${crypto.randomUUID()}`,
       expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      createdAt,
     },
   });
+}
+
+export async function createOAuthTestUser(options: { role?: string; createdAt?: Date } = {}) {
+  const email = `e2e-oauth-${Date.now()}-${nextUserId++}@e2e.invalid`;
+  const user = await prisma.user.create({
+    data: {
+      name: 'E2E OAuth User',
+      email,
+      emailVerified: true,
+      role: options.role ?? 'user',
+      status: 'active',
+      accounts: { create: { accountId: `oauth-${crypto.randomUUID()}`, providerId: 'google' } },
+    },
+  });
+  const session = await createTestSession(user.id, options.createdAt);
+  const cookieValue = `${session.token}.${await makeSignature(session.token, E2E_SECRET)}`;
+  return { user, email, session, cookieValue };
 }
 
 export async function createVerificationToken(email: string, expiresIn = 3600) {

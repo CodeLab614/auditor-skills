@@ -126,6 +126,10 @@ env $BUILD_ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA TURNSTILE
 
 Production builds always need real Turnstile keys. The pre-commit bypass is never used in CI or production.
 
+## Account deletion
+
+Signed-in users can permanently delete their account from **Profile → Security**. Deletion removes their profile data, sessions, connected accounts, two-factor settings, activity history, and stored avatar, then sends an email notice. A password is required for password accounts; OAuth-only accounts need a session created in the last 10 minutes. The last active administrator must add another active admin before deleting their account.
+
 ## 9. Start the app and verify the admin login
 
 ```sh

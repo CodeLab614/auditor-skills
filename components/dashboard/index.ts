@@ -27,6 +27,7 @@ export { DashboardShell } from "./dashboard-shell";
 export { DashboardContent } from "./dashboard-content";
 export { UserWelcome } from "./user-welcome";
 export { ProfileContent } from "./profile-content";
+export { AccountDeletionDialog } from "./account-deletion-dialog";
 export { TwoFactorStatus } from "./two-factor-setup";
 export { ActivityLog, type ActivityLogEntry } from "./activity-log";
 export { ActiveSessions, type SessionData } from "./active-sessions";

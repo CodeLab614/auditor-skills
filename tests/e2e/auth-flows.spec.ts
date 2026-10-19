@@ -145,8 +145,10 @@ test('HTTP auth routes stay closed except for ok and error', async ({ request })
     '/api/auth/two-factor/verify-totp',
     '/api/auth/list-sessions',
     '/api/auth/sign-out',
+    '/api/auth/delete-user',
+    '/api/auth/delete-user/callback',
   ]) {
-    const response = path.endsWith('/get-session')
+    const response = path.endsWith('/get-session') || path.endsWith('/delete-user/callback')
       ? await request.get(path)
       : await request.post(path, { data: {} });
     expect(response.status(), `${path} must stay closed`).toBe(404);

@@ -30,6 +30,7 @@ export { signInWithGoogle, signInWithGithub } from './social';
 
 // Profile
 export { updateProfileAction } from './profile';
+export { deleteOwnAccountAction } from './delete-account';
 
 // Avatar
 export { uploadAvatarAction } from './avatar';

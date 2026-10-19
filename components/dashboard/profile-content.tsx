@@ -14,6 +14,7 @@ import { User, Mail, Lock, Bell, Camera, Save, Shield, History, Monitor } from "
 import { TwoFactorStatus } from "./two-factor-setup";
 import { ActivityLog, type ActivityLogEntry } from "./activity-log";
 import { ActiveSessions, type SessionData } from "./active-sessions";
+import { AccountDeletionDialog } from "./account-deletion-dialog";
 import { changePasswordAction, updateProfileAction, uploadAvatarAction } from "@/actions/auth";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -28,6 +29,7 @@ interface ProfileContentProps {
   initialProfile: ProfileData;
   twoFactorEnabled?: boolean;
   isOAuthUser?: boolean;
+  hasPassword?: boolean;
   activityLogs?: ActivityLogEntry[];
   sessions?: SessionData[];
 }
@@ -36,6 +38,7 @@ export function ProfileContent({
   initialProfile,
   twoFactorEnabled = false,
   isOAuthUser = false,
+  hasPassword = !isOAuthUser,
   activityLogs = [],
   sessions = [],
 }: ProfileContentProps) {
@@ -109,12 +112,10 @@ export function ProfileContent({
             <User className="h-4 w-4" strokeWidth={1.5} />
             General
           </TabsTrigger>
-          {!isOAuthUser && (
-            <TabsTrigger value="security" className="gap-2">
+          <TabsTrigger value="security" className="gap-2">
               <Lock className="h-4 w-4" strokeWidth={1.5} />
               Security
-            </TabsTrigger>
-          )}
+          </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-2">
             <Bell className="h-4 w-4" strokeWidth={1.5} />
             Notifications
@@ -243,7 +244,8 @@ export function ProfileContent({
           </Card>
         </TabsContent>
 
-        {!isOAuthUser && <TabsContent value="security" className="space-y-6">
+        <TabsContent value="security" className="space-y-6">
+          {hasPassword && <>
           <Card className="gap-y-0 p-6">
               <h3 className="text-lg font-medium mb-1">Change Password</h3>
               <p className="text-sm text-muted-foreground mb-6">
@@ -317,7 +319,9 @@ export function ProfileContent({
               onStatusChange={setIs2FAEnabled}
             />
           </Card>
-        </TabsContent>}
+          </>}
+          <AccountDeletionDialog hasPassword={hasPassword} />
+        </TabsContent>
 
         <TabsContent value="notifications" className="space-y-6">
           <Card className="gap-y-0 p-6">

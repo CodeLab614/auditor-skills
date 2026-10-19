@@ -126,6 +126,10 @@ env $BUILD_ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA TURNSTILE
 
 Los builds de producción siempre necesitan claves reales de Turnstile. El bypass de pre-commit nunca se usa en CI ni producción.
 
+## Eliminación de cuenta
+
+Las personas con sesión iniciada pueden borrar permanentemente su cuenta desde **Profile → Security**. Se eliminan los datos del perfil, las sesiones, las cuentas conectadas, la configuración de 2FA, el historial de actividad y el avatar almacenado; después se envía un email de aviso. Las cuentas con contraseña deben confirmarla. Las cuentas solo OAuth necesitan una sesión creada en los últimos 10 minutos. El último administrador activo debe añadir a otra persona como admin activo antes de eliminar su cuenta.
+
 ## 9. Inicia la app y comprueba el acceso de admin
 
 ```sh

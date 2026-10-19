@@ -58,7 +58,7 @@ export default function PrivacyPage() {
         </section>
         <section>
           <h2>6. Retention</h2>
-          <p>We keep account and related records while your account is active and for as long as needed to operate the service, protect it, resolve disputes, or meet legal obligations. Verification and recovery tokens are temporary and expire. Some security records may be kept for a limited period after account closure where needed for security or legal reasons.</p>
+          <p>We keep account and related records while your account is active and for as long as needed to operate the service, protect it, resolve disputes, or meet legal obligations. Verification and recovery tokens are temporary and expire. When you delete your account, your profile and related records are removed and your stored avatar is deleted.</p>
         </section>
         <section>
           <h2>7. Security</h2>
@@ -66,7 +66,7 @@ export default function PrivacyPage() {
         </section>
         <section>
           <h2>8. Your choices and rights</h2>
-          <p>You can view and edit profile information from the dashboard. To request account deletion or a copy of your personal data, email <a href={`mailto:${siteConfig.contactEmail}`}>{siteConfig.contactEmail}</a>. Account deletion is currently performed by an administrator. Depending on where you live, you may have additional privacy rights under local law.</p>
+          <p>You can view and edit profile information from the dashboard. Delete your account from Profile → Security; your profile data, sessions, connected accounts, two-factor settings, activity history, and stored avatar are deleted, and we send you an email notice. To request a copy of your personal data, email <a href={`mailto:${siteConfig.contactEmail}`}>{siteConfig.contactEmail}</a>. Depending on where you live, you may have additional privacy rights under local law.</p>
         </section>
         <section>
           <h2>9. Children</h2>

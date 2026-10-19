@@ -4,7 +4,8 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { twoFactor } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/lib/prisma";
-import { sendResetPasswordEmail, sendVerificationEmail } from "@/lib/email";
+import { sendAccountDeletedEmail, sendResetPasswordEmail, sendVerificationEmail } from "@/lib/email";
+import { deleteStoredAvatar } from "@/lib/storage/avatar";
 import { cookies, headers } from "next/headers";
 
 // Keep auth email links on the configured application origin.
@@ -221,6 +222,55 @@ export const auth = betterAuth({
     },
   },
   user: {
+    deleteUser: {
+      enabled: true,
+      beforeDelete: async (user) => {
+        const currentUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { role: true },
+        });
+        if (currentUser?.role !== "admin") return;
+
+        const otherActiveAdmins = await prisma.user.count({
+          where: { role: "admin", status: "active", id: { not: user.id } },
+        });
+
+        if (otherActiveAdmins === 0) {
+          throw new APIError("FORBIDDEN", {
+            message: "You are the last administrator. Add another active administrator before deleting this account.",
+          });
+        }
+      },
+      afterDelete: async (user) => {
+        try {
+          await deleteStoredAvatar(user.image, user.id);
+        } catch (error) {
+          console.error("Failed to delete account avatar:", error);
+        }
+
+        try {
+          await prisma.verification.deleteMany({
+            where: { OR: [{ value: user.id }, { identifier: user.email }] },
+          });
+        } catch (error) {
+          console.error("Failed to delete account verification records:", error);
+        }
+
+        try {
+          await sendAccountDeletedEmail({
+            email: user.email,
+            name: user.name,
+            deletedAt: new Date().toLocaleString("en-US", {
+              dateStyle: "long",
+              timeStyle: "short",
+              timeZone: "UTC",
+            }) + " UTC",
+          });
+        } catch (error) {
+          console.error("Failed to send account deletion notice:", error);
+        }
+      },
+    },
     additionalFields: {
       role: {
         type: "string",

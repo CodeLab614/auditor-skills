@@ -25,6 +25,7 @@ export default async function ProfilePage() {
       initialProfile={result.data.profile}
       twoFactorEnabled={result.data.twoFactorEnabled}
       isOAuthUser={result.data.isOAuthUser}
+      hasPassword={result.data.hasPassword}
       activityLogs={result.data.activityLogs}
       sessions={result.data.sessions}
     />

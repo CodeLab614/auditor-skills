@@ -36,6 +36,7 @@ export interface ProfilePageData {
   profile: ProfileData;
   twoFactorEnabled: boolean;
   isOAuthUser: boolean;
+  hasPassword: boolean;
   activityLogs: ActivityLogEntry[];
   sessions: SessionData[];
 }
@@ -59,7 +60,7 @@ export const getProfileData = async (): Promise<{
     const currentSessionId = session.session.id;
 
     // Get user's 2FA status, image, activity logs, and sessions from database
-    const [user, oauthAccounts, activityLogs, sessions] = await Promise.all([
+    const [user, oauthAccounts, credentialAccount, activityLogs, sessions] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
         select: { name: true, email: true, twoFactorEnabled: true, image: true },
@@ -67,6 +68,10 @@ export const getProfileData = async (): Promise<{
       prisma.account.findMany({
         where: { userId, providerId: { not: 'credential' } },
         select: { providerId: true },
+      }),
+      prisma.account.findFirst({
+        where: { userId, providerId: 'credential', password: { not: null } },
+        select: { id: true },
       }),
       prisma.activityLog.findMany({
         where: { userId },
@@ -125,6 +130,7 @@ export const getProfileData = async (): Promise<{
         profile,
         twoFactorEnabled: user.twoFactorEnabled ?? false,
         isOAuthUser: oauthAccounts.length > 0,
+        hasPassword: credentialAccount !== null,
         activityLogs: parsedActivityLogs,
         sessions: formattedSessions,
       },

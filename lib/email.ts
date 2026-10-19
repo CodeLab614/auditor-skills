@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { render } from 'react-email';
-import { ResetPasswordEmail, VerificationEmail } from '@/emails';
+import { AccountDeletedEmail, ResetPasswordEmail, VerificationEmail } from '@/emails';
+import { siteConfig } from '@/config/site';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -106,5 +107,25 @@ export async function sendResetPasswordEmail({
     subject: 'Reset your password',
     html,
     url,
+  });
+}
+
+export async function sendAccountDeletedEmail({ email, name, deletedAt }: {
+  email: string;
+  name: string;
+  deletedAt: string;
+}) {
+  const html = await render(AccountDeletedEmail({
+    name,
+    deletedAt,
+    contactEmail: siteConfig.contactEmail,
+    appName: siteConfig.appName,
+  }));
+
+  await deliverEmail({
+    to: email,
+    subject: 'Your account has been deleted',
+    html,
+    url: '',
   });
 }
