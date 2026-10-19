@@ -1,59 +1,103 @@
 "use server";
 
-import { auth } from "@/lib/auth";
+import * as z from "zod";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 
-export async function signInWithGoogle(): Promise<
-  { success: true } | { success: false; error: string }
-> {
+const socialRegistrationSchema = z.object({
+  acceptTerms: z.literal(true, {
+    error: "You must accept the terms and conditions",
+  }),
+});
+
+type SocialProvider = "google" | "github";
+type SocialActionResponse = {
+  response: "success" | "error";
+  message: string;
+  data: null;
+};
+
+async function startSocialAuth(
+  provider: SocialProvider,
+  options: { requestSignUp: boolean; registrationValues?: unknown },
+): Promise<SocialActionResponse> {
+  if (options.requestSignUp) {
+    const parsed = socialRegistrationSchema.safeParse(
+      options.registrationValues,
+    );
+
+    if (!parsed.success) {
+      return {
+        response: "error",
+        message:
+          parsed.error.issues[0]?.message ??
+          "You must accept the terms and conditions",
+        data: null,
+      };
+    }
+  }
+
+  let url: string | undefined;
+
   try {
-    const { url } = await auth.api.signInSocial({
+    const result = await auth.api.signInSocial({
       body: {
-        provider: "google",
+        provider,
         callbackURL: "/dashboard",
+        errorCallbackURL: options.requestSignUp
+          ? "/auth/register"
+          : `/auth/login?provider=${provider}`,
+        ...(options.requestSignUp
+          ? {
+              requestSignUp: true,
+              additionalData: { termsAccepted: true },
+            }
+          : {}),
       },
       headers: await headers(),
     });
-
-    if (url) {
-      redirect(url);
-    }
-
-    return { success: true };
+    url = result.url;
   } catch (error) {
-    // redirect() throws an error, so we need to re-throw it
-    if (error instanceof Error && error.message === "NEXT_REDIRECT") {
-      throw error;
-    }
-    console.error("Failed to sign in with Google:", error);
-    return { success: false, error: "Failed to sign in with Google" };
+    console.error(`Failed to authenticate with ${provider}:`, error);
+    return {
+      response: "error",
+      message: `Failed to authenticate with ${provider === "google" ? "Google" : "GitHub"}`,
+      data: null,
+    };
   }
+
+  if (url) redirect(url);
+
+  return {
+    response: "success",
+    message: "Authentication started",
+    data: null,
+  };
 }
 
-export async function signInWithGithub(): Promise<
-  { success: true } | { success: false; error: string }
-> {
-  try {
-    const { url } = await auth.api.signInSocial({
-      body: {
-        provider: "github",
-        callbackURL: "/dashboard",
-      },
-      headers: await headers(),
-    });
+export async function signInWithGoogle(): Promise<SocialActionResponse> {
+  return startSocialAuth("google", { requestSignUp: false });
+}
 
-    if (url) {
-      redirect(url);
-    }
+export async function signInWithGithub(): Promise<SocialActionResponse> {
+  return startSocialAuth("github", { requestSignUp: false });
+}
 
-    return { success: true };
-  } catch (error) {
-    // redirect() throws an error, so we need to re-throw it
-    if (error instanceof Error && error.message === "NEXT_REDIRECT") {
-      throw error;
-    }
-    console.error("Failed to sign in with GitHub:", error);
-    return { success: false, error: "Failed to sign in with GitHub" };
-  }
+export async function signUpWithGoogle(
+  values: unknown,
+): Promise<SocialActionResponse> {
+  return startSocialAuth("google", {
+    requestSignUp: true,
+    registrationValues: values,
+  });
+}
+
+export async function signUpWithGithub(
+  values: unknown,
+): Promise<SocialActionResponse> {
+  return startSocialAuth("github", {
+    requestSignUp: true,
+    registrationValues: values,
+  });
 }

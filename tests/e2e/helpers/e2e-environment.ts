@@ -29,6 +29,12 @@ export function createE2EEnvironment(databaseUrl: string): NodeJS.ProcessEnv {
       'e2e-only-secret-never-use-this-value-outside-local-tests-000000000000',
     SEED_ADMIN_EMAIL: 'admin@e2e.invalid',
     SEED_ADMIN_PASSWORD: 'E2e-Admin-Password-123!',
+    GOOGLE_CLIENT_ID: 'e2e-google-client-id',
+    GOOGLE_CLIENT_SECRET: 'e2e-google-client-secret',
+    GITHUB_CLIENT_ID: 'e2e-github-client-id',
+    GITHUB_CLIENT_SECRET: 'e2e-github-client-secret',
+    NEXT_PUBLIC_GOOGLE_ENABLED: 'true',
+    NEXT_PUBLIC_GITHUB_ENABLED: 'true',
     RAPIDAUTH_E2E: 'true',
   };
 }

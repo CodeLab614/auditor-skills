@@ -20,6 +20,7 @@ import { AuthCard, AuthLink } from './auth-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   TurnstileWidget,
   isTurnstileEnabled,
@@ -37,7 +38,11 @@ const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === 'true';
 const githubEnabled = process.env.NEXT_PUBLIC_GITHUB_ENABLED === 'true';
 const hasOAuth = googleEnabled || githubEnabled;
 
-export function LoginForm() {
+export function LoginForm({
+  oauthSignupDisabledProvider,
+}: {
+  oauthSignupDisabledProvider?: 'Google' | 'GitHub';
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showPassword, setShowPassword] = React.useState(false);
@@ -107,13 +112,15 @@ export function LoginForm() {
 
   const handleGoogleSignIn = async () => {
     setIsSocialPending(true);
-    await signInWithGoogle();
+    const result = await signInWithGoogle();
+    if (result.response === 'error') toast.error(result.message);
     setIsSocialPending(false);
   };
 
   const handleGithubSignIn = async () => {
     setIsSocialPending(true);
-    await signInWithGithub();
+    const result = await signInWithGithub();
+    if (result.response === 'error') toast.error(result.message);
     setIsSocialPending(false);
   };
 
@@ -128,6 +135,14 @@ export function LoginForm() {
         </>
       }
     >
+      {oauthSignupDisabledProvider && (
+        <Alert className="mb-4">
+          <AlertDescription>
+            No account found for this {oauthSignupDisabledProvider} account.{' '}
+            <AuthLink href="/auth/register">Create one first</AuthLink>.
+          </AlertDescription>
+        </Alert>
+      )}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField

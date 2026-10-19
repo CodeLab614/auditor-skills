@@ -70,6 +70,8 @@ For each provider you want to enable, set its client ID and secret in `.env` and
 
 For local development, for example, the Google callback is `http://localhost:3000/api/auth/callback/google`.
 
+Google and GitHub sign-in only opens existing accounts. New users must start from the registration page and accept the Terms of Service and Privacy Policy before continuing to the provider.
+
 ## 6. Configure Turnstile
 
 For `next dev`, Turnstile may be left empty or configured with Cloudflare test keys. Every `next build` requires both real keys at build time, even for staging, previews, or CI. Follow the [Turnstile guide](02-turnstile.md) to create a widget, set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`, and authorize the hostnames where the app will be served.
@@ -82,6 +84,8 @@ With `DATABASE_URL` set in `.env`, run:
 bun run db:push
 bun run db:seed
 ```
+
+The user schema stores the accepted terms date and version. Run `bunx prisma db push` when deploying this version to an existing installation as well as during a fresh setup. After the schema is updated, every user without a stored acceptance—including existing users and accounts created by an administrator—will see the terms acceptance screen after signing in. Users whose stored version is old see the same screen again. Change `termsVersion` in `config/site.ts` whenever the legal terms require renewed acceptance; that change makes the current version mandatory for every account.
 
 The seed creates the first admin account. `SEED_ADMIN_EMAIL` defaults to `admin@admin.com`. You can set `SEED_ADMIN_PASSWORD` to a password of at least 8 characters before seeding. If it is unset, the seed generates a password and prints it once; save it because the seed will not show it again. If the admin already exists, the seed skips creating another account. After signing in, this password admin must activate two-factor authentication under **Profile → Security** before using the admin panel. OAuth-only admins are exempt because their provider supplies the second factor.
 
@@ -144,7 +148,7 @@ Open [http://localhost:3000](http://localhost:3000), go to the sign-in page, and
 
 ## Before deploying
 
-- Review and personalize the public Terms of Service (`/terms`) and Privacy Policy (`/privacy`) before launch. Set `legalEntityName`, `contactEmail`, `governingLaw`, and `lastUpdated` in `config/site.ts`, then edit the page copy in `app/(legal)/terms/page.tsx` and `app/(legal)/privacy/page.tsx` to match your service. These documents are templates, not legal advice; have a qualified lawyer review them.
+- Review and personalize the public Terms of Service (`/terms`) and Privacy Policy (`/privacy`) before launch. Set `legalEntityName`, `contactEmail`, `governingLaw`, `lastUpdated`, and `termsVersion` in `config/site.ts`, then edit the page copy in `app/(legal)/terms/page.tsx` and `app/(legal)/privacy/page.tsx` to match your service. Increase `termsVersion` whenever users must accept a revised version. These documents are templates, not legal advice; have a qualified lawyer review them.
 - Set a unique `BETTER_AUTH_SECRET`, the correct public `BETTER_AUTH_URL`, and a production `DATABASE_URL` in the target environment.
 - Set `RESEND_API_KEY` and a verified `FROM_EMAIL` sender.
 - Provide real Turnstile keys to every build, including staging, previews, and CI. For Docker, mount `TURNSTILE_SECRET_KEY` with BuildKit during the build and provide it again at runtime; pass the public site key as a build argument. See [Cloudflare Turnstile](02-turnstile.md).

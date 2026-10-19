@@ -8,4 +8,5 @@ export const siteConfig = {
   contactEmail: 'REPLACE_WITH_CONTACT_EMAIL',
   governingLaw: 'REPLACE_WITH_COUNTRY_OR_STATE',
   lastUpdated: '2026-10-18',
+  termsVersion: '2026-10-18',
 } as const;

@@ -7,6 +7,7 @@ import { APIError } from 'better-auth/api';
 import { registerSchema } from '@/validations/auth';
 import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
+import { TERMS_ACCEPTANCE_HEADER } from '@/lib/terms-acceptance';
 
 type SignUpData = {
   email: string;
@@ -31,7 +32,7 @@ export const signUpAction = async (
       };
     }
 
-    const { name, email, password } = data;
+    const { name, email, password, acceptTerms } = data;
     const clientIp = await getClientIp();
     const normalizedEmail = email.trim().toLowerCase();
     const ipRateLimit = clientIp
@@ -68,9 +69,12 @@ export const signUpAction = async (
       };
     }
 
+    const requestHeaders = new Headers(await headers());
+    requestHeaders.set(TERMS_ACCEPTANCE_HEADER, String(acceptTerms));
+
     await auth.api.signUpEmail({
       body: { name, email, password },
-      headers: await headers(),
+      headers: requestHeaders,
     });
 
     return {

@@ -17,6 +17,7 @@ export type ActivityAction =
   | "email_verified"
   | "oauth_login"
   | "oauth_link"
+  | "terms_accepted"
   | "session_revoked";
 
 export interface ActivityDetails {

@@ -6,3 +6,4 @@ export { ResetPasswordForm } from "./reset-password-form";
 export { VerifyEmailForm } from "./verify-email-form";
 export { TwoFactorForm, TwoFactorBackupForm } from "./two-factor-form";
 export { TurnstileWidget, isTurnstileEnabled } from "./turnstile-widget";
+export { AcceptTermsForm } from "./accept-terms-form";

@@ -70,6 +70,8 @@ Para cada proveedor que quieras habilitar, configura su client ID y secret en `.
 
 Por ejemplo, en desarrollo local el callback de Google es `http://localhost:3000/api/auth/callback/google`.
 
+El inicio de sesión con Google y GitHub solo abre cuentas existentes. Las personas nuevas deben comenzar en la página de registro y aceptar los Términos de servicio y la Política de privacidad antes de continuar con el proveedor.
+
 ## 6. Configura Turnstile
 
 Para `next dev`, puedes dejar Turnstile vacío o configurar claves de prueba de Cloudflare. Cada `next build` requiere ambas claves reales durante la compilación, incluso para staging, vistas previas o CI. Sigue la [guía de Turnstile](02-turnstile.md) para crear un widget, configurar `NEXT_PUBLIC_TURNSTILE_SITE_KEY` y `TURNSTILE_SECRET_KEY`, y autorizar los hostnames desde los que se servirá la app.
@@ -82,6 +84,8 @@ Con `DATABASE_URL` configurada en `.env`, ejecuta:
 bun run db:push
 bun run db:seed
 ```
+
+El esquema de usuario guarda la fecha y la versión de los términos aceptados. Ejecuta `bunx prisma db push` al desplegar esta versión en una instalación existente, además de hacerlo en una instalación nueva. Después de actualizar el esquema, toda persona sin una aceptación guardada —incluidas las cuentas existentes y las creadas por un administrador— verá la pantalla de aceptación de términos al iniciar sesión. Quien tenga guardada una versión anterior verá de nuevo la misma pantalla. Cambia `termsVersion` en `config/site.ts` cuando los cambios legales requieran una nueva aceptación; ese cambio hace obligatoria la versión actual para todas las cuentas.
 
 El seed crea la primera cuenta de admin. `SEED_ADMIN_EMAIL` tiene como valor predeterminado `admin@admin.com`. Puedes configurar `SEED_ADMIN_PASSWORD` con una contraseña de al menos 8 caracteres antes de ejecutar el seed. Si no la defines, el seed genera una y la muestra una sola vez; guárdala porque el seed no volverá a mostrarla. Si el admin ya existe, el seed no crea otra cuenta. Después de iniciar sesión, este admin con contraseña debe activar la autenticación de dos factores en **Profile → Security** antes de usar el panel de administración. Los admins solo OAuth quedan exentos porque su proveedor aporta el segundo factor.
 
@@ -144,7 +148,7 @@ Abre [http://localhost:3000](http://localhost:3000), entra a la página de inici
 
 ## Antes de desplegar
 
-- Revisa y personaliza los Términos de servicio (`/terms`) y la Política de privacidad (`/privacy`) antes de publicar. Configura `legalEntityName`, `contactEmail`, `governingLaw` y `lastUpdated` en `config/site.ts`; después adapta el texto de `app/(legal)/terms/page.tsx` y `app/(legal)/privacy/page.tsx` a tu servicio. Estos documentos son plantillas, no asesoría legal; pide a un abogado que los revise.
+- Revisa y personaliza los Términos de servicio (`/terms`) y la Política de privacidad (`/privacy`) antes de publicar. Configura `legalEntityName`, `contactEmail`, `governingLaw`, `lastUpdated` y `termsVersion` en `config/site.ts`; después adapta el texto de `app/(legal)/terms/page.tsx` y `app/(legal)/privacy/page.tsx` a tu servicio. Aumenta `termsVersion` cuando debas pedir que se acepte una versión revisada. Estos documentos son plantillas, no asesoría legal; pide a un abogado que los revise.
 - Configura un `BETTER_AUTH_SECRET` único, el `BETTER_AUTH_URL` público correcto y un `DATABASE_URL` de producción.
 - Configura `RESEND_API_KEY` y un remitente `FROM_EMAIL` con dominio verificado.
 - Proporciona claves reales de Turnstile a cada compilación, incluidas staging, vistas previas y CI. Con Docker, monta `TURNSTILE_SECRET_KEY` con BuildKit durante el build y vuelve a proporcionarla en runtime; pasa la site key pública como argumento de build. Consulta [Cloudflare Turnstile](02-turnstile.md).

@@ -14,7 +14,7 @@ test('legal pages show their titles and update date, link to each other, and hav
   await expect(page).toHaveURL(/\/privacy$/);
   await expect(page.getByRole('heading', { name: 'Privacy Policy', exact: true })).toBeVisible();
   await expect(page.getByText('Last updated: 2026-10-18', { exact: true })).toBeVisible();
-  await expect(page.getByText('Google sign-in', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('Google sign-in', { exact: false })).toHaveCount(1);
   await page.getByRole('link', { name: 'Terms of Service' }).last().click();
   await expect(page).toHaveURL(/\/terms$/);
 

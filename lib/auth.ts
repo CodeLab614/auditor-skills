@@ -1,8 +1,14 @@
 import { betterAuth } from "better-auth";
-import { APIError } from "better-auth/api";
+import {
+  addOAuthServerContext,
+  APIError,
+  createAuthMiddleware,
+  getOAuthState,
+} from "better-auth/api";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { twoFactor } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
+import { siteConfig } from "@/config/site";
 import { prisma } from "@/lib/prisma";
 import {
   sendAccountDeletedEmail,
@@ -11,6 +17,11 @@ import {
   sendVerificationEmail,
 } from "@/lib/email";
 import { deleteStoredAvatar } from "@/lib/storage/avatar";
+import { createSocialProviders } from "@/lib/social-providers";
+import {
+  resolveTermsAcceptance,
+  TERMS_ACCEPTANCE_HEADER,
+} from "@/lib/terms-acceptance";
 import { cookies, headers } from "next/headers";
 
 // Keep auth email links on the configured application origin.
@@ -37,6 +48,22 @@ if (parsedBaseURL.protocol !== "http:" && parsedBaseURL.protocol !== "https:") {
 export const auth = betterAuth({
   baseURL,
   rateLimit: { enabled: true, storage: "database" },
+  hooks: {
+    before: createAuthMiddleware(async (context) => {
+      if (context.path !== "/sign-in/social") return;
+
+      const additionalData = context.body?.additionalData as
+        | Record<string, unknown>
+        | undefined;
+
+      if (
+        context.body?.requestSignUp === true &&
+        additionalData?.termsAccepted === true
+      ) {
+        await addOAuthServerContext({ termsAccepted: true });
+      }
+    }),
+  },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
@@ -121,6 +148,30 @@ export const auth = betterAuth({
     },
     user: {
       create: {
+        before: async (user, context) => {
+          let source: "email" | "oauth" | null = null;
+          let accepted: unknown;
+
+          if (context?.path === "/sign-up/email") {
+            source = "email";
+            accepted =
+              (context.request?.headers.get(TERMS_ACCEPTANCE_HEADER) ??
+                context.headers?.get(TERMS_ACCEPTANCE_HEADER)) === "true";
+          } else if (context?.path?.startsWith("/callback/")) {
+            source = "oauth";
+            accepted = (await getOAuthState())?.serverContext?.termsAccepted;
+          }
+
+          const acceptance = resolveTermsAcceptance({ source, accepted });
+          if (!acceptance.termsAcceptedAt) return;
+
+          return {
+            data: {
+              ...user,
+              ...acceptance,
+            },
+          };
+        },
         after: async (user) => {
           // Log registration activity when a new user is created
           try {
@@ -136,34 +187,32 @@ export const auth = betterAuth({
           } catch (error) {
             console.error("Failed to log registration activity:", error);
           }
+
+          if (
+            user.termsAcceptedAt &&
+            user.termsVersion === siteConfig.termsVersion
+          ) {
+            try {
+              await prisma.activityLog.create({
+                data: {
+                  userId: user.id,
+                  action: "terms_accepted",
+                  details: JSON.stringify({
+                    version: siteConfig.termsVersion,
+                  }),
+                  ipAddress: "unknown",
+                  userAgent: "unknown",
+                },
+              });
+            } catch (error) {
+              console.error("Failed to log terms acceptance activity:", error);
+            }
+          }
         },
       },
     },
   },
-  socialProviders: {
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      ? {
-          google: {
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-            mapProfileToUser: (profile: { picture: string }) => ({
-              image: profile.picture,
-            }),
-          },
-        }
-      : {}),
-    ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
-      ? {
-          github: {
-            clientId: process.env.GITHUB_CLIENT_ID,
-            clientSecret: process.env.GITHUB_CLIENT_SECRET,
-            mapProfileToUser: (profile: { avatar_url: string }) => ({
-              image: profile.avatar_url,
-            }),
-          },
-        }
-      : {}),
-  },
+  socialProviders: createSocialProviders(process.env),
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
@@ -291,6 +340,16 @@ export const auth = betterAuth({
       role: {
         type: "string",
         defaultValue: "user",
+        input: false,
+      },
+      termsAcceptedAt: {
+        type: "date",
+        required: false,
+        input: false,
+      },
+      termsVersion: {
+        type: "string",
+        required: false,
         input: false,
       },
     },

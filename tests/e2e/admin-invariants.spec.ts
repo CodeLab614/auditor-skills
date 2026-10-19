@@ -4,6 +4,12 @@ import {
   assertActiveAdminRemains,
   getAdminAccess,
 } from '../../lib/admin-access';
+import { createSocialProviders } from '../../lib/social-providers';
+import {
+  hasAcceptedCurrentTerms,
+  resolveTermsAcceptance,
+} from '../../lib/terms-acceptance';
+import { siteConfig } from '../../config/site';
 import {
   cleanE2EData,
   createOAuthTestUser,
@@ -73,4 +79,44 @@ test('OAuth-only admin is exempt from app 2FA', async () => {
       twoFactorEnabled: false,
     },
   })).resolves.toBe('admin');
+});
+
+test('terms acceptance is only filled from an explicit registration marker', () => {
+  const acceptedAt = new Date('2026-10-18T12:00:00.000Z');
+
+  expect(resolveTermsAcceptance({ source: 'email', accepted: true }, acceptedAt)).toEqual({
+    termsAcceptedAt: acceptedAt,
+    termsVersion: siteConfig.termsVersion,
+  });
+  expect(resolveTermsAcceptance({ source: 'oauth', accepted: true }, acceptedAt)).toEqual({
+    termsAcceptedAt: acceptedAt,
+    termsVersion: siteConfig.termsVersion,
+  });
+  expect(resolveTermsAcceptance({ source: 'email', accepted: false }, acceptedAt)).toEqual({});
+  expect(resolveTermsAcceptance({ source: 'oauth', accepted: undefined }, acceptedAt)).toEqual({});
+  expect(resolveTermsAcceptance({ source: 'email', accepted: 'true' }, acceptedAt)).toEqual({});
+  expect(resolveTermsAcceptance({ source: null, accepted: true }, acceptedAt)).toEqual({});
+});
+
+test('only the current stored terms version satisfies the dashboard gate', () => {
+  const termsAcceptedAt = new Date('2026-10-18T12:00:00.000Z');
+
+  expect(hasAcceptedCurrentTerms({
+    termsAcceptedAt,
+    termsVersion: siteConfig.termsVersion,
+  })).toBe(true);
+  expect(hasAcceptedCurrentTerms({ termsAcceptedAt: null, termsVersion: null })).toBe(false);
+  expect(hasAcceptedCurrentTerms({ termsAcceptedAt, termsVersion: 'previous-version' })).toBe(false);
+});
+
+test('configured social providers disable implicit sign-up', () => {
+  const providers = createSocialProviders({
+    GOOGLE_CLIENT_ID: 'google-client',
+    GOOGLE_CLIENT_SECRET: 'google-secret',
+    GITHUB_CLIENT_ID: 'github-client',
+    GITHUB_CLIENT_SECRET: 'github-secret',
+  });
+
+  expect(providers.google?.disableImplicitSignUp).toBe(true);
+  expect(providers.github?.disableImplicitSignUp).toBe(true);
 });

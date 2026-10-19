@@ -24,6 +24,7 @@ import {
   Laptop,
   Clock,
   MapPin,
+  ScrollText,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -68,6 +69,12 @@ const getActionConfig = (action: string) => {
       icon: UserPlus,
       label: "Registro de cuenta",
       variant: "default",
+      color: "text-blue-500",
+    },
+    terms_accepted: {
+      icon: ScrollText,
+      label: "Terms accepted",
+      variant: "outline",
       color: "text-blue-500",
     },
     profile_update: {

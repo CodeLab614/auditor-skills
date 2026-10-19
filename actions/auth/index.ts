@@ -7,6 +7,7 @@ export { signUpAction } from './sign-up';
 
 // Sign Out
 export { signOut } from './sign-out';
+export { acceptTermsAction } from './accept-terms';
 
 // Password
 export {
@@ -26,7 +27,12 @@ export {
 } from './two-factor';
 
 // Social
-export { signInWithGoogle, signInWithGithub } from './social';
+export {
+  signInWithGoogle,
+  signInWithGithub,
+  signUpWithGoogle,
+  signUpWithGithub,
+} from './social';
 
 // Profile
 export { updateProfileAction } from './profile';

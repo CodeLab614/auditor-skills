@@ -39,6 +39,7 @@ import {
   Monitor,
   Globe,
   Clock,
+  ScrollText,
 } from 'lucide-react';
 import type { ActivityLog } from '@/actions/activity';
 
@@ -59,6 +60,11 @@ const actionConfig: Record<
   register: {
     icon: UserPlus,
     label: 'Register',
+    color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+  },
+  terms_accepted: {
+    icon: ScrollText,
+    label: 'Terms Accepted',
     color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
   },
   password_change: {

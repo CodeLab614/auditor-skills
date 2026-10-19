@@ -11,8 +11,8 @@ import { User, Mail, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { registerSchema, type RegisterFormData } from '@/validations/auth';
 import {
   signUpAction,
-  signInWithGoogle,
-  signInWithGithub,
+  signUpWithGoogle,
+  signUpWithGithub,
 } from '@/actions/auth';
 
 import { AuthCard, AuthLink } from "./auth-card";
@@ -57,6 +57,7 @@ export function RegisterForm() {
       acceptTerms: false,
     },
   });
+  const acceptedTerms = form.watch("acceptTerms");
 
   const onSubmit = (values: RegisterFormData) => {
     startTransition(async () => {
@@ -78,13 +79,15 @@ export function RegisterForm() {
 
   const handleGoogleSignIn = async () => {
     setIsSocialPending(true);
-    await signInWithGoogle();
+    const result = await signUpWithGoogle({ acceptTerms: acceptedTerms });
+    if (result.response === "error") toast.error(result.message);
     setIsSocialPending(false);
   };
 
   const handleGithubSignIn = async () => {
     setIsSocialPending(true);
-    await signInWithGithub();
+    const result = await signUpWithGithub({ acceptTerms: acceptedTerms });
+    if (result.response === "error") toast.error(result.message);
     setIsSocialPending(false);
   };
 
@@ -291,13 +294,19 @@ export function RegisterForm() {
                 </div>
               </div>
 
+              {!acceptedTerms && (
+                <p className="text-center text-sm text-muted-foreground">
+                  Accept the Terms of Service and Privacy Policy to continue with Google or GitHub.
+                </p>
+              )}
+
               <div className={`grid gap-3 ${googleEnabled && githubEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 {googleEnabled && (
                   <Button
                     type="button"
                     variant="outline"
                     className="w-full"
-                    disabled={isPending || isSocialPending}
+                    disabled={isPending || isSocialPending || !acceptedTerms}
                     onClick={handleGoogleSignIn}
                   >
                     <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
@@ -314,7 +323,7 @@ export function RegisterForm() {
                     type="button"
                     variant="outline"
                     className="w-full"
-                    disabled={isPending || isSocialPending}
+                    disabled={isPending || isSocialPending || !acceptedTerms}
                     onClick={handleGithubSignIn}
                   >
                     <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24">

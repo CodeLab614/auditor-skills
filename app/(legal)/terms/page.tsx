@@ -50,7 +50,7 @@ export default function TermsPage() {
         </section>
         <section>
           <h2>9. Changes and contact</h2>
-          <p>We may update these terms and will post the updated version here with a new “Last updated” date. Continued use after an update means you accept the revised terms. For questions, contact <a href={`mailto:${siteConfig.contactEmail}`}>{siteConfig.contactEmail}</a>.</p>
+          <p>We may update these terms and will post the updated version here with a new “Last updated” date. You will be asked to accept the new version when you next sign in. For questions, contact <a href={`mailto:${siteConfig.contactEmail}`}>{siteConfig.contactEmail}</a>.</p>
         </section>
       </div>
     </article>

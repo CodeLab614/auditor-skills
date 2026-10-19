@@ -63,6 +63,12 @@ export const passwordConfirmSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+export const acceptTermsSchema = z.object({
+  acceptTerms: z.boolean().refine((value) => value === true, {
+    message: "You must accept the terms and conditions",
+  }),
+});
+
 export const verifyTotpSetupSchema = z.object({
   code: z.string().length(6, "Code must be 6 digits"),
 });
@@ -75,4 +81,5 @@ export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 export type TwoFactorFormData = z.infer<typeof twoFactorSchema>;
 export type BackupCodeFormData = z.infer<typeof backupCodeSchema>;
 export type PasswordConfirmFormData = z.infer<typeof passwordConfirmSchema>;
+export type AcceptTermsFormData = z.infer<typeof acceptTermsSchema>;
 export type VerifyTotpSetupFormData = z.infer<typeof verifyTotpSetupSchema>;

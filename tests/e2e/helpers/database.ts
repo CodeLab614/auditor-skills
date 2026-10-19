@@ -1,5 +1,6 @@
 import { hashPassword, makeSignature, symmetricEncrypt } from 'better-auth/crypto';
 import { createEmailVerificationToken } from 'better-auth/api';
+import { siteConfig } from '../../../config/site';
 import { prisma } from '../../../lib/prisma';
 
 export const E2E_PASSWORD = 'E2e-User-Password-123!';
@@ -18,10 +19,13 @@ export async function createTestUser(options: {
   role?: string;
   status?: string;
   emailVerified?: boolean;
+  termsAccepted?: boolean;
+  termsVersion?: string | null;
 } = {}) {
   const email = options.email ?? `e2e-${Date.now()}-${nextUserId++}@e2e.invalid`;
   const password = options.password ?? E2E_PASSWORD;
   const hashedPassword = await hashPassword(password);
+  const termsAccepted = options.termsAccepted ?? true;
   const user = await prisma.user.create({
     data: {
       name: options.name ?? 'E2E Test User',
@@ -29,6 +33,10 @@ export async function createTestUser(options: {
       emailVerified: options.emailVerified ?? true,
       role: options.role ?? 'user',
       status: options.status ?? 'active',
+      termsAcceptedAt: termsAccepted ? new Date() : null,
+      termsVersion: termsAccepted
+        ? (options.termsVersion ?? siteConfig.termsVersion)
+        : null,
     },
   });
   await prisma.account.create({
@@ -84,14 +92,28 @@ export async function createAdminWith2FA(options: {
   name?: string;
   email?: string;
   password?: string;
+  termsAccepted?: boolean;
+  termsVersion?: string | null;
 } = {}) {
   const account = await createTestUser({ ...options, role: 'admin' });
   const twoFactor = await enableTestTwoFactor(account.user.id);
   return { ...account, ...twoFactor };
 }
 
-export async function enableSeededAdminTwoFactor() {
-  const admin = await prisma.user.findUniqueOrThrow({ where: { email: SEEDED_ADMIN_EMAIL } });
+export async function enableSeededAdminTwoFactor(options: {
+  termsAccepted?: boolean;
+  termsVersion?: string | null;
+} = {}) {
+  const termsAccepted = options.termsAccepted ?? true;
+  const admin = await prisma.user.update({
+    where: { email: SEEDED_ADMIN_EMAIL },
+    data: {
+      termsAcceptedAt: termsAccepted ? new Date() : null,
+      termsVersion: termsAccepted
+        ? (options.termsVersion ?? siteConfig.termsVersion)
+        : null,
+    },
+  });
   const twoFactor = await enableTestTwoFactor(admin.id);
   return { user: admin, email: SEEDED_ADMIN_EMAIL, password: SEEDED_ADMIN_PASSWORD, ...twoFactor };
 }
@@ -105,6 +127,8 @@ export async function createOAuthTestUser(options: { role?: string; createdAt?: 
       emailVerified: true,
       role: options.role ?? 'user',
       status: 'active',
+      termsAcceptedAt: new Date(),
+      termsVersion: siteConfig.termsVersion,
       accounts: { create: { accountId: `oauth-${crypto.randomUUID()}`, providerId: 'google' } },
     },
   });

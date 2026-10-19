@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getAdminAccess } from "@/lib/admin-access";
 import { prisma } from "@/lib/prisma";
+import { hasAcceptedCurrentTerms } from "@/lib/terms-acceptance";
 import { DashboardShell } from "@/components/dashboard";
 
 export default async function DashboardLayout({
@@ -15,11 +16,19 @@ export default async function DashboardLayout({
     redirect("/auth/login");
   }
 
-  // Get user image from database
+  // Get user image and the server-authoritative terms acceptance from database.
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { image: true },
+    select: {
+      image: true,
+      termsAcceptedAt: true,
+      termsVersion: true,
+    },
   });
+
+  if (!dbUser || !hasAcceptedCurrentTerms(dbUser)) {
+    redirect("/auth/accept-terms");
+  }
 
   const user = {
     name: session.user.name,

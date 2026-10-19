@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { expect, test } from '@playwright/test';
 import { hashPassword } from 'better-auth/crypto';
+import { siteConfig } from '../../config/site';
 import {
   cleanE2EData,
   createE2EEnvironment,
@@ -22,6 +23,8 @@ test('db:seed normalizes legacy credential accounts so Better Auth 1.7 can sign 
       emailVerified: true,
       role: 'user',
       status: 'active',
+      termsAcceptedAt: new Date(),
+      termsVersion: siteConfig.termsVersion,
     },
   });
   await prisma.account.create({

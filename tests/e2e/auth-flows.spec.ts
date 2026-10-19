@@ -10,6 +10,7 @@ import {
   prisma,
 } from './helpers';
 import { getOutboxMessage, getOutboxMessages } from './helpers/outbox';
+import { siteConfig } from '../../config/site';
 
 test.beforeEach(async ({ page }) => {
   await page.context().setExtraHTTPHeaders({
@@ -36,6 +37,11 @@ test('registration sends verification email; opening the link does not verify un
   expect(message.subject).toBe('Verify your email address');
   const user = await prisma.user.findUniqueOrThrow({ where: { email } });
   expect(user.emailVerified).toBe(false);
+  expect(user.termsAcceptedAt).not.toBeNull();
+  expect(user.termsVersion).toBe(siteConfig.termsVersion);
+  await expect.poll(() => prisma.activityLog.count({
+    where: { userId: user.id, action: 'terms_accepted' },
+  })).toBe(1);
 
   await page.goto(message.url);
   await expect(page.getByRole('heading', { name: 'Confirm your email' })).toBeVisible();
@@ -48,6 +54,119 @@ test('registration sends verification email; opening the link does not verify un
   await page.goto(message.url);
   await page.getByRole('button', { name: 'Verify email' }).click();
   await expect(page.getByRole('heading', { name: 'Already verified' })).toBeVisible();
+});
+
+test('social registration requires terms in the interface and starts Google only after acceptance', async ({ page }) => {
+  await page.goto('/auth/register');
+  const google = page.getByRole('button', { name: 'Google' });
+  const github = page.getByRole('button', { name: 'GitHub' });
+
+  await expect(google).toBeDisabled();
+  await expect(github).toBeDisabled();
+  await expect(page.getByText('Accept the Terms of Service and Privacy Policy to continue with Google or GitHub.')).toBeVisible();
+
+  await page.getByRole('checkbox').check();
+  await expect(google).toBeEnabled();
+  await expect(github).toBeEnabled();
+
+  const googleRequest = page.waitForRequest((request) =>
+    new URL(request.url()).hostname === 'accounts.google.com'
+  );
+  await page.route('https://accounts.google.com/**', (route) => route.abort());
+  await google.click();
+  await googleRequest;
+});
+
+test('social registration server action rejects a replayed request without terms', async ({ page }) => {
+  await page.route('https://accounts.google.com/**', (route) => route.abort());
+  await page.goto('/auth/register');
+  await page.getByRole('checkbox').check();
+
+  const originalRequestPromise = page.waitForRequest((request) =>
+    request.method() === 'POST' && Boolean(request.headers()['next-action'])
+  );
+  await page.getByRole('button', { name: 'Google' }).click();
+  const originalRequest = await originalRequestPromise;
+  const originalHeaders = originalRequest.headers();
+  const nextAction = originalHeaders['next-action'];
+
+  expect(nextAction).toBeTruthy();
+  const response = await page.request.post(originalRequest.url(), {
+    headers: {
+      'next-action': nextAction!,
+      'next-router-state-tree': originalHeaders['next-router-state-tree'] ?? '',
+      accept: 'text/x-component',
+      'content-type': 'text/plain;charset=UTF-8',
+    },
+    data: JSON.stringify([{ acceptTerms: false }]),
+    maxRedirects: 0,
+  });
+
+  expect(response.headers()['x-action-redirect'] ?? '').not.toContain('accounts.google.com');
+  expect(await response.text()).toContain('You must accept the terms and conditions');
+});
+
+test.describe('Google OAuth state', () => {
+  test.beforeEach(async ({ page }) => {
+    await prisma.verification.deleteMany({
+      where: { identifier: { startsWith: 'auth-state:' } },
+    });
+    await page.route('https://accounts.google.com/**', (route) => route.abort());
+  });
+
+  test('social registration stores accepted terms in the Google OAuth state', async ({ page }) => {
+    await page.goto('/auth/register');
+    await page.getByRole('checkbox').check();
+
+    const googleRequest = page.waitForRequest((request) =>
+      new URL(request.url()).hostname === 'accounts.google.com'
+    );
+    await page.getByRole('button', { name: 'Google' }).click();
+    await googleRequest;
+
+    const row = await prisma.verification.findFirst({
+      where: { identifier: { startsWith: 'auth-state:' } },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(row).not.toBeNull();
+    const state = JSON.parse(row!.value) as {
+      requestSignUp?: boolean;
+      serverContext?: { termsAccepted?: boolean };
+    };
+
+    expect(state.requestSignUp).toBe(true);
+    expect(state.serverContext?.termsAccepted).toBe(true);
+  });
+
+  test('social login does not store accepted terms in the Google OAuth state', async ({ page }) => {
+    await page.goto('/auth/login');
+
+    const googleRequest = page.waitForRequest((request) =>
+      new URL(request.url()).hostname === 'accounts.google.com'
+    );
+    await page.getByRole('button', { name: 'Google' }).click();
+    await googleRequest;
+
+    const row = await prisma.verification.findFirst({
+      where: { identifier: { startsWith: 'auth-state:' } },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(row).not.toBeNull();
+    const state = JSON.parse(row!.value) as {
+      requestSignUp?: boolean;
+      serverContext?: { termsAccepted?: boolean };
+    };
+
+    expect(state.requestSignUp).not.toBe(true);
+    expect(state.serverContext?.termsAccepted).toBeUndefined();
+  });
+});
+
+test('login explains disabled OAuth sign-up and links to registration', async ({ page }) => {
+  await page.goto('/auth/login?provider=google&error=signup_disabled');
+
+  await expect(page.getByText('No account found for this Google account. Create one first.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Create one first' })).toHaveAttribute('href', '/auth/register');
 });
 
 test('registration and password recovery submit buttons wait for a Turnstile token', async ({ page }) => {
