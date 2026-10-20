@@ -13,6 +13,22 @@ test.afterEach(async () => {
   await cleanE2EData();
 });
 
+test('scheduled cleanup is disabled without CRON_SECRET', async ({ request }) => {
+  const verification = await prisma.verification.create({
+    data: {
+      identifier: `e2e-disabled-cleanup-${crypto.randomUUID()}`,
+      value: 'expired',
+      expiresAt: new Date(Date.now() - 60_000),
+    },
+  });
+
+  const response = await request.get('/api/cron/cleanup');
+  expect(response.status()).toBe(404);
+  expect(
+    await prisma.verification.findUnique({ where: { id: verification.id } }),
+  ).not.toBeNull();
+});
+
 test('the browser does not contact Sentry when no DSN is configured', async ({ page }) => {
   const sentryRequests: string[] = [];
   page.on('request', (request) => {

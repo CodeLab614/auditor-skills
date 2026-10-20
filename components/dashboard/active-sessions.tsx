@@ -17,7 +17,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { es } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 import { toast } from "sonner";
 import { revokeSession, revokeAllOtherSessions } from "@/actions/sessions";
 
@@ -113,16 +113,16 @@ function SessionItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <p className="font-medium text-sm">
-            {deviceInfo.browser} en {deviceInfo.os}
+            {deviceInfo.browser} on {deviceInfo.os}
           </p>
           {session.isCurrent && (
             <Badge variant="default" className="text-xs">
-              Sesión actual
+              Current session
             </Badge>
           )}
           {isExpired && (
             <Badge variant="destructive" className="text-xs">
-              Expirada
+              Expired
             </Badge>
           )}
         </div>
@@ -140,18 +140,18 @@ function SessionItem({
           )}
           <span className="flex items-center gap-1.5">
             <Clock className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Iniciada{" "}
+            Started{" "}
             {formatDistanceToNow(new Date(session.createdAt), {
               addSuffix: true,
-              locale: es,
+              locale: enUS,
             })}
           </span>
           <span className="flex items-center gap-1.5">
             <Globe className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Expira{" "}
+            Expires{" "}
             {formatDistanceToNow(new Date(session.expiresAt), {
               addSuffix: true,
-              locale: es,
+              locale: enUS,
             })}
           </span>
         </div>
@@ -165,6 +165,7 @@ function SessionItem({
             className="text-destructive hover:text-destructive hover:bg-destructive/10"
             disabled={isRevoking}
             onClick={() => setConfirmOpen(true)}
+            aria-label="Revoke remote session"
           >
             {isRevoking ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -176,10 +177,10 @@ function SessionItem({
           <ConfirmDialog
             open={confirmOpen}
             onOpenChange={setConfirmOpen}
-            title="Cerrar sesión remota"
-            description="¿Estás seguro de que deseas cerrar esta sesión? El dispositivo será desconectado inmediatamente."
-            confirmLabel="Cerrar sesión"
-            cancelLabel="Cancelar"
+            title="Revoke remote session"
+            description="Are you sure you want to revoke this session? The device will be signed out immediately."
+            confirmLabel="Revoke session"
+            cancelLabel="Cancel"
             variant="destructive"
             onConfirm={() => onRevoke(session.id)}
           />
@@ -242,9 +243,9 @@ export function ActiveSessions({
     <Card className="gap-y-0 p-6">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h3 className="text-lg font-medium mb-1">Sesiones Activas</h3>
+          <h3 className="text-lg font-medium mb-1">Active Sessions</h3>
           <p className="text-sm text-muted-foreground">
-            Administra tus sesiones activas en todos los dispositivos.
+            Manage your active sessions across all devices.
           </p>
         </div>
         {otherSessionsCount > 0 && (
@@ -261,16 +262,16 @@ export function ActiveSessions({
               ) : (
                 <ShieldAlert className="h-4 w-4 mr-2" strokeWidth={1.5} />
               )}
-              Cerrar otras sesiones
+              Revoke other sessions
             </Button>
 
             <ConfirmDialog
               open={confirmAllOpen}
               onOpenChange={setConfirmAllOpen}
-              title="Cerrar todas las otras sesiones"
-              description={`¿Estás seguro de que deseas cerrar todas las sesiones excepto la actual? Esto desconectará ${otherSessionsCount} ${otherSessionsCount === 1 ? "dispositivo" : "dispositivos"}.`}
-              confirmLabel="Cerrar todas"
-              cancelLabel="Cancelar"
+              title="Revoke all other sessions"
+              description={`Are you sure you want to revoke every session except the current one? This will sign out ${otherSessionsCount} ${otherSessionsCount === 1 ? "device" : "devices"}.`}
+              confirmLabel="Revoke all"
+              cancelLabel="Cancel"
               variant="destructive"
               onConfirm={handleRevokeAllOtherSessions}
             />
@@ -282,7 +283,7 @@ export function ActiveSessions({
         {localSessions.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Monitor className="h-12 w-12 mx-auto mb-3 opacity-50" strokeWidth={1.5} />
-            <p className="text-sm">No hay sesiones activas.</p>
+            <p className="text-sm">No active sessions.</p>
           </div>
         ) : (
           localSessions.map((session) => (
@@ -299,8 +300,7 @@ export function ActiveSessions({
       {localSessions.length > 0 && (
         <p className="text-xs text-muted-foreground mt-4">
           {localSessions.length}{" "}
-          {localSessions.length === 1 ? "sesión activa" : "sesiones activas"} en
-          total
+          {localSessions.length === 1 ? "active session" : "active sessions"} total
         </p>
       )}
     </Card>

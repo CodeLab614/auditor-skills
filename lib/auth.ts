@@ -9,6 +9,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { twoFactor } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { siteConfig } from "@/config/site";
+import { getBetterAuthIpAddressOptions } from "@/lib/client-ip";
 import { prisma } from "@/lib/prisma";
 import { reportError } from "@/lib/report-error";
 import {
@@ -52,6 +53,9 @@ if (parsedBaseURL.protocol !== "http:" && parsedBaseURL.protocol !== "https:") {
 
 export const auth = betterAuth({
   baseURL,
+  advanced: {
+    ipAddress: getBetterAuthIpAddressOptions(),
+  },
   rateLimit: { enabled: true, storage: "database" },
   hooks: {
     before: createAuthMiddleware(async (context) => {

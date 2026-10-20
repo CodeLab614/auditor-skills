@@ -33,7 +33,7 @@ interface EnvVariable {
   validate?: (value: string) => boolean | string;
   transform?: (value: string) => string;
   helpUrl?: string;
-  category: 'database' | 'auth' | 'email' | 'captcha' | 'oauth' | 'storage' | 'monitoring';
+  category: 'database' | 'auth' | 'email' | 'captcha' | 'oauth' | 'storage' | 'monitoring' | 'cleanup' | 'proxy';
   sensitive?: boolean;
   autoGenerate?: () => string;
 }
@@ -274,6 +274,8 @@ async function askVariable(
     oauth: icons.globe,
     storage: icons.database,
     monitoring: icons.shield,
+    cleanup: icons.shield,
+    proxy: icons.globe,
   };
 
   const icon = categoryIcons[variable.category];
@@ -620,6 +622,112 @@ async function askSentryConfig(
     project,
     tracesSampleRate,
   });
+}
+
+async function askCleanupConfig(
+  existingEnv: Record<string, string>,
+): Promise<Record<string, string>> {
+  printBox(
+    'Scheduled cleanup (optional)',
+    [
+      'Deletes expired verification and rate-limit rows.',
+      'Also deletes eligible accounts that stayed unverified for 7 days.',
+      'Leave it disabled to keep the application behavior unchanged.',
+      'Guide: docs/en/07-scheduled-cleanup.md',
+    ],
+    'info',
+  );
+
+  const existingSecret = existingEnv.CRON_SECRET;
+  if (existingSecret && existingSecret.length >= 32) {
+    println('  Scheduled cleanup already has a saved secret:');
+    println('  [1] Keep the current secret (default)');
+    println('  [2] Replace it');
+    println('  [3] Disable scheduled cleanup and remove the secret');
+    let choice = '';
+    while (!['1', '2', '3'].includes(choice)) {
+      choice = (await question('  Select an option [1]: ')) || '1';
+    }
+    if (choice === '1') return { CRON_SECRET: existingSecret };
+    if (choice === '3') return { CRON_SECRET: '' };
+  } else if (existingSecret) {
+    println(`  ${colors.yellow}${icons.warning} The saved CRON_SECRET is shorter than 32 characters and leaves the route disabled.${colors.reset}`);
+    println('  Replace it with a generated or custom secure value.');
+  } else {
+    const configure = await question('  Enable scheduled cleanup now? [y/N]: ');
+    if (!['y', 'yes'].includes(configure.toLowerCase())) {
+      println(`  ${colors.green}${icons.success} Scheduled cleanup remains disabled${colors.reset}`);
+      return { CRON_SECRET: '' };
+    }
+  }
+
+  println('  Choose the cleanup secret:');
+  println('  [1] Generate a secure random 64-character secret (recommended)');
+  println('  [2] Enter my own secret (at least 32 characters)');
+  let secretChoice = '';
+  while (!['1', '2'].includes(secretChoice)) {
+    secretChoice = (await question('  Select an option [1]: ')) || '1';
+  }
+
+  const secret = secretChoice === '1'
+    ? crypto.randomBytes(32).toString('hex')
+    : await askVariable(
+        {
+          key: 'CRON_SECRET',
+          description: 'Secret accepted by the scheduled cleanup route',
+          placeholder: 'At least 32 random characters',
+          required: true,
+          sensitive: true,
+          category: 'cleanup',
+          validate: (value) => value.length >= 32 || 'Use at least 32 characters.',
+        },
+        undefined,
+      );
+
+  println(`  ${colors.green}${icons.success} Scheduled cleanup enabled${colors.reset}`);
+  return { CRON_SECRET: secret };
+}
+
+async function askProxyConfig(
+  existingEnv: Record<string, string>,
+): Promise<Record<string, string>> {
+  printBox(
+    'Trusted client IP source',
+    [
+      'Choose the platform that directly receives public traffic.',
+      'A wrong choice lets clients spoof IPs or hides every client IP.',
+      'Guide: docs/en/07-scheduled-cleanup.md',
+    ],
+    'warning',
+  );
+
+  println('  Where is the application deployed?');
+  println('  [1] None/direct: trust no request header; IP limits stay disabled (safe default)');
+  println('  [2] Vercel: trust the Vercel-protected x-vercel-forwarded-for header');
+  println('  [3] Cloudflare: trust CF-Connecting-IP only when the origin accepts Cloudflare traffic only');
+  println('  [4] Own proxy: trust X-Real-IP set by nginx or another controlled reverse proxy');
+
+  const existingChoices: Record<string, string> = {
+    none: '1',
+    vercel: '2',
+    cloudflare: '3',
+    proxy: '4',
+  };
+  const defaultChoice = existingChoices[existingEnv.TRUSTED_PROXY] ?? '1';
+  let choice = '';
+  while (!['1', '2', '3', '4'].includes(choice)) {
+    choice = (await question(`  Select an option [${defaultChoice}]: `)) || defaultChoice;
+  }
+
+  const values: Record<string, string> = {
+    '1': 'none',
+    '2': 'vercel',
+    '3': 'cloudflare',
+    '4': 'proxy',
+  };
+  const value = values[choice];
+  println(`  ${colors.green}${icons.success} TRUSTED_PROXY set to ${value}${colors.reset}`);
+  return { TRUSTED_PROXY: value };
 }
 
 // ============================================================================
@@ -1076,6 +1184,8 @@ const ENV_SECTION_KEYS: Record<string, string[]> = {
   email: ['EMAIL_DELIVERY', 'RESEND_API_KEY', 'FROM_EMAIL'],
   captcha: ['NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY'],
   monitoring: ['NEXT_PUBLIC_SENTRY_DSN', 'SENTRY_ORG', 'SENTRY_PROJECT', 'SENTRY_AUTH_TOKEN', 'SENTRY_TRACES_SAMPLE_RATE'],
+  cleanup: ['CRON_SECRET'],
+  proxy: ['TRUSTED_PROXY'],
   oauth: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'NEXT_PUBLIC_GOOGLE_ENABLED', 'NEXT_PUBLIC_GITHUB_ENABLED'],
   storage: ['STORAGE_DRIVER', 'S3_ENDPOINT', 'S3_REGION', 'S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_PUBLIC_URL', 'S3_FORCE_PATH_STYLE'],
 };
@@ -1094,6 +1204,8 @@ function updateEnvSections(
     captcha: '# Cloudflare Turnstile', oauth: '# OAuth Providers',
     storage: '# File storage',
     monitoring: '# Error monitoring (Sentry)',
+    cleanup: '# Scheduled cleanup (optional)',
+    proxy: '# Client IP trust',
   };
   const allSectionLabels = new Set(Object.values(sectionLabels));
   const insertedKeys = new Set<string>();
@@ -1455,12 +1567,12 @@ async function askStorageConfig(existingEnv: Record<string, string>): Promise<Re
 
 async function runSetup() {
   const onlyIndex = process.argv.indexOf('--only');
-  const allowedOnly = ['database', 'email', 'turnstile', 'oauth', 'theme', 'storage', 'sentry'] as const;
+  const allowedOnly = ['database', 'email', 'turnstile', 'oauth', 'theme', 'storage', 'sentry', 'cleanup', 'proxy'] as const;
   let forcedSection: (typeof allowedOnly)[number] | undefined;
   if (onlyIndex !== -1) {
     const value = process.argv[onlyIndex + 1];
     if (!value || !allowedOnly.includes(value as (typeof allowedOnly)[number])) {
-      throw new Error('Usage: bun run scripts/setup.ts --only <database|email|turnstile|oauth|theme|storage|sentry>');
+      throw new Error('Usage: bun run scripts/setup.ts --only <database|email|turnstile|oauth|theme|storage|sentry|cleanup|proxy>');
     }
     forcedSection = value as (typeof allowedOnly)[number];
   }
@@ -1477,15 +1589,17 @@ async function runSetup() {
     println('  [5] Theme');
     println('  [6] Storage');
     println('  [7] Sentry');
-    println('  [8] Everything');
-    const choices: Record<string, string> = { '1': 'database', '2': 'email', '3': 'turnstile', '4': 'oauth', '5': 'theme', '6': 'storage', '7': 'sentry', '8': 'everything' };
+    println('  [8] Scheduled cleanup');
+    println('  [9] Trusted proxy');
+    println('  [10] Everything');
+    const choices: Record<string, string> = { '1': 'database', '2': 'email', '3': 'turnstile', '4': 'oauth', '5': 'theme', '6': 'storage', '7': 'sentry', '8': 'cleanup', '9': 'proxy', '10': 'everything' };
     while (!selection) {
       selection = choices[await question('Select a section: ')] ?? '';
       if (!selection) println('Choose one of the listed options.');
     }
   }
   if (!selection) selection = 'everything';
-  const selectedSections = new Set(selection === 'everything' ? ['database', 'auth', 'email', 'captcha', 'oauth', 'theme', 'storage', 'monitoring'] : [selection === 'turnstile' ? 'captcha' : selection === 'sentry' ? 'monitoring' : selection]);
+  const selectedSections = new Set(selection === 'everything' ? ['database', 'auth', 'email', 'captcha', 'oauth', 'theme', 'storage', 'monitoring', 'cleanup', 'proxy'] : [selection === 'turnstile' ? 'captcha' : selection === 'sentry' ? 'monitoring' : selection]);
   const databaseSelected = selectedSections.has('database');
   const themeSelected = selectedSections.has('theme');
   const previousDatabaseUrl = existingEnv.DATABASE_URL;
@@ -1501,6 +1615,8 @@ async function runSetup() {
     { key: 'oauth', title: 'OAuth Providers', icon: icons.globe },
     { key: 'storage', title: 'File Storage', icon: icons.database },
     { key: 'monitoring', title: 'Error monitoring with Sentry (optional)', icon: icons.shield },
+    { key: 'cleanup', title: 'Scheduled cleanup (optional)', icon: icons.shield },
+    { key: 'proxy', title: 'Trusted client IP source', icon: icons.globe },
   ] as const;
 
   let stepNumber = 1;
@@ -1680,6 +1796,10 @@ async function runSetup() {
       Object.assign(newEnv, await askStorageConfig(existingEnv));
     } else if (category.key === 'monitoring') {
       Object.assign(newEnv, await askSentryConfig(existingEnv));
+    } else if (category.key === 'cleanup') {
+      Object.assign(newEnv, await askCleanupConfig(existingEnv));
+    } else if (category.key === 'proxy') {
+      Object.assign(newEnv, await askProxyConfig(existingEnv));
     }
 
     stepNumber++;

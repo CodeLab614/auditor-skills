@@ -1,0 +1,29 @@
+name: Scheduled cleanup
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  cleanup:
+    name: Run cleanup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call the protected cleanup route
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        shell: bash
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Scheduled cleanup is not configured; APP_URL and CRON_SECRET are both required."
+            exit 0
+          fi
+
+          curl --fail --silent --show-error \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            "${APP_URL%/}/api/cron/cleanup"

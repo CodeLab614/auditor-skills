@@ -8,4 +8,5 @@ Choose one starting path in the [Quick Start](../README.md#quick-start): setup w
 4. [Docker](03-docker.md) — install Docker, run the app and database locally, and build a production image.
 5. [File storage](05-file-storage.md) — choose local or S3-compatible storage for avatars and migrate between providers.
 6. [Error monitoring](06-error-monitoring.md) — optionally connect Sentry, upload source maps, verify reporting, and understand the privacy filters.
-7. [Dependency updates](04-dependency-updates.md) — review Dependabot, upgrade dependencies in tested stages, and follow toolchain limits.
+7. [Scheduled cleanup and trusted client IPs](07-scheduled-cleanup.md) — enable daily cleanup on Vercel or GitHub Actions and configure safe proxy headers.
+8. [Dependency updates](04-dependency-updates.md) — review Dependabot, upgrade dependencies in tested stages, and follow toolchain limits.

@@ -39,6 +39,23 @@ This reference covers every variable read by the application and setup scripts. 
 - **Example format:** `https://auth.example.com`
 - **Secret:** No. Keep it aligned with the URL from which the app is served.
 
+## Scheduled cleanup and client IPs
+
+### `CRON_SECRET`
+
+- **Purpose:** Protects the optional `GET /api/cron/cleanup` route used by Vercel Cron or the included GitHub Actions workflow.
+- **Required:** No. Missing values and values shorter than 32 characters disable the route with HTTP 404.
+- **Where to get it:** Run `bun run setup:cleanup` to generate a 64-character random secret, or generate an equivalent secret yourself.
+- **Secret:** Yes. Keep the same value in the running application and its scheduler; never expose it to the browser or commit it.
+
+### `TRUSTED_PROXY`
+
+- **Purpose:** Selects the only request header RapidAuth may trust as the client IP for rate limits, activity logs, and Better Auth sessions.
+- **Required:** No. The safe default is `none`.
+- **Values:** `none`, `vercel`, `cloudflare`, or `proxy`.
+- **Handling:** Unknown values behave as `none` and produce one startup warning. Production also warns once when the value is `none`, because IP-based limits are then disabled while email- and user-based limits keep working.
+- **Secret:** No. Run `bun run setup:proxy` or see [Scheduled cleanup and trusted proxy setup](07-scheduled-cleanup.md).
+
 ## Email
 
 ### `EMAIL_DELIVERY`

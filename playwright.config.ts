@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import { resolve } from 'node:path';
+import { E2E_CRON_SECRET } from './tests/e2e/helpers/e2e-environment';
 
 const port = 3100;
 const rejectPort = 3101;
@@ -79,6 +80,7 @@ export default defineConfig({
         NEXT_PUBLIC_GOOGLE_ENABLED: 'true',
         NEXT_PUBLIC_GITHUB_ENABLED: 'true',
         TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA',
+        CRON_SECRET: E2E_CRON_SECRET,
         RAPIDAUTH_NEXT_DIST_DIR: '.next-e2e-normal',
         NEXT_TELEMETRY_DISABLED: '1',
         NODE_ENV: 'development',
@@ -108,6 +110,7 @@ export default defineConfig({
         NEXT_PUBLIC_GOOGLE_ENABLED: 'true',
         NEXT_PUBLIC_GITHUB_ENABLED: 'true',
         TURNSTILE_SECRET_KEY: '2x0000000000000000000000000000000AA',
+        CRON_SECRET: '',
         RAPIDAUTH_NEXT_DIST_DIR: '.next-e2e-reject',
         NEXT_TELEMETRY_DISABLED: '1',
         NODE_ENV: 'development',

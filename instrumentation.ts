@@ -7,8 +7,13 @@ let warnedAboutInvalidDsn = false;
 
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { validateStorageConfig } = await import('./instrumentation-node');
+    const [{ validateStorageConfig }, { warnAboutTrustedProxyConfiguration }] =
+      await Promise.all([
+        import('./instrumentation-node'),
+        import('./lib/client-ip'),
+      ]);
     validateStorageConfig();
+    warnAboutTrustedProxyConfiguration();
   }
 
   const config = getSentryRuntimeConfig(process.env);

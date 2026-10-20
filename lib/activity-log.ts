@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
+import { getClientIpFromHeaders } from "@/lib/client-ip";
 import { reportError } from "@/lib/report-error";
 
 export type ActivityAction =
@@ -37,10 +38,7 @@ export async function logActivity(
 ) {
   try {
     const headersList = await headers();
-    const ipAddress =
-      headersList.get("x-forwarded-for")?.split(",")[0] ||
-      headersList.get("x-real-ip") ||
-      "unknown";
+    const ipAddress = getClientIpFromHeaders(headersList) ?? "unknown";
     const userAgent = headersList.get("user-agent") || "unknown";
 
     await prisma.activityLog.create({

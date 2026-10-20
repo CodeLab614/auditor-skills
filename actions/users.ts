@@ -13,11 +13,12 @@ import {
   getAdminMutationError,
 } from '@/lib/admin-access';
 import { sendInvitationEmail, sendSecurityNoticeEmail } from '@/lib/email';
+import { logActivity } from '@/lib/activity-log';
 import { prisma } from '@/lib/prisma';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { reportError } from '@/lib/report-error';
-import { deleteStoredAvatar } from '@/lib/storage/avatar';
 import { getTemporaryPasswordExpiration } from '@/lib/temporary-password';
+import { deleteUserRecord } from '@/lib/user-deletion';
 import {
   getInvitationUrl,
   issueUserInvitation,
@@ -28,35 +29,6 @@ import {
   editUserSchema,
   resetPasswordSchema,
 } from '@/validations/users';
-
-// Helper to get request info for activity logging
-async function getRequestInfo() {
-  const headersList = await headers();
-  const ipAddress =
-    headersList.get("x-forwarded-for")?.split(",")[0] ||
-    headersList.get("x-real-ip") ||
-    "unknown";
-  const userAgent = headersList.get("user-agent") || "unknown";
-  return { ipAddress, userAgent };
-}
-
-// Helper to log activity
-async function logActivity(
-  userId: string,
-  action: string,
-  details?: Record<string, unknown>
-) {
-  const { ipAddress, userAgent } = await getRequestInfo();
-  await prisma.activityLog.create({
-    data: {
-      userId,
-      action,
-      details: details ? JSON.stringify(details) : null,
-      ipAddress,
-      userAgent,
-    },
-  });
-}
 
 // ============================================
 // ADD USER ACTION (New Pattern)
@@ -624,7 +596,7 @@ export const deleteUser = async (
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, image: true },
+      select: { id: true, name: true, email: true },
     });
 
     if (!user) {
@@ -635,21 +607,15 @@ export const deleteUser = async (
       };
     }
 
-    await prisma.$transaction(
-      async (transaction) => {
-        await transaction.session.deleteMany({ where: { userId } });
-        await transaction.account.deleteMany({ where: { userId } });
-        await transaction.activityLog.deleteMany({ where: { userId } });
-        await transaction.user.delete({ where: { id: userId } });
-        await assertActiveAdminRemains(transaction);
-      },
-      { isolationLevel: 'Serializable' }
-    );
-
-    try {
-      await deleteStoredAvatar(user.image, userId);
-    } catch (error) {
-      reportError(error, { area: 'users.delete-avatar' });
+    const deletion = await deleteUserRecord(userId, {
+      afterDelete: assertActiveAdminRemains,
+    });
+    if (!deletion.deleted) {
+      return {
+        response: 'error',
+        message: 'User not found',
+        data: null,
+      };
     }
 
     await logActivity(session.user.id, 'profile_update', {

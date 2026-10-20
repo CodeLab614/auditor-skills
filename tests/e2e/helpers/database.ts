@@ -179,7 +179,12 @@ export async function createTestInvitation(
 
 export async function cleanE2EData() {
   await prisma.verification.deleteMany({
-    where: { identifier: { startsWith: USER_INVITATION_PREFIX } },
+    where: {
+      OR: [
+        { identifier: { startsWith: USER_INVITATION_PREFIX } },
+        { identifier: { startsWith: 'e2e-' } },
+      ],
+    },
   });
   await prisma.user.deleteMany({
     where: { email: { startsWith: 'e2e-' } },

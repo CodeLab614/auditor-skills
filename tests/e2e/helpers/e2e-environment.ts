@@ -1,3 +1,6 @@
+export const E2E_CRON_SECRET =
+  'e2e-cron-secret-never-use-outside-local-tests-0000000000000000';
+
 export function assertSafeDatabaseUrl(databaseUrl: string) {
   let parsed: URL;
   try {

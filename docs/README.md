@@ -12,3 +12,8 @@
 
 - [English: Error monitoring with Sentry](en/06-error-monitoring.md)
 - [Español: Monitoreo de errores con Sentry](es/06-error-monitoring.md)
+
+## Scheduled cleanup and trusted client IPs
+
+- [English: Scheduled cleanup and trusted client IPs](en/07-scheduled-cleanup.md)
+- [Español: Limpieza programada e IP real del cliente](es/07-scheduled-cleanup.md)

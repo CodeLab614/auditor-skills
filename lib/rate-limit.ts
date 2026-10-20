@@ -1,14 +1,13 @@
 import { createHash } from 'node:crypto';
 import { headers } from 'next/headers';
+import { getClientIpFromHeaders } from '@/lib/client-ip';
 import { prisma } from '@/lib/prisma';
 
 // Direct auth.api calls bypass Better Auth's HTTP router rate limiter.
 
 export async function getClientIp(): Promise<string | null> {
   const requestHeaders = await headers();
-  const forwardedFor = requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim();
-
-  return forwardedFor || requestHeaders.get('x-real-ip')?.trim() || null;
+  return getClientIpFromHeaders(requestHeaders);
 }
 
 export async function checkRateLimit(

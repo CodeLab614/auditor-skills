@@ -8,4 +8,5 @@ Elige una ruta para empezar en [Quick Start](../README.md#quick-start): asistent
 4. [Docker](03-docker.md) — instala Docker, inicia la app y la base local, y prepara una imagen de producción.
 5. [Almacenamiento de archivos](05-file-storage.md) — elige almacenamiento local o compatible con S3 para avatares y migra entre proveedores.
 6. [Monitoreo de errores](06-error-monitoring.md) — conecta Sentry opcionalmente, sube source maps, comprueba los reportes y conoce los filtros de privacidad.
-7. [Actualización de dependencias](04-dependency-updates.md) — revisa Dependabot, actualiza dependencias por etapas probadas y respeta los límites de herramientas.
+7. [Limpieza programada e IP real del cliente](07-scheduled-cleanup.md) — activa la limpieza diaria con Vercel o GitHub Actions y configura cabeceras de proxy seguras.
+8. [Actualización de dependencias](04-dependency-updates.md) — revisa Dependabot, actualiza dependencias por etapas probadas y respeta los límites de herramientas.
