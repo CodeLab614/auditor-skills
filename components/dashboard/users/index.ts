@@ -1,5 +1,6 @@
 export { UsersContent } from './users-content';
 export { UsersTable } from './users-table';
+export { UsersPagination } from './users-pagination';
 export { SearchAndFilters } from './search-and-filters';
 export { ActiveFilters } from './active-filters';
 export { UserActions } from './user-actions';

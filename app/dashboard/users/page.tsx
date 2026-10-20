@@ -3,8 +3,17 @@ import { getSession } from "@/lib/auth";
 import { getAdminAccess } from "@/lib/admin-access";
 import { getUsers } from "@/actions/users";
 import { UsersContent } from "@/components/dashboard";
+import {
+  buildUserListQueryString,
+  parseUserListSearchParams,
+  type UserListSearchParams,
+} from "@/lib/user-list-query";
 
-export default async function UsersPage() {
+interface UsersPageProps {
+  searchParams: Promise<UserListSearchParams>;
+}
+
+export default async function UsersPage({ searchParams }: UsersPageProps) {
   const session = await getSession();
 
   if (!session) {
@@ -15,7 +24,8 @@ export default async function UsersPage() {
     redirect("/dashboard");
   }
 
-  const result = await getUsers();
+  const params = parseUserListSearchParams(await searchParams);
+  const result = await getUsers(params);
 
   if (result.response === 'error' || !result.data) {
     return (
@@ -25,9 +35,23 @@ export default async function UsersPage() {
     );
   }
 
+  if (result.data.page !== params.page) {
+    redirect(
+      `/dashboard/users?${buildUserListQueryString({
+        ...params,
+        page: result.data.page,
+      })}`,
+    );
+  }
+
   return (
     <UsersContent
-      users={result.data}
+      users={result.data.users}
+      total={result.data.total}
+      page={result.data.page}
+      pageSize={result.data.pageSize}
+      totalPages={result.data.totalPages}
+      initialParams={params}
       isAdmin={true}
       currentUserId={session.user.id}
     />

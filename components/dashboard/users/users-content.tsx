@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { UserPlus } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { PageHeader } from '@/components/dashboard';
-import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/dashboard/confirm-dialog';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import type { User } from '@/actions/users';
+import { cn } from '@/lib/utils';
+import type { UserListParams } from '@/lib/user-list-query';
 import { useUsersFilters, useUserDialogs, useUserActions } from './hooks';
 import { SearchAndFilters } from './search-and-filters';
 import { ActiveFilters } from './active-filters';
@@ -15,30 +17,45 @@ import { AddUserDialog } from './add-user-dialog';
 import { EditUserDialog } from './edit-user-dialog';
 import { ChangeRoleDialog } from './change-role-dialog';
 import { ResetPasswordDialog } from './reset-password-dialog';
+import { UsersPagination } from './users-pagination';
+import { UserPlus } from 'lucide-react';
 
 interface UsersContentProps {
   users: User[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  initialParams: UserListParams;
   isAdmin?: boolean;
   currentUserId: string;
 }
 
 export function UsersContent({
   users,
+  total,
+  page,
+  pageSize,
+  totalPages,
+  initialParams,
   isAdmin = true,
   currentUserId,
 }: UsersContentProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const clearSelection = useCallback(() => setSelectedIds([]), []);
 
   const {
     searchQuery,
     setSearchQuery,
     filters,
     setFilters,
-    filteredUsers,
     activeFilterCount,
     removeFilter,
     clearAllFilters,
-  } = useUsersFilters(users);
+    goToPage,
+    getPageHref,
+    isPending,
+  } = useUsersFilters({ initialParams, onParamsChange: clearSelection });
 
   const {
     selectedUser,
@@ -87,7 +104,7 @@ export function UsersContent({
     selectedUser,
     selectedIds,
     bulkRole,
-    onClearSelection: () => setSelectedIds([]),
+    onClearSelection: clearSelection,
     onCloseBulkActivateDialog: () => setBulkActivateDialogOpen(false),
     onCloseBulkDeactivateDialog: () => setBulkDeactivateDialogOpen(false),
     onCloseBulkRoleDialog: () => setBulkRoleDialogOpen(false),
@@ -102,15 +119,15 @@ export function UsersContent({
         dateRangeOptions={[]}
       >
         {isAdmin && (
-          <Button onClick={openAddDialog} className='gap-2'>
-            <UserPlus className='h-4 w-4' strokeWidth={1.5} />
+          <Button onClick={openAddDialog}>
+            <UserPlus data-icon="inline-start" strokeWidth={1.5} />
             Add User
           </Button>
         )}
       </PageHeader>
 
       <div className='dark:border dark:border-border bg-card'>
-        <div className='p-4 dark:border-b dark:border-border space-y-3'>
+        <div className='flex flex-col gap-3 p-4 dark:border-b dark:border-border'>
           <SearchAndFilters
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -119,39 +136,64 @@ export function UsersContent({
             activeFilterCount={activeFilterCount}
           />
 
-          {(searchQuery || activeFilterCount > 0) && (
-            <div className='flex flex-wrap items-center justify-between gap-2'>
-              <ActiveFilters
-                filters={filters}
-                onRemoveFilter={removeFilter}
-                onClearAll={clearAllFilters}
-              />
-              <p className='text-sm text-muted-foreground'>
-                Showing {filteredUsers.length} of {users.length} users
-              </p>
+          <div className='flex flex-wrap items-center justify-between gap-2'>
+            <div>
+              {(searchQuery || activeFilterCount > 0) && (
+                <ActiveFilters
+                  filters={filters}
+                  onRemoveFilter={removeFilter}
+                  onClearAll={clearAllFilters}
+                />
+              )}
             </div>
-          )}
+            <p className='text-sm text-muted-foreground' aria-live='polite'>
+              {total === 0
+                ? 'Showing 0 of 0 users'
+                : `Showing ${(page - 1) * pageSize + 1}–${Math.min(
+                    page * pageSize,
+                    total,
+                  )} of ${total} users`}
+            </p>
+          </div>
         </div>
 
-        <UsersTable
-          users={filteredUsers}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          isAdmin={isAdmin}
-          currentUserId={currentUserId}
-          onEdit={openEditDialog}
-          onDelete={openDeleteDialog}
-          onChangeRole={openRoleDialog}
-          onResetPassword={openResetPasswordDialog}
-          onResendInvitation={handleResendInvitation}
-          onToggleStatus={openStatusDialog}
-        />
+        <div
+          className={cn('transition-opacity', isPending && 'opacity-50')}
+          aria-busy={isPending}
+        >
+          <UsersTable
+            users={users}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            isAdmin={isAdmin}
+            currentUserId={currentUserId}
+            onEdit={openEditDialog}
+            onDelete={openDeleteDialog}
+            onChangeRole={openRoleDialog}
+            onResetPassword={openResetPasswordDialog}
+            onResendInvitation={handleResendInvitation}
+            onToggleStatus={openStatusDialog}
+          />
+        </div>
+
+        {totalPages > 1 && (
+          <>
+            <Separator />
+            <UsersPagination
+              page={page}
+              totalPages={totalPages}
+              isPending={isPending}
+              getPageHref={getPageHref}
+              onPageChange={goToPage}
+            />
+          </>
+        )}
       </div>
 
       {selectedIds.length > 0 && (
         <BulkActionsBar
           selectedCount={selectedIds.length}
-          onClearSelection={() => setSelectedIds([])}
+          onClearSelection={clearSelection}
           onBulkActivate={openBulkActivateDialog}
           onBulkDeactivate={openBulkDeactivateDialog}
           onBulkChangeRole={openBulkRoleDialog}

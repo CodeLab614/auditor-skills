@@ -5,5 +5,4 @@ export {
   removeProviderFilter,
   removeFilter,
   getActiveFilterCount,
-  filterUsers,
 } from './filters';

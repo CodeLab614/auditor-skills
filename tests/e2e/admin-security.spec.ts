@@ -116,7 +116,9 @@ test('admin cannot change their own role but can change another admin role', asy
     currentAdmin.password,
     currentAdmin.secret,
   );
-  await page.goto('/dashboard/users');
+  await page.goto(
+    `/dashboard/users?q=${encodeURIComponent(currentAdmin.email)}`,
+  );
 
   const ownRow = page.getByRole('row').filter({ hasText: currentAdmin.email });
   await ownRow.getByRole('button', { name: 'Open menu' }).click();
@@ -130,6 +132,9 @@ test('admin cannot change their own role but can change another admin role', asy
   await expect(page.getByText('You cannot change your own role')).toBeVisible();
   expect((await prisma.user.findUniqueOrThrow({ where: { id: currentAdmin.user.id } })).role).toBe('admin');
 
+  await page.goto(
+    `/dashboard/users?q=${encodeURIComponent(otherAdmin.email)}`,
+  );
   const otherRow = page.getByRole('row').filter({ hasText: otherAdmin.email });
   await otherRow.getByRole('button', { name: 'Open menu' }).click();
   await page.getByRole('menuitem', { name: 'Change Role' }).click();

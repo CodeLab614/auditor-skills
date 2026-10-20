@@ -161,6 +161,7 @@ test('resending an invitation invalidates the old link and is hidden for passwor
   await createInvitedUserFromDashboard(page, email);
   const firstMessage = latestMessage(await getOutboxMessages(email));
 
+  await page.goto(`/dashboard/users?q=${encodeURIComponent(email)}`);
   const invitedRow = page.getByRole('row').filter({ hasText: email });
   await invitedRow.getByRole('button', { name: 'Open menu' }).click();
   await page.getByRole('menuitem', { name: 'Resend Invitation' }).click();
@@ -178,6 +179,9 @@ test('resending an invitation invalidates the old link and is hidden for passwor
   await expect(invitePage.getByRole('heading', { name: 'Accept your invitation' })).toBeVisible();
   await invitePage.close();
 
+  await page.goto(
+    `/dashboard/users?q=${encodeURIComponent(passwordUser.email)}`,
+  );
   const passwordRow = page.getByRole('row').filter({ hasText: passwordUser.email });
   await passwordRow.getByRole('button', { name: 'Open menu' }).click();
   await expect(page.getByRole('menuitem', { name: 'Resend Invitation' })).toHaveCount(0);

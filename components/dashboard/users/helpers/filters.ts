@@ -1,5 +1,4 @@
 import type { Filters } from '../types';
-import type { User } from '@/actions/users';
 
 export const createEmptyFilters = (): Filters => ({
   roles: [],
@@ -39,37 +38,3 @@ export const removeFilter = (
 
 export const getActiveFilterCount = (filters: Filters): number =>
   filters.roles.length + filters.statuses.length + filters.providers.length;
-
-export const filterUsers = (
-  users: User[],
-  searchQuery: string,
-  filters: Filters
-): User[] => {
-  return users.filter((user) => {
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch =
-        user.name.toLowerCase().includes(query) ||
-        user.email.toLowerCase().includes(query);
-      if (!matchesSearch) return false;
-    }
-
-    // Role filter
-    if (filters.roles.length > 0 && !filters.roles.includes(user.role)) {
-      return false;
-    }
-
-    // Status filter
-    if (filters.statuses.length > 0 && !filters.statuses.includes(user.status)) {
-      return false;
-    }
-
-    // Provider filter
-    if (filters.providers.length > 0 && !filters.providers.includes(user.provider)) {
-      return false;
-    }
-
-    return true;
-  });
-};

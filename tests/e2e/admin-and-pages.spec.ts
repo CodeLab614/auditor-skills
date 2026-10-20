@@ -31,10 +31,18 @@ async function signInAdmin(page: import('@playwright/test').Page) {
   await signInWithPasswordAndTotp(page, admin.email, admin.password, admin.secret);
 }
 
+async function openUsersForEmail(
+  page: import('@playwright/test').Page,
+  email: string,
+) {
+  await page.goto(`/dashboard/users?q=${encodeURIComponent(email)}`);
+}
+
 async function generateTemporaryPassword(
   page: import('@playwright/test').Page,
   email: string,
 ) {
+  await openUsersForEmail(page, email);
   const row = page.getByRole('row').filter({ hasText: email });
   await row.getByRole('button', { name: 'Open menu' }).click();
   await page.getByRole('menuitem', { name: 'Reset Password' }).click();
@@ -54,7 +62,7 @@ test('email reset clears temporary-password state and a manual password must be 
   const temporaryPasswordUser = await createTestUser();
   await createTestSession(temporaryPasswordUser.user.id);
   await signInAdmin(page);
-  await page.goto('/dashboard/users');
+  await openUsersForEmail(page, emailResetUser.email);
 
   const emailRow = page.getByRole('row').filter({ hasText: emailResetUser.email });
   await emailRow.getByRole('button', { name: 'Open menu' }).click();
@@ -75,6 +83,7 @@ test('email reset clears temporary-password state and a manual password must be 
   })).toEqual({ mustChangePassword: false, temporaryPasswordExpiresAt: null });
   await resetPage.close();
 
+  await openUsersForEmail(page, temporaryPasswordUser.email);
   const manualRow = page.getByRole('row').filter({ hasText: temporaryPasswordUser.email });
   await manualRow.getByRole('button', { name: 'Open menu' }).click();
   await page.getByRole('menuitem', { name: 'Reset Password' }).click();
@@ -134,7 +143,7 @@ test('admin manual reset is hidden and the server rejects a forged request for a
   const targetAdmin = await createAdminWith2FA();
   const regularUser = await createTestUser();
   await signInAdmin(page);
-  await page.goto('/dashboard/users');
+  await openUsersForEmail(page, targetAdmin.email);
   const adminRow = page.getByRole('row').filter({ hasText: targetAdmin.email });
   await adminRow.getByRole('button', { name: 'Open menu' }).click();
   await page.getByRole('menuitem', { name: 'Reset Password' }).click();
@@ -142,6 +151,7 @@ test('admin manual reset is hidden and the server rejects a forged request for a
   await expect(page.getByText('Admin passwords can only be reset by email link.')).toBeVisible();
   await page.getByRole('button', { name: 'Cancel' }).click();
 
+  await openUsersForEmail(page, regularUser.email);
   const regularRow = page.getByRole('row').filter({ hasText: regularUser.email });
   await regularRow.getByRole('button', { name: 'Open menu' }).click();
   await page.getByRole('menuitem', { name: 'Reset Password' }).click();
@@ -181,6 +191,7 @@ test('admin manual reset is hidden and the server rejects a forged request for a
   await targetClient.close();
 
   await page.getByRole('button', { name: 'Done' }).click();
+  await openUsersForEmail(page, targetAdmin.email);
   await adminRow.getByRole('button', { name: 'Open menu' }).click();
   await page.getByRole('menuitem', { name: 'Reset Password' }).click();
   await page.getByRole('button', { name: 'Send Email' }).click();

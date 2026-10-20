@@ -132,8 +132,9 @@ test('deleting a user also deletes their avatar', async ({ page, request }) => {
   await writeFile(join(process.cwd(), 'storage', 'uploads', key), png);
   await prisma.user.update({ where: { id: target.user.id }, data: { image: `/uploads/${key}` } });
   await signInAdmin(page);
-  await page.goto('/dashboard/users');
-  await page.getByPlaceholder('Search by name or email...').fill(target.email);
+  await page.goto(
+    `/dashboard/users?q=${encodeURIComponent(target.email)}`,
+  );
   const row = page.getByRole('row').filter({ hasText: target.email });
   await expect(row).toBeVisible();
   await row.getByRole('button', { name: 'Open menu' }).click();

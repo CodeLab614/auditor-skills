@@ -20,6 +20,13 @@ import { reportError } from '@/lib/report-error';
 import { getTemporaryPasswordExpiration } from '@/lib/temporary-password';
 import { deleteUserRecord } from '@/lib/user-deletion';
 import {
+  buildUsersWhere,
+  getDisplayedAuthProvider,
+  USERS_PAGE_SIZE,
+  userListParamsSchema,
+  type UserListParams,
+} from '@/lib/user-list-query';
+import {
   getInvitationUrl,
   issueUserInvitation,
 } from '@/lib/user-invitations';
@@ -1047,6 +1054,14 @@ export interface User {
   hasCredentialAccount: boolean;
 }
 
+export interface UserPage {
+  users: User[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 // ============================================
 // RESET PASSWORD ACTION (New Pattern)
 // ============================================
@@ -1259,10 +1274,10 @@ function generateTemporaryPassword(): string {
   return password.join('');
 }
 
-export async function getUsers(): Promise<{
+export async function getUsers(params: UserListParams): Promise<{
   response: 'success' | 'error';
   message: string;
-  data: User[] | null;
+  data: UserPage | null;
 }> {
   try {
     const session = await getSession();
@@ -1282,38 +1297,48 @@ export async function getUsers(): Promise<{
       };
     }
 
-    const usersData = await prisma.user.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: {
-        accounts: {
-          select: {
-            providerId: true,
+    const parsedParams = userListParamsSchema.safeParse(params);
+    if (!parsedParams.success) {
+      return {
+        response: 'error',
+        message: 'Invalid user list parameters',
+        data: null,
+      };
+    }
+
+    const where = buildUsersWhere(parsedParams.data);
+    const [total, usersData] = await prisma.$transaction([
+      prisma.user.count({ where }),
+      prisma.user.findMany({
+        where,
+        skip: (parsedParams.data.page - 1) * USERS_PAGE_SIZE,
+        take: USERS_PAGE_SIZE,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        include: {
+          accounts: {
+            select: {
+              providerId: true,
+            },
+          },
+          activityLogs: {
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 1,
+            select: {
+              createdAt: true,
+            },
           },
         },
-        activityLogs: {
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 1,
-          select: {
-            createdAt: true,
-          },
-        },
-      },
-    });
+      }),
+    ]);
 
     const now = new Date();
 
     const users = usersData.map((user) => {
-      // Determine provider
-      const providerAccount = user.accounts.find(
-        (acc) => acc.providerId === "google" || acc.providerId === "github"
+      const provider = getDisplayedAuthProvider(
+        user.accounts.map((account) => account.providerId),
       );
-      const provider: AuthProvider = providerAccount
-        ? (providerAccount.providerId as AuthProvider)
-        : "email";
 
       // Use status from database, fallback to pending if email not verified
       const status = !user.emailVerified ? "pending" : user.status;
@@ -1360,10 +1385,18 @@ export async function getUsers(): Promise<{
       };
     });
 
+    const totalPages = Math.max(1, Math.ceil(total / USERS_PAGE_SIZE));
+
     return {
       response: 'success',
       message: 'Users fetched successfully',
-      data: users,
+      data: {
+        users,
+        total,
+        page: Math.min(parsedParams.data.page, totalPages),
+        pageSize: USERS_PAGE_SIZE,
+        totalPages,
+      },
     };
   } catch (error) {
     reportError(error, { area: "users.list" });

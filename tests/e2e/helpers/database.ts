@@ -17,6 +17,43 @@ export const SEEDED_ADMIN_PASSWORD = 'E2e-Admin-Password-123!';
 
 let nextUserId = 0;
 
+interface TestListUserOptions {
+  name?: string;
+  email: string;
+  role?: string;
+  status?: string;
+  emailVerified?: boolean;
+  providers?: Array<'credential' | 'google' | 'github'>;
+}
+
+export async function createTestUsers(options: TestListUserOptions[]) {
+  const hashedPassword = await hashPassword(E2E_PASSWORD);
+
+  return prisma.$transaction(
+    options.map((userOptions) => {
+      const providers = userOptions.providers ?? ['credential'];
+      return prisma.user.create({
+        data: {
+          name: userOptions.name ?? 'E2E Test User',
+          email: userOptions.email,
+          emailVerified: userOptions.emailVerified ?? true,
+          role: userOptions.role ?? 'user',
+          status: userOptions.status ?? 'active',
+          termsAcceptedAt: new Date(),
+          termsVersion: siteConfig.termsVersion,
+          accounts: {
+            create: providers.map((providerId) => ({
+              accountId: `${userOptions.email}:${providerId}`,
+              providerId,
+              password: providerId === 'credential' ? hashedPassword : null,
+            })),
+          },
+        },
+      });
+    }),
+  );
+}
+
 export async function createTestUser(options: {
   name?: string;
   email?: string;
