@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { siteConfig } from '@/config/site';
+import { getPublicSupportEmail, SUPPORT_EMAIL_NOT_CONFIGURED } from '@/lib/support-email';
 
 export const metadata: Metadata = {
   title: `Privacy Policy | ${siteConfig.appName}`,
@@ -9,6 +10,12 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === 'true';
   const githubEnabled = process.env.NEXT_PUBLIC_GITHUB_ENABLED === 'true';
+  const supportEmail = getPublicSupportEmail();
+  const supportLink = supportEmail ? (
+    <a href={`mailto:${supportEmail}`}>{supportEmail}</a>
+  ) : (
+    SUPPORT_EMAIL_NOT_CONFIGURED
+  );
 
   return (
     <article className="space-y-10">
@@ -66,7 +73,7 @@ export default function PrivacyPage() {
         </section>
         <section>
           <h2>8. Your choices and rights</h2>
-          <p>You can view and edit profile information from the dashboard. Delete your account from Profile → Security; your profile data, sessions, connected accounts, two-factor settings, activity history, and stored avatar are deleted, and we send you an email notice. To request a copy of your personal data, email <a href={`mailto:${siteConfig.contactEmail}`}>{siteConfig.contactEmail}</a>. Depending on where you live, you may have additional privacy rights under local law.</p>
+          <p>You can view and edit profile information from the dashboard. Delete your account from Profile → Security; your profile data, sessions, connected accounts, two-factor settings, activity history, and stored avatar are deleted, and we send you an email notice. To request a copy of your personal data, email {supportLink}. Depending on where you live, you may have additional privacy rights under local law.</p>
         </section>
         <section>
           <h2>9. Children</h2>
@@ -74,7 +81,7 @@ export default function PrivacyPage() {
         </section>
         <section>
           <h2>10. Changes and contact</h2>
-          <p>We may update this policy and will post changes here with a new “Last updated” date. Questions or requests can be sent to <a href={`mailto:${siteConfig.contactEmail}`}>{siteConfig.contactEmail}</a>.</p>
+          <p>We may update this policy and will post changes here with a new “Last updated” date. Questions or requests can be sent to {supportLink}.</p>
         </section>
       </div>
     </article>

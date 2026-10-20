@@ -13,7 +13,7 @@ interface SecurityNoticeEmailProps {
   name: string;
   eventDescription: string;
   occurredAt: string;
-  contactEmail: string;
+  supportEmail: string;
   appName: string;
 }
 
@@ -21,7 +21,7 @@ export function SecurityNoticeEmail({
   name,
   eventDescription,
   occurredAt,
-  contactEmail,
+  supportEmail,
   appName,
 }: SecurityNoticeEmailProps) {
   return (
@@ -35,7 +35,7 @@ export function SecurityNoticeEmail({
             <Text style={paragraph}>{`Hi ${name},`}</Text>
             <Text style={paragraph}>{`${eventDescription} on ${occurredAt}.`}</Text>
             <Text style={paragraph}>
-              {`If you did not do this, reset your ${appName} password and contact us at ${contactEmail}.`}
+              {`If you did not do this, reset your ${appName} password and contact us at ${supportEmail}.`}
             </Text>
           </Section>
         </Container>

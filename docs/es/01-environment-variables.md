@@ -89,6 +89,17 @@ Esta referencia cubre todas las variables que leen la aplicación y los scripts 
 - **Formato de ejemplo:** `RapidAuth <noreply@example.com>`
 - **Secreta:** No. Verifica el dominio antes de enviar correo en producción.
 
+## Soporte
+
+### `SUPPORT_EMAIL`
+
+- **Propósito:** Dirección de correo electrónico pública para soporte y contacto legal. Se muestra en la página `/support`, en las páginas legales (`/terms` y `/privacy`), y en los correos de aviso de seguridad y eliminación de cuenta.
+- **Obligatoria:** Obligatoria en builds de producción (`next build` falla si falta o no es válida). Opcional en desarrollo (muestra un texto indicando que la configuración está pendiente).
+- **Dónde obtenerla:** Configura la dirección de buzón de soporte (ej. `soporte@tudominio.com`). Ejecuta `bun run init:setup --only support` (o `bun run setup:support`) para configurarla.
+- **Formato de ejemplo:** `soporte@example.com`
+- **Nota de compilación:** El valor se fija durante el build para páginas estáticas (`/terms` y `/privacy`).
+- **Secreta:** No. Es una dirección de contacto pública.
+
 ## Turnstile
 
 ### `NEXT_PUBLIC_TURNSTILE_SITE_KEY`

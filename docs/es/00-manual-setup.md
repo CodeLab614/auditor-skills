@@ -153,7 +153,7 @@ Abre [http://localhost:3000](http://localhost:3000), entra a la página de inici
 
 ## Antes de desplegar
 
-- Revisa y personaliza los Términos de servicio (`/terms`) y la Política de privacidad (`/privacy`) antes de publicar. Configura `legalEntityName`, `contactEmail`, `governingLaw`, `lastUpdated` y `termsVersion` en `config/site.ts`; después adapta el texto de `app/(legal)/terms/page.tsx` y `app/(legal)/privacy/page.tsx` a tu servicio. Aumenta `termsVersion` cuando debas pedir que se acepte una versión revisada. Estos documentos son plantillas, no asesoría legal; pide a un abogado que los revise.
+- Revisa y personaliza los Términos de servicio (`/terms`) y la Política de privacidad (`/privacy`) antes de publicar. Configura `legalEntityName`, `governingLaw`, `lastUpdated` y `termsVersion` en `config/site.ts`, y configura `SUPPORT_EMAIL` en tu entorno (consulta [Variables de entorno](01-environment-variables.md)); después adapta el texto de `app/(legal)/terms/page.tsx` y `app/(legal)/privacy/page.tsx` a tu servicio. Aumenta `termsVersion` cuando debas pedir que se acepte una versión revisada. Estos documentos son plantillas, no asesoría legal; pide a un abogado que los revise.
 - Configura un `BETTER_AUTH_SECRET` único, el `BETTER_AUTH_URL` público correcto y un `DATABASE_URL` de producción.
 - Configura `RESEND_API_KEY` y un remitente `FROM_EMAIL` con dominio verificado.
 - Proporciona claves reales de Turnstile a cada compilación, incluidas staging, vistas previas y CI. Con Docker, monta `TURNSTILE_SECRET_KEY` con BuildKit durante el build y vuelve a proporcionarla en runtime; pasa la site key pública como argumento de build. Consulta [Cloudflare Turnstile](02-turnstile.md).

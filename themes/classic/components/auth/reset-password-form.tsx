@@ -12,6 +12,7 @@ import { resetPasswordSchema, type ResetPasswordFormData } from '@/validations/a
 import { resetPasswordAction } from '@/actions/auth';
 
 import { AuthCard } from "./auth-card";
+import { SupportLink } from "./support-link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -64,6 +65,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
       <AuthCard
         title="Password reset successful"
         description="Your password has been updated"
+        footer={<SupportLink />}
       >
         <div className="flex flex-col items-center py-4 space-y-4">
           <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
@@ -89,6 +91,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
       <AuthCard
         title="Invalid reset link"
         description="This password reset link is invalid or has expired"
+        footer={<SupportLink />}
       >
         <div className="flex flex-col items-center py-4 space-y-4">
           <p className="text-sm text-muted-foreground text-center">
@@ -109,6 +112,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
     <AuthCard
       title="Reset your password"
       description="Enter your new password below"
+      footer={<SupportLink />}
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

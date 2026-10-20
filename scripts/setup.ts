@@ -20,6 +20,7 @@ import {
 } from './lib/docker';
 import { createS3Storage } from '../lib/storage';
 import { getThemeChangedPaths } from './lib/theme-safety';
+import { getSupportEmail } from '../lib/support-email';
 
 // ============================================================================
 // CONFIGURATION
@@ -1178,10 +1179,35 @@ function loadExistingEnv(): Record<string, string> {
   return result;
 }
 
+async function askSupportEmail(existingValue?: string): Promise<string> {
+  println(`  ${icons.email} ${colors.bold}SUPPORT_EMAIL${colors.reset} ${colors.red}*${colors.reset}`);
+  println(`     ${colors.dim}Support and legal contact email address.${colors.reset}`);
+  println(`     ${colors.dim}Shown on /support, legal pages (/terms, /privacy), and notice emails.${colors.reset}`);
+  println();
+
+  const defaultValue = existingValue?.trim();
+  while (true) {
+    const prompt = defaultValue
+      ? `     ${colors.yellow}${icons.arrow}${colors.reset} Support email ${colors.dim}(default: ${defaultValue})${colors.reset}: `
+      : `     ${colors.yellow}${icons.arrow}${colors.reset} Support email: `;
+    const input = await question(prompt);
+    const candidate = input.trim() || defaultValue || '';
+    const validated = getSupportEmail({ SUPPORT_EMAIL: candidate });
+    if (validated) {
+      println();
+      println(`     ${colors.green}${icons.success} Support email set: ${validated}${colors.reset}`);
+      println();
+      return validated;
+    }
+    println(`     ${colors.red}${icons.error} Enter a valid email address (e.g. support@example.com)${colors.reset}`);
+  }
+}
+
 const ENV_SECTION_KEYS: Record<string, string[]> = {
   database: ['DATABASE_URL', 'DB_PORT', 'DOCKER_DATABASE'],
   auth: ['BETTER_AUTH_SECRET', 'BETTER_AUTH_URL'],
   email: ['EMAIL_DELIVERY', 'RESEND_API_KEY', 'FROM_EMAIL'],
+  support: ['SUPPORT_EMAIL'],
   captcha: ['NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY'],
   monitoring: ['NEXT_PUBLIC_SENTRY_DSN', 'SENTRY_ORG', 'SENTRY_PROJECT', 'SENTRY_AUTH_TOKEN', 'SENTRY_TRACES_SAMPLE_RATE'],
   cleanup: ['CRON_SECRET'],
@@ -1201,6 +1227,7 @@ function updateEnvSections(
   const selectedKeys = new Set(sections.flatMap((section) => ENV_SECTION_KEYS[section] ?? []));
   const sectionLabels: Record<string, string> = {
     database: '# Database', auth: '# Better Auth', email: '# Email (Resend)',
+    support: '# Support',
     captcha: '# Cloudflare Turnstile', oauth: '# OAuth Providers',
     storage: '# File storage',
     monitoring: '# Error monitoring (Sentry)',
@@ -1567,18 +1594,24 @@ async function askStorageConfig(existingEnv: Record<string, string>): Promise<Re
 
 async function runSetup() {
   const onlyIndex = process.argv.indexOf('--only');
-  const allowedOnly = ['database', 'email', 'turnstile', 'oauth', 'theme', 'storage', 'sentry', 'cleanup', 'proxy'] as const;
+  const allowedOnly = ['database', 'email', 'support', 'turnstile', 'oauth', 'theme', 'storage', 'sentry', 'cleanup', 'proxy'] as const;
   let forcedSection: (typeof allowedOnly)[number] | undefined;
   if (onlyIndex !== -1) {
     const value = process.argv[onlyIndex + 1];
     if (!value || !allowedOnly.includes(value as (typeof allowedOnly)[number])) {
-      throw new Error('Usage: bun run scripts/setup.ts --only <database|email|turnstile|oauth|theme|storage|sentry|cleanup|proxy>');
+      throw new Error('Usage: bun run scripts/setup.ts --only <database|email|support|turnstile|oauth|theme|storage|sentry|cleanup|proxy>');
     }
     forcedSection = value as (typeof allowedOnly)[number];
   }
 
   const existingEnv = loadExistingEnv();
-  const isConfigured = Boolean(existingEnv.DATABASE_URL && existingEnv.BETTER_AUTH_SECRET && existingEnv.BETTER_AUTH_URL && existingEnv.RESEND_API_KEY && existingEnv.FROM_EMAIL);
+  const isConfigured = Boolean(
+    existingEnv.DATABASE_URL &&
+    existingEnv.BETTER_AUTH_SECRET &&
+    existingEnv.BETTER_AUTH_URL &&
+    existingEnv.RESEND_API_KEY &&
+    existingEnv.FROM_EMAIL
+  );
   let selection = forcedSection ?? '';
   if (!selection && isConfigured) {
     println('This project is already configured. Choose what to update:');
@@ -1591,15 +1624,32 @@ async function runSetup() {
     println('  [7] Sentry');
     println('  [8] Scheduled cleanup');
     println('  [9] Trusted proxy');
-    println('  [10] Everything');
-    const choices: Record<string, string> = { '1': 'database', '2': 'email', '3': 'turnstile', '4': 'oauth', '5': 'theme', '6': 'storage', '7': 'sentry', '8': 'cleanup', '9': 'proxy', '10': 'everything' };
+    println('  [10] Support email');
+    println('  [11] Everything');
+    const choices: Record<string, string> = {
+      '1': 'database',
+      '2': 'email',
+      '3': 'turnstile',
+      '4': 'oauth',
+      '5': 'theme',
+      '6': 'storage',
+      '7': 'sentry',
+      '8': 'cleanup',
+      '9': 'proxy',
+      '10': 'support',
+      '11': 'everything',
+    };
     while (!selection) {
       selection = choices[await question('Select a section: ')] ?? '';
       if (!selection) println('Choose one of the listed options.');
     }
   }
   if (!selection) selection = 'everything';
-  const selectedSections = new Set(selection === 'everything' ? ['database', 'auth', 'email', 'captcha', 'oauth', 'theme', 'storage', 'monitoring', 'cleanup', 'proxy'] : [selection === 'turnstile' ? 'captcha' : selection === 'sentry' ? 'monitoring' : selection]);
+  const selectedSections = new Set(
+    selection === 'everything'
+      ? ['database', 'auth', 'email', 'support', 'captcha', 'oauth', 'theme', 'storage', 'monitoring', 'cleanup', 'proxy']
+      : [selection === 'turnstile' ? 'captcha' : selection === 'sentry' ? 'monitoring' : selection]
+  );
   const databaseSelected = selectedSections.has('database');
   const themeSelected = selectedSections.has('theme');
   const previousDatabaseUrl = existingEnv.DATABASE_URL;
@@ -1611,6 +1661,7 @@ async function runSetup() {
     { key: 'database', title: 'Database Configuration', icon: icons.database },
     { key: 'auth', title: 'Authentication', icon: icons.key },
     { key: 'email', title: 'Email Configuration', icon: icons.email },
+    { key: 'support', title: 'Support Email', icon: icons.email },
     { key: 'captcha', title: 'Bot Protection (Cloudflare Turnstile)', icon: icons.shield },
     { key: 'oauth', title: 'OAuth Providers', icon: icons.globe },
     { key: 'storage', title: 'File Storage', icon: icons.database },
@@ -1775,6 +1826,8 @@ async function runSetup() {
       }
 
       println();
+    } else if (category.key === 'support') {
+      newEnv.SUPPORT_EMAIL = await askSupportEmail(existingEnv.SUPPORT_EMAIL);
     } else if (category.key === 'captcha') {
       const turnstile = await askTurnstileConfig(existingEnv);
       newEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY = turnstile.siteKey;

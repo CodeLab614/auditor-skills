@@ -153,7 +153,7 @@ Open [http://localhost:3000](http://localhost:3000), go to the sign-in page, and
 
 ## Before deploying
 
-- Review and personalize the public Terms of Service (`/terms`) and Privacy Policy (`/privacy`) before launch. Set `legalEntityName`, `contactEmail`, `governingLaw`, `lastUpdated`, and `termsVersion` in `config/site.ts`, then edit the page copy in `app/(legal)/terms/page.tsx` and `app/(legal)/privacy/page.tsx` to match your service. Increase `termsVersion` whenever users must accept a revised version. These documents are templates, not legal advice; have a qualified lawyer review them.
+- Review and personalize the public Terms of Service (`/terms`) and Privacy Policy (`/privacy`) before launch. Set `legalEntityName`, `governingLaw`, `lastUpdated`, and `termsVersion` in `config/site.ts`, and set `SUPPORT_EMAIL` in your environment (see [Environment variables](01-environment-variables.md)), then edit the page copy in `app/(legal)/terms/page.tsx` and `app/(legal)/privacy/page.tsx` to match your service. Increase `termsVersion` whenever users must accept a revised version. These documents are templates, not legal advice; have a qualified lawyer review them.
 - Set a unique `BETTER_AUTH_SECRET`, the correct public `BETTER_AUTH_URL`, and a production `DATABASE_URL` in the target environment.
 - Set `RESEND_API_KEY` and a verified `FROM_EMAIL` sender.
 - Provide real Turnstile keys to every build, including staging, previews, and CI. For Docker, mount `TURNSTILE_SECRET_KEY` with BuildKit during the build and provide it again at runtime; pass the public site key as a build argument. See [Cloudflare Turnstile](02-turnstile.md).

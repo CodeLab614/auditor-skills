@@ -16,6 +16,7 @@ import {
 } from '@/actions/auth';
 
 import { AuthCard, AuthLink } from "./auth-card";
+import { SupportLink } from "./support-link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -96,10 +97,13 @@ export function RegisterForm() {
       title="Create an account"
       description="Enter your details to get started"
       footer={
-        <>
-          Already have an account?{" "}
-          <AuthLink href="/auth/login">Sign in</AuthLink>
-        </>
+        <div className="space-y-2">
+          <div>
+            Already have an account?{" "}
+            <AuthLink href="/auth/login">Sign in</AuthLink>
+          </div>
+          <SupportLink />
+        </div>
       }
     >
       <Form {...form}>

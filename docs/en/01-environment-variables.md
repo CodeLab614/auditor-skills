@@ -89,6 +89,17 @@ This reference covers every variable read by the application and setup scripts. 
 - **Example format:** `RapidAuth <noreply@example.com>`
 - **Secret:** No. The domain must be verified before production email delivery.
 
+## Support
+
+### `SUPPORT_EMAIL`
+
+- **Purpose:** Public support and legal contact email address. Shown on the `/support` page, on legal pages (`/terms` and `/privacy`), and in account deletion and security notice emails.
+- **Required:** Required for production builds (`next build` fails if missing or invalid). Optional in development (displays a placeholder explaining configuration is pending).
+- **Where to get it:** Configure your support mailbox address (e.g., `support@yourdomain.com`). Run `bun run init:setup --only support` (or `bun run setup:support`) to configure it.
+- **Example format:** `support@example.com`
+- **Build note:** The value is baked in during the build for static pages (`/terms` and `/privacy`).
+- **Secret:** No. It is a public contact address.
+
 ## Turnstile
 
 ### `NEXT_PUBLIC_TURNSTILE_SITE_KEY`

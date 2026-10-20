@@ -17,6 +17,7 @@ import {
 } from '@/actions/auth';
 
 import { AuthCard, AuthLink } from './auth-card';
+import { SupportLink } from './support-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -131,10 +132,13 @@ export function LoginForm({
       title="Welcome back"
       description="Enter your credentials to access your account"
       footer={
-        <>
-          Don&apos;t have an account?{' '}
-          <AuthLink href="/auth/register">Sign up</AuthLink>
-        </>
+        <div className="space-y-2">
+          <div>
+            Don&apos;t have an account?{' '}
+            <AuthLink href="/auth/register">Sign up</AuthLink>
+          </div>
+          <SupportLink />
+        </div>
       }
     >
       {notice && (

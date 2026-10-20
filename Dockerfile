@@ -14,6 +14,7 @@ ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG SENTRY_ORG
 ARG SENTRY_PROJECT
+ARG SUPPORT_EMAIL
 # These dummy values let auth and Prisma modules load for compilation only.
 # The build does not connect to the database; the runtime container receives real values.
 RUN --mount=type=secret,id=turnstile_secret_key,env=TURNSTILE_SECRET_KEY \
@@ -21,6 +22,7 @@ RUN --mount=type=secret,id=turnstile_secret_key,env=TURNSTILE_SECRET_KEY \
     DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?sslmode=disable" \
     BETTER_AUTH_URL="http://127.0.0.1:3000" \
     BETTER_AUTH_SECRET="0000000000000000000000000000000000000000000000000000000000000000" \
+    SUPPORT_EMAIL="${SUPPORT_EMAIL}" \
     NODE_ENV="production" bun run build
 
 FROM node:24-alpine AS runner

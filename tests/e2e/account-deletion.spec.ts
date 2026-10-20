@@ -81,7 +81,8 @@ test('successful deletion removes account data, avatar and sessions, sends notic
   const notice = await getOutboxMessage(email);
   expect(notice.subject).toBe('Your account has been deleted');
   expect(notice.html).toContain('UTC');
-  expect(notice.html).toContain('REPLACE_WITH_CONTACT_EMAIL');
+  expect(notice.html).toContain('support@e2e.invalid');
+  expect(notice.html).not.toContain('REPLACE_WITH_CONTACT_EMAIL');
   expect(notice.html).toContain(`Your ${siteConfig.appName} account was deleted`);
 
   await page.goto('/dashboard');

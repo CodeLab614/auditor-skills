@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { AuthCard, AuthLink } from "./auth-card";
+import { SupportLink } from "./support-link";
 import { Button } from "@/components/ui/button";
 import { Mail, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -62,10 +63,13 @@ export function VerifyEmailForm({
       title="Verify your email"
       description="We've sent a verification link to your email"
       footer={
-        <>
-          Wrong email?{" "}
-          <AuthLink href="/auth/register">Use a different email</AuthLink>
-        </>
+        <div className="space-y-2">
+          <div>
+            Wrong email?{" "}
+            <AuthLink href="/auth/register">Use a different email</AuthLink>
+          </div>
+          <SupportLink />
+        </div>
       }
     >
       <div className="flex flex-col items-center py-4 space-y-6">

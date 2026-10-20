@@ -7,13 +7,19 @@ import {
   getSentryEnvironment,
   getSentryRuntimeConfig,
 } from "./lib/sentry-config";
+import {
+  getSupportEmail,
+  getSupportEmailConfigError,
+} from "./lib/support-email";
 import { siteConfig } from "./config/site";
 
 const nextConfig = (phase: string): NextConfig => {
   if (phase === PHASE_PRODUCTION_BUILD) {
+    const supportEmailError = getSupportEmailConfigError(process.env);
+    if (supportEmailError) throw new Error(supportEmailError);
+
     const exampleValues = [
       siteConfig.legalEntityName.startsWith("REPLACE_WITH_") && "legalEntityName",
-      siteConfig.contactEmail.startsWith("REPLACE_WITH_") && "contactEmail",
       siteConfig.governingLaw.startsWith("REPLACE_WITH_") && "governingLaw",
     ].filter(Boolean);
     if (exampleValues.length > 0) {
@@ -45,6 +51,7 @@ const nextConfig = (phase: string): NextConfig => {
       NEXT_PUBLIC_SENTRY_ENVIRONMENT: getSentryEnvironment(process.env),
       SENTRY_TRACES_SAMPLE_RATE:
         process.env.SENTRY_TRACES_SAMPLE_RATE?.trim() || '0',
+      SUPPORT_EMAIL: getSupportEmail(process.env) ?? '',
     },
     logging: { serverFunctions: false },
     distDir: process.env.RAPIDAUTH_NEXT_DIST_DIR ?? ".next",

@@ -3,11 +3,11 @@ import { Body, Container, Head, Heading, Html, Preview, Section, Text } from "re
 interface AccountDeletedEmailProps {
   name: string;
   deletedAt: string;
-  contactEmail: string;
+  supportEmail: string;
   appName: string;
 }
 
-export function AccountDeletedEmail({ name, deletedAt, contactEmail, appName }: AccountDeletedEmailProps) {
+export function AccountDeletedEmail({ name, deletedAt, supportEmail, appName }: AccountDeletedEmailProps) {
   return (
     <Html>
       <Head />
@@ -19,7 +19,7 @@ export function AccountDeletedEmail({ name, deletedAt, contactEmail, appName }: 
             <Text style={paragraph}>{`Hi ${name},`}</Text>
             <Text style={paragraph}>{`Your ${appName} account was deleted on ${deletedAt}.`}</Text>
             <Text style={paragraph}>
-              {`If you did not delete this account, contact us at ${contactEmail}.`}
+              {`If you did not delete this account, contact us at ${supportEmail}.`}
             </Text>
           </Section>
         </Container>

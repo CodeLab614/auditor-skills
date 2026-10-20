@@ -27,6 +27,8 @@ test('changing a password from Profile sends one security notice', async ({ page
     .filter((message) => message.subject === 'Your password was changed');
   expect(notices).toHaveLength(1);
   expect(notices[0]!.html).toContain('UTC');
+  expect(notices[0]!.html).toContain('support@e2e.invalid');
+  expect(notices[0]!.html).not.toContain('REPLACE_WITH_CONTACT_EMAIL');
 });
 
 test('resetting a password with an email link sends one security notice', async ({ page }) => {
@@ -46,4 +48,6 @@ test('resetting a password with an email link sends one security notice', async 
     .filter((message) => message.subject === 'Your password was reset');
   expect(notices).toHaveLength(1);
   expect(notices[0]!.html).toContain('UTC');
+  expect(notices[0]!.html).toContain('support@e2e.invalid');
+  expect(notices[0]!.html).not.toContain('REPLACE_WITH_CONTACT_EMAIL');
 });

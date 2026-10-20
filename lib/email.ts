@@ -8,6 +8,7 @@ import {
   VerificationEmail,
 } from '@/emails';
 import { siteConfig } from '@/config/site';
+import { getPublicSupportEmail, SUPPORT_EMAIL_NOT_CONFIGURED } from '@/lib/support-email';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -151,10 +152,11 @@ export async function sendAccountDeletedEmail({ email, name, deletedAt }: {
   name: string;
   deletedAt: string;
 }) {
+  const supportEmail = getPublicSupportEmail() ?? SUPPORT_EMAIL_NOT_CONFIGURED;
   const html = await render(AccountDeletedEmail({
     name,
     deletedAt,
-    contactEmail: siteConfig.contactEmail,
+    supportEmail,
     appName: siteConfig.appName,
   }));
 
@@ -216,12 +218,13 @@ export async function sendSecurityNoticeEmail({
     timeStyle: 'short',
     timeZone: 'UTC',
   })} UTC`;
+  const supportEmail = getPublicSupportEmail() ?? SUPPORT_EMAIL_NOT_CONFIGURED;
   const html = await render(
     SecurityNoticeEmail({
       name: userName,
       eventDescription: notice.description,
       occurredAt: occurredAtUtc,
-      contactEmail: siteConfig.contactEmail,
+      supportEmail,
       appName: siteConfig.appName,
     })
   );

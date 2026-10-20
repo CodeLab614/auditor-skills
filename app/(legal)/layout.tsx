@@ -31,6 +31,9 @@ export default function LegalLayout({
           <Link className="transition-colors hover:text-foreground" href="/privacy">
             Privacy Policy
           </Link>
+          <Link className="transition-colors hover:text-foreground" href="/support">
+            Support
+          </Link>
           <span className="ml-auto text-xs">&copy; {new Date().getFullYear()} {siteConfig.appName}</span>
         </nav>
       </footer>

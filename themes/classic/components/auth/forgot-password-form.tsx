@@ -11,6 +11,7 @@ import { forgotPasswordSchema, type ForgotPasswordFormData } from '@/validations
 import { forgotPasswordAction } from '@/actions/auth';
 
 import { AuthCard, AuthLink } from "./auth-card";
+import { SupportLink } from "./support-link";
 import {
   TurnstileWidget,
   isTurnstileEnabled,
@@ -70,14 +71,17 @@ export function ForgotPasswordForm() {
         title="Check your email"
         description="We've sent a password reset link to your email"
         footer={
-          <>
-            <AuthLink href="/auth/login">
-              <span className="inline-flex items-center gap-1">
-                <ArrowLeft className="h-3 w-3" />
-                Back to sign in
-              </span>
-            </AuthLink>
-          </>
+          <div className="space-y-2">
+            <div>
+              <AuthLink href="/auth/login">
+                <span className="inline-flex items-center gap-1">
+                  <ArrowLeft className="h-3 w-3" />
+                  Back to sign in
+                </span>
+              </AuthLink>
+            </div>
+            <SupportLink />
+          </div>
         }
       >
         <div className="flex flex-col items-center py-4 space-y-4">
@@ -126,14 +130,17 @@ export function ForgotPasswordForm() {
       title="Forgot password?"
       description="Enter your email and we'll send you a reset link"
       footer={
-        <>
-          <AuthLink href="/auth/login">
-            <span className="inline-flex items-center gap-1">
-              <ArrowLeft className="h-3 w-3" />
-              Back to sign in
-            </span>
-          </AuthLink>
-        </>
+        <div className="space-y-2">
+          <div>
+            <AuthLink href="/auth/login">
+              <span className="inline-flex items-center gap-1">
+                <ArrowLeft className="h-3 w-3" />
+                Back to sign in
+              </span>
+            </AuthLink>
+          </div>
+          <SupportLink />
+        </div>
       }
     >
       <Form {...form}>

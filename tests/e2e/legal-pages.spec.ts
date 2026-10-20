@@ -10,13 +10,29 @@ test('legal pages show their titles and update date, link to each other, and hav
   await page.goto('/terms');
   await expect(page.getByRole('heading', { name: 'Terms of Service', exact: true })).toBeVisible();
   await expect(page.getByText('Last updated: 2026-10-18', { exact: true })).toBeVisible();
+  const termsSupportLinks = page.locator('a[href="mailto:support@e2e.invalid"]');
+  await expect(termsSupportLinks.first()).toBeVisible();
+  await expect(termsSupportLinks.first()).toHaveText('support@e2e.invalid');
+  expect(await page.content()).not.toContain('REPLACE_WITH_CONTACT_EMAIL');
+
   await page.getByRole('link', { name: 'Privacy Policy' }).last().click();
   await expect(page).toHaveURL(/\/privacy$/);
   await expect(page.getByRole('heading', { name: 'Privacy Policy', exact: true })).toBeVisible();
   await expect(page.getByText('Last updated: 2026-10-18', { exact: true })).toBeVisible();
   await expect(page.getByText('Google sign-in', { exact: false })).toHaveCount(1);
+  const privacySupportLinks = page.locator('a[href="mailto:support@e2e.invalid"]');
+  await expect(privacySupportLinks.first()).toBeVisible();
+  await expect(privacySupportLinks.first()).toHaveText('support@e2e.invalid');
+  expect(await page.content()).not.toContain('REPLACE_WITH_CONTACT_EMAIL');
+
+  await page.getByRole('link', { name: 'Support' }).last().click();
+  await expect(page).toHaveURL(/\/support$/);
+
   await page.getByRole('link', { name: 'Terms of Service' }).last().click();
   await expect(page).toHaveURL(/\/terms$/);
+
+  await page.getByRole('link', { name: 'Support' }).last().click();
+  await expect(page).toHaveURL(/\/support$/);
 
   expect(errors).toEqual([]);
 });

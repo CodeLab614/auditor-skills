@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { siteConfig } from '@/config/site';
+import { getPublicSupportEmail, SUPPORT_EMAIL_NOT_CONFIGURED } from '@/lib/support-email';
 
 export const metadata: Metadata = {
   title: `Terms of Service | ${siteConfig.appName}`,
@@ -7,6 +8,12 @@ export const metadata: Metadata = {
 };
 
 export default function TermsPage() {
+  const supportEmail = getPublicSupportEmail();
+  const supportLink = supportEmail ? (
+    <a href={`mailto:${supportEmail}`}>{supportEmail}</a>
+  ) : (
+    SUPPORT_EMAIL_NOT_CONFIGURED
+  );
   return (
     <article className="space-y-10">
       <header className="space-y-4 border-b border-border pb-8">
@@ -30,7 +37,7 @@ export default function TermsPage() {
         </section>
         <section>
           <h2>4. Suspension and account closure</h2>
-          <p>An administrator may suspend or close an account that violates these terms, creates a security risk, or harms the service or its users. You may ask us to close your account by contacting <a href={`mailto:${siteConfig.contactEmail}`}>{siteConfig.contactEmail}</a>. Account closure may remove associated profile and account data, subject to applicable retention requirements.</p>
+          <p>An administrator may suspend or close an account that violates these terms, creates a security risk, or harms the service or its users. You may ask us to close your account by contacting {supportLink}. Account closure may remove associated profile and account data, subject to applicable retention requirements.</p>
         </section>
         <section>
           <h2>5. Intellectual property</h2>
@@ -50,7 +57,7 @@ export default function TermsPage() {
         </section>
         <section>
           <h2>9. Changes and contact</h2>
-          <p>We may update these terms and will post the updated version here with a new “Last updated” date. You will be asked to accept the new version when you next sign in. For questions, contact <a href={`mailto:${siteConfig.contactEmail}`}>{siteConfig.contactEmail}</a>.</p>
+          <p>We may update these terms and will post the updated version here with a new “Last updated” date. You will be asked to accept the new version when you next sign in. For questions, contact {supportLink}.</p>
         </section>
       </div>
     </article>
