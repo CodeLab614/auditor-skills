@@ -23,7 +23,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import {
   TurnstileWidget,
-  isTurnstileEnabled,
 } from './turnstile-widget';
 import {
   Form,
@@ -35,11 +34,19 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 
-const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === 'true';
-const githubEnabled = process.env.NEXT_PUBLIC_GITHUB_ENABLED === 'true';
-const hasOAuth = googleEnabled || githubEnabled;
-
-export function RegisterForm() {
+export function RegisterForm({
+  googleEnabled = false,
+  githubEnabled = false,
+  turnstileSiteKey,
+}: {
+  googleEnabled?: boolean;
+  githubEnabled?: boolean;
+  turnstileSiteKey?: string;
+}) {
+  const hasOAuth = googleEnabled || githubEnabled;
+  const socialProviderNames = [googleEnabled && "Google", githubEnabled && "GitHub"]
+    .filter(Boolean)
+    .join(" or ");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showPassword, setShowPassword] = React.useState(false);
@@ -269,7 +276,7 @@ export function RegisterForm() {
           <Button
             type="submit"
             className="w-full"
-            disabled={isPending || (isTurnstileEnabled && !captchaToken)}
+            disabled={isPending || (Boolean(turnstileSiteKey) && !captchaToken)}
           >
             {isPending ? (
               <>
@@ -282,6 +289,8 @@ export function RegisterForm() {
           </Button>
 
           <TurnstileWidget
+
+            siteKey={turnstileSiteKey}
             action="signup"
             onToken={setCaptchaToken}
             resetKey={captchaResetKey}
@@ -302,7 +311,7 @@ export function RegisterForm() {
 
               {!acceptedTerms && (
                 <p className="text-center text-sm text-muted-foreground">
-                  Accept the Terms of Service and Privacy Policy to continue with Google or GitHub.
+                  Accept the Terms of Service and Privacy Policy to continue with {socialProviderNames}.
                 </p>
               )}
 
