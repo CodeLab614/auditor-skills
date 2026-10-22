@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { formatEnvSummary, resolveEnv } from '../../lib/env';
+import { formatEnvSummary, resolveDevServices, resolveEnv } from '../../lib/env';
 
 const google = { GOOGLE_CLIENT_ID: 'id', GOOGLE_CLIENT_SECRET: 'secret' };
 const github = { GITHUB_CLIENT_ID: 'id', GITHUB_CLIENT_SECRET: 'secret' };
@@ -43,10 +43,38 @@ test.describe('environment resolution', () => {
     });
   });
 
-  test('detects the Docker database only when DOCKER_DATABASE is "true"', () => {
-    expect(resolveEnv({ DOCKER_DATABASE: 'true' }).config.database.docker).toBe(true);
-    expect(resolveEnv({ DOCKER_DATABASE: 'false' }).config.database.docker).toBe(false);
-    expect(resolveEnv({ DOCKER_DATABASE: '1' }).config.database.docker).toBe(false);
+  test('detects the Docker database from DATABASE_URL and DB_PORT', () => {
+    const local = 'postgresql://rapidauth:rapidauth@localhost:5432/rapidauth?sslmode=disable';
+    const docker = (env: Record<string, string>) => resolveEnv(env).config.database.docker;
+    expect(docker({ DATABASE_URL: local })).toBe(true);
+    expect(docker({ DATABASE_URL: local.replace('localhost', '127.0.0.1') })).toBe(true);
+    expect(docker({ DATABASE_URL: local.replace('localhost', '[::1]') })).toBe(true);
+    expect(docker({ DATABASE_URL: local.replace(':5432', ':55432'), DB_PORT: '55432' })).toBe(true);
+    expect(docker({ DATABASE_URL: local.replace(':5432', ':55432') })).toBe(false);
+    expect(docker({ DATABASE_URL: local, DB_PORT: '55432' })).toBe(false);
+    expect(docker({ DATABASE_URL: 'postgresql://u:p@ep-x.neon.tech:5432/neondb?sslmode=require' })).toBe(false);
+    expect(docker({ DATABASE_URL: local.replace('rapidauth@', 'other@') })).toBe(false);
+    expect(docker({ DATABASE_URL: 'not a url' })).toBe(false);
+    expect(docker({})).toBe(false);
+  });
+
+  test('decides which Docker services bun dev starts from the effective environment', () => {
+    const local = 'postgresql://rapidauth:rapidauth@localhost:5432/rapidauth?sslmode=disable';
+    const neon = 'postgresql://u:p@ep-x.neon.tech:5432/neondb?sslmode=require';
+    const dotenvFile = { DATABASE_URL: local, RESEND_API_KEY: '' };
+    // dev-setup.ts merges the .env file with variables exported in the terminal, the terminal winning.
+    const effective = (terminal: Record<string, string>) => resolveDevServices({ ...dotenvFile, ...terminal });
+
+    expect(effective({})).toEqual({ dockerDatabase: true, mailpit: true });
+    expect(resolveDevServices({ DATABASE_URL: neon })).toEqual({ dockerDatabase: false, mailpit: true });
+    expect(effective({ DATABASE_URL: neon })).toEqual({ dockerDatabase: false, mailpit: true });
+    expect(effective({ RESEND_API_KEY: 're_123' })).toEqual({ dockerDatabase: true, mailpit: false });
+    expect(effective({ RESEND_API_KEY: '  ' })).toEqual({ dockerDatabase: true, mailpit: true });
+    expect(effective({ DATABASE_URL: neon, RESEND_API_KEY: 're_123' })).toEqual({
+      dockerDatabase: false,
+      mailpit: false,
+    });
+    expect(resolveDevServices({ ...dotenvFile, DATABASE_URL: neon }).dockerDatabase).toBe(false);
   });
 
   test('resolves the email provider', () => {
@@ -184,7 +212,7 @@ test.describe('environment resolution', () => {
   test('formats a short summary from resolved values only', () => {
     const secret = 'super-secret-value';
     const { config } = resolveEnv({
-      DOCKER_DATABASE: 'true',
+      DATABASE_URL: 'postgresql://rapidauth:rapidauth@localhost:5432/rapidauth?sslmode=disable',
       RESEND_API_KEY: secret,
       ...google,
       NEXT_PUBLIC_SENTRY_DSN: 'https://public@o0.ingest.sentry.io/1',

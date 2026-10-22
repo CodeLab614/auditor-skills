@@ -75,7 +75,7 @@ You can also choose this database option in `bun run init:setup`. The wizard che
 
 The database starts automatically when the Docker engine starts, unless you intentionally stopped it with `docker compose stop db`.
 
-Start only the database in the background. This database-only command does not need a `.env` file:
+You do not need to start the database yourself: `bun dev` does it (see below). To start it by hand, run this database-only command in the background; it does not need a `.env` file:
 
 ```sh
 docker compose up -d db
@@ -85,26 +85,26 @@ Set the local Docker database URL in `.env`:
 
 ```dotenv
 DATABASE_URL="postgresql://rapidauth:rapidauth@localhost:5432/rapidauth?sslmode=disable"
-DOCKER_DATABASE=true
 ```
 
 If you changed `DB_PORT`, replace `5432` in the URL with that host port. `sslmode=disable` is only for this local Docker database. Never use it for a production database.
 
-When `DOCKER_DATABASE=true`, `bun dev` starts the database and waits for it to become healthy before running lint and Next.js. With any other value or when the variable is absent, `bun dev` does not start Docker. `init:setup` sets this variable automatically when you choose the local Docker database.
+If `.env` does not exist, `bun dev` creates it with local values (random `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and this Docker `DATABASE_URL`). `bun dev` starts the database and waits for it to become healthy before running lint and Next.js only when `DATABASE_URL` points to it: host `localhost`, `127.0.0.1` or `::1`, user, password and database `rapidauth`, and port `DB_PORT` (default `5432`). With any other URL, such as Neon, `bun dev` does not touch Docker.
 
 ## Switch databases (Neon ↔ Docker)
 
 Run `bun run db:switch` to choose an external PostgreSQL database or the local Docker database. The wizard saves the previous URL as a comment in `.env`, then pushes the schema and seeds the new database. It does not copy records between databases.
 
-To switch manually, edit `DATABASE_URL` and `DOCKER_DATABASE` in `.env`. Set `DOCKER_DATABASE=true` for local Docker PostgreSQL; remove it or set it to `false` for an external database. Then run `bun run db:push` and `bun run db:seed`. Use `sslmode=disable` only for the local Docker database, never production.
+To switch manually, edit `DATABASE_URL` in `.env`. Use the Docker URL above for local Docker PostgreSQL, or your provider's URL for an external database. Then run `bun run db:push` and `bun run db:seed`. Use `sslmode=disable` only for the local Docker database, never production.
 
-Install dependencies with `bun install` if you have not already, then create the tables and admin and start the app on your computer:
+Install dependencies with `bun install` if you have not already, then start the app on your computer. `bun dev` creates the tables when the local database is empty; run `bun run db:seed` once to create the admin:
 
 ```sh
-bun run db:push
-bun run db:seed
 bun dev
+bun run db:seed
 ```
+
+`bun dev` also starts Mailpit (`http://localhost:8025`) when `RESEND_API_KEY` is empty. Variables exported in your terminal win over `.env` for all these decisions, so an exported Neon `DATABASE_URL` keeps Docker off. The tables are created only when the local database has none; a database that already has tables is never touched. For production, run `bun run init:setup`.
 
 This uses the same PostgreSQL database and named volume as the full Docker setup, so you can switch between the two modes without losing data. Do not run this mode and the full Docker app at the same time; both use host port 3000.
 
