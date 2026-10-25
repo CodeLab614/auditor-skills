@@ -16,7 +16,7 @@ docker buildx version
 
 ## Use the app
 
-Docker reads its settings only from `docker/.env`, never from the root `.env` (the root file is for `bun dev` and for production without Docker). The file is optional: copy `docker/.env.example` to `docker/.env` to change a setting. With no file, Compose supplies local defaults and uses the published `ghcr.io/jotredev/rapidauth-v2:2.3.0` image. If that image is unavailable, Compose builds it from the root `Dockerfile`:
+Docker reads its settings only from `docker/.env`, never from the root `.env` (the root file is for `bun dev` and for production without Docker). The file is optional: copy `docker/.env.example` to `docker/.env` to change a setting. With no file, Compose supplies local defaults and uses the published `ghcr.io/codelab614/auditor-skills:2.3.0` image. If that image is unavailable, Compose builds it from the root `Dockerfile`:
 
 ```sh
 cd docker

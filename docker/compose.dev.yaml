@@ -1,4 +1,4 @@
-name: rapidauth
+name: auditor-skills
 
 include:
   - db.yaml

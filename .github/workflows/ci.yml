@@ -221,7 +221,7 @@ jobs:
           SUPPORT_EMAIL: support@example.invalid
         run: |
           docker run -d --name rapidauth-ci-production \
-            --network rapidauth_default -p 3001:3000 \
+            --network auditor-skills_default -p 3001:3000 \
             -e DATABASE_URL -e BETTER_AUTH_URL -e BETTER_AUTH_SECRET \
             -e RESEND_API_KEY -e FROM_EMAIL \
             -e TURNSTILE_SECRET_KEY -e NEXT_PUBLIC_TURNSTILE_SITE_KEY \
