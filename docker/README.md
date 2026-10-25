@@ -4,7 +4,7 @@ Compose offers a production-image mode for using the app and a development mode 
 
 Docker reads its settings only from `docker/.env` (optional; copy `docker/.env.example`), never from the root `.env`. Run the production mode with `cd docker && docker compose up --build`. Files:
 
-- `docker/compose.yaml`: sets the project name `rapidauth` and includes the service files below.
+- `docker/compose.yaml`: sets the project name `auditor-skills` and includes the service files below.
 - `docker/compose.dev.yaml`: includes the development app with the same project name; run it from the project root with `bun run docker:dev`.
 - `db.yaml`: the `db` service (PostgreSQL) and its data volume.
 - `mail.yaml`: the `mailpit` service (local inbox at `127.0.0.1:8025`).
