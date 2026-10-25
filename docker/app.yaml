@@ -17,7 +17,7 @@ services:
       retries: 3
 
   app:
-    image: ghcr.io/jotredev/rapidauth-v2:2.3.0
+    image: ghcr.io/codelab614/auditor-skills:2.3.0
     build:
       context: ..
       dockerfile: Dockerfile

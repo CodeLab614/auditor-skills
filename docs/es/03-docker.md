@@ -16,7 +16,7 @@ docker buildx version
 
 ## Usar la app
 
-Docker lee su configuración solo desde `docker/.env`, nunca desde el `.env` de la raíz (ese es para `bun dev` y para producción sin Docker). El archivo es opcional: copia `docker/.env.example` a `docker/.env` para cambiar un ajuste. Sin él, Compose usa valores locales predeterminados y usa la imagen publicada `ghcr.io/jotredev/rapidauth-v2:2.3.0`. Si esa imagen no está disponible, Compose la construye desde el `Dockerfile` raíz:
+Docker lee su configuración solo desde `docker/.env`, nunca desde el `.env` de la raíz (ese es para `bun dev` y para producción sin Docker). El archivo es opcional: copia `docker/.env.example` a `docker/.env` para cambiar un ajuste. Sin él, Compose usa valores locales predeterminados y usa la imagen publicada `ghcr.io/codelab614/auditor-skills:2.3.0`. Si esa imagen no está disponible, Compose la construye desde el `Dockerfile` raíz:
 
 ```sh
 cd docker
