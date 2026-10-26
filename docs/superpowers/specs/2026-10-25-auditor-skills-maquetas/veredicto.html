@@ -1,0 +1,62 @@
+<style>
+  .v { font-size:13px; line-height:1.45; }
+  .v .card { border:1px solid rgba(127,127,127,.35); border-radius:10px; padding:14px; }
+  .v .t { font-weight:700; font-size:15px; margin-bottom:8px; }
+  .v .big { font-size:28px; font-weight:800; }
+  .v .row { display:flex; gap:10px; margin:8px 0; flex-wrap:wrap; }
+  .v .k { flex:1; min-width:110px; border:1px solid rgba(127,127,127,.3); border-radius:8px; padding:8px; }
+  .v .lab { font-size:11px; text-transform:uppercase; letter-spacing:.04em; opacity:.65; }
+  .v .bar { height:10px; border-radius:6px; background:rgba(127,127,127,.2); overflow:hidden; display:flex; margin:6px 0 2px; }
+  .v .bar span { display:block; height:100%; }
+  .v .g { background:#1f9a4a; } .v .y { background:#c98a1f; } .v .r { background:#d94040; } .v .n { background:rgba(127,127,127,.55); }
+  .v .badge { display:inline-block; padding:5px 12px; border-radius:999px; font-weight:800; }
+  .v .warn { background:#c98a1f22; color:#c98a1f; border:1px solid #c98a1f; }
+  .v ul { margin:4px 0 0 16px; padding:0; }
+  .v .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; margin:2px 4px 2px 0; border:1px solid rgba(127,127,127,.4); }
+  .v .q { font-size:12px; opacity:.8; margin-top:8px; }
+</style>
+
+<h2>¿Cómo mostramos el veredicto?</h2>
+<p class="subtitle">La misma skill de ejemplo (inventada): un script envía datos a un servidor sin decirlo, y hay un binario que no se puede leer.</p>
+
+<div class="split">
+
+  <div class="mockup">
+    <div class="mockup-header">A · Tres porcentajes (tu idea tal cual)</div>
+    <div class="mockup-body v">
+      <div class="card">
+        <div class="t">Veredicto</div>
+        <div class="row">
+          <div class="k"><div class="lab">Confiabilidad</div><div class="big" style="color:#1f9a4a">92 %</div></div>
+          <div class="k"><div class="lab">Riesgo</div><div class="big" style="color:#d94040">4 %</div></div>
+          <div class="k"><div class="lab">No revisado</div><div class="big" style="opacity:.7">4 %</div></div>
+        </div>
+        <div class="q"><b>El problema:</b> esa skill manda tus datos a un servidor desconocido… y aun así se ve como «92 % confiable». Un solo hallazgo grave basta para que sea peligrosa, aunque el resto del código esté limpio.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">B · Nivel por hallazgos + % de cobertura (mi propuesta)</div>
+    <div class="mockup-body v">
+      <div class="card">
+        <div class="t">Veredicto &nbsp;<span class="badge" style="background:#d9404022;color:#d94040;border:1px solid #d94040">Peligrosa</span></div>
+        <div class="lab">Por qué</div>
+        <ul><li><b>Crítico · no declarado:</b> <code>sync.py:41</code> envía el contenido de <code>.env</code> a <code>api.ejemplo.io</code>. El SKILL.md no lo menciona.</li></ul>
+        <div class="row">
+          <div class="k"><div class="lab">Hallazgos</div>
+            <span class="pill" style="color:#d94040">1 crítico</span><span class="pill" style="color:#c98a1f">2 medios</span><span class="pill">3 bajos</span>
+            <div class="q">De ellos, <b>1 no declarado</b></div>
+          </div>
+          <div class="k"><div class="lab">Cobertura del análisis</div>
+            <div class="bar"><span class="g" style="width:96%"></span><span class="n" style="width:4%"></span></div>
+            <div class="q"><b>96 %</b> revisado · <b>4 %</b> no revisable (1 binario: <code>bin/helper</code>)</div>
+          </div>
+        </div>
+        <div class="lab" style="margin-top:6px">Lo que se hizo</div>
+        <span class="pill">✓ Reglas en 27/27 archivos</span><span class="pill">✓ Explicación IA 26/27</span><span class="pill">✓ Ejecución aislada 3/3 scripts</span><span class="pill">✗ Binario sin analizar</span>
+      </div>
+    </div>
+  </div>
+
+</div>

@@ -6,6 +6,7 @@ import { Sidebar, type NavSection, type UserProfile } from "./sidebar";
 import { Header } from "./header";
 import { CommandPalette } from "./command-palette";
 import { signOut } from "@/actions/auth";
+import { getAuditorNavigation } from "@/components/auditor/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -30,6 +31,7 @@ function getNavigation(isAdmin: boolean): NavSection[] {
         { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       ],
     },
+    ...getAuditorNavigation(isAdmin),
     {
       title: "Menu",
       items: menuItems,

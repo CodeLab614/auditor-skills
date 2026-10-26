@@ -1,0 +1,122 @@
+<style>
+  .m { font-size: 13px; line-height: 1.45; }
+  .m .top { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 12px; border:1px solid rgba(127,127,127,.35); border-radius:8px 8px 0 0; }
+  .m .name { font-weight:700; font-size:15px; }
+  .m .meta { opacity:.7; font-size:12px; }
+  .m .badge { padding:4px 10px; border-radius:999px; font-weight:700; font-size:12px; white-space:nowrap; }
+  .m .warn { background:#b7791f22; color:#c98a1f; border:1px solid #c98a1f; }
+  .m .sel { border:1px solid rgba(127,127,127,.45); border-radius:6px; padding:3px 8px; font-size:12px; }
+  .m .ide { display:flex; border:1px solid rgba(127,127,127,.35); border-top:none; border-radius:0 0 8px 8px; min-height:330px; }
+  .m .tree { width:210px; flex:none; border-right:1px solid rgba(127,127,127,.35); padding:8px; }
+  .m .tree .grp { font-size:11px; text-transform:uppercase; letter-spacing:.04em; opacity:.6; margin:8px 0 3px; }
+  .m .tree div.it { padding:3px 6px; border-radius:4px; font-size:12px; display:flex; align-items:center; justify-content:space-between; }
+  .m .tree div.on { background:rgba(127,127,127,.2); font-weight:700; }
+  .m .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .m .g { background:#1f9a4a; } .m .y { background:#c98a1f; } .m .r { background:#d94040; }
+  .m .cnt { font-size:11px; opacity:.7; }
+  .m .main { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .m .ftabs { display:flex; gap:2px; border-bottom:1px solid rgba(127,127,127,.35); padding:6px 8px 0; }
+  .m .ftab { padding:4px 10px; font-size:12px; border:1px solid rgba(127,127,127,.35); border-bottom:none; border-radius:6px 6px 0 0; }
+  .m .ftab.on { background:rgba(127,127,127,.18); font-weight:700; }
+  .m .fhead { padding:8px 10px; border-bottom:1px solid rgba(127,127,127,.25); font-size:12px; }
+  .m code, .m .c { font-family: ui-monospace, Menlo, monospace; font-size:12px; }
+  .m .c { white-space:pre; }
+  .m .ln { display:inline-block; width:28px; opacity:.45; text-align:right; margin-right:10px; }
+  .m .note { border-left:3px solid #4a8fe0; padding:5px 9px; margin:3px 0 8px 38px; background:#4a8fe014; font-size:12px; font-family: inherit; white-space:normal; }
+  .m .note.w { border-left-color:#c98a1f; background:#c98a1f14; }
+  .m .body { padding:8px 10px; }
+  .m .two { display:flex; }
+  .m .two .l { flex:1.2; min-width:0; border-right:1px dashed rgba(127,127,127,.35); padding-right:8px; }
+  .m .two .rr { flex:1; padding-left:8px; font-size:12px; }
+  .m .two .rr p { margin:0 0 10px; }
+  .m .hl { background:#c98a1f22; }
+</style>
+
+<h2>B, versión 2: la página como un editor</h2>
+<p class="subtitle">Arriba siempre la skill, su veredicto y un selector de versión. A la izquierda el árbol: primero las secciones del reporte y luego los archivos. ¿Dónde prefieres la explicación de cada línea?</p>
+
+<div class="options">
+
+  <div class="option" data-choice="debajo" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>Explicación debajo de cada bloque</h3>
+      <p>Se lee de corrido, como un tutorial. Ocupa más alto.</p>
+      <div class="mockup"><div class="mockup-body m">
+        <div class="top">
+          <div><div class="name">explain-changes</div><div class="meta">CodeLab614-AI/skills · analizada el 23 oct 2026</div></div>
+          <div style="display:flex;gap:8px;align-items:center"><span class="sel">Versión 2 · 1807207 ▾</span><span class="badge warn">Revisar · 2 avisos</span></div>
+        </div>
+        <div class="ide">
+          <div class="tree">
+            <div class="grp">Reporte</div>
+            <div class="it">Resumen</div>
+            <div class="it">Instalación</div>
+            <div class="it">Hallazgos <span class="cnt">2</span></div>
+            <div class="it">Ejecución aislada</div>
+            <div class="it">Cambios vs. v1 <span class="cnt">3</span></div>
+            <div class="grp">Archivos · 27</div>
+            <div class="it"><span><span class="dot g"></span>SKILL.md</span></div>
+            <div class="it"><span><span class="dot g"></span>references/</span><span class="cnt">3</span></div>
+            <div class="it">▾ scripts/</div>
+            <div class="it on" style="padding-left:16px"><span><span class="dot y"></span>detect.py</span><span class="cnt">1</span></div>
+            <div class="it" style="padding-left:16px"><span><span class="dot y"></span>workspace.py</span><span class="cnt">1</span></div>
+            <div class="it" style="padding-left:16px"><span><span class="dot g"></span>verify.py</span></div>
+            <div class="it meta" style="padding-left:16px">… 18 más</div>
+          </div>
+          <div class="main">
+            <div class="ftabs"><span class="ftab">SKILL.md</span><span class="ftab on">detect.py</span></div>
+            <div class="fhead"><b>detect.py</b> · 442 líneas · <b>Para qué sirve:</b> revisa el estado del repositorio y elige la rama base antes de explicar nada.</div>
+            <div class="body">
+              <div class="c"><span class="ln">7</span>FETCH_TIMEOUT = 20</div>
+              <div class="note">Tiempo máximo, en segundos, que espera a GitHub al descargar la rama base. Evita que la skill se quede colgada si no hay internet.</div>
+              <div class="c hl"><span class="ln">88</span>run_git(["fetch", "origin", base])</div>
+              <div class="note w"><b>Aviso · usa la red:</b> descarga la rama base del remoto. <b>Declarado</b> en el SKILL.md y desactivable con <code>--no-fetch</code>.</div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="al-lado" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>Explicación en una columna al lado</h3>
+      <p>El código queda limpio a la izquierda y cada explicación alineada con su línea a la derecha. Más compacto.</p>
+      <div class="mockup"><div class="mockup-body m">
+        <div class="top">
+          <div><div class="name">explain-changes</div><div class="meta">CodeLab614-AI/skills · analizada el 23 oct 2026</div></div>
+          <div style="display:flex;gap:8px;align-items:center"><span class="sel">Versión 2 · 1807207 ▾</span><span class="badge warn">Revisar · 2 avisos</span></div>
+        </div>
+        <div class="ide">
+          <div class="tree">
+            <div class="grp">Reporte</div>
+            <div class="it">Resumen</div><div class="it">Instalación</div><div class="it">Hallazgos <span class="cnt">2</span></div><div class="it">Ejecución aislada</div><div class="it">Cambios vs. v1 <span class="cnt">3</span></div>
+            <div class="grp">Archivos · 27</div>
+            <div class="it"><span><span class="dot g"></span>SKILL.md</span></div>
+            <div class="it on"><span><span class="dot y"></span>scripts/…/detect.py</span><span class="cnt">1</span></div>
+            <div class="it meta">… 25 más</div>
+          </div>
+          <div class="main">
+            <div class="ftabs"><span class="ftab on">detect.py</span></div>
+            <div class="body two">
+              <div class="l">
+                <div class="c"><span class="ln">7</span>FETCH_TIMEOUT = 20</div>
+                <div class="c"><span class="ln">8</span>MAX_PICK = 30</div>
+                <div class="c"> </div>
+                <div class="c hl"><span class="ln">88</span>run_git(["fetch", "origin", base])</div>
+              </div>
+              <div class="rr">
+                <p><b>7</b> · Espera máxima a GitHub, en segundos.</p>
+                <p><b>8</b> · Máximo de commits que ofrece para elegir.</p>
+                <p style="color:#c98a1f"><b>88 · Aviso · red:</b> descarga la rama base. Declarado y desactivable.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+</div>

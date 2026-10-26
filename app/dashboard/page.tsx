@@ -5,6 +5,8 @@ import { getAdminAccess } from "@/lib/admin-access";
 import { parseDashboardRange } from "@/lib/dashboard-range";
 import { getDashboardMetrics, getUserData } from "@/actions/dashboard";
 import { DashboardContent, UserWelcome } from "@/components/dashboard";
+import { AdminDashboardMetrics, UserDashboardMetrics } from "@/components/auditor/dashboard";
+import { getAdminAuditorDashboard, getUserAuditorDashboard } from "@/lib/auditor/mock-data";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -23,7 +25,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   if (adminAccess === 'admin') {
     const range = parseDashboardRange((await searchParams).range);
-    const result = await getDashboardMetrics(range);
+    const [result, auditorMetrics] = await Promise.all([
+      getDashboardMetrics(range), getAdminAuditorDashboard(range),
+    ]);
 
     if (result.response === 'error' || !result.data) {
       return (
@@ -40,7 +44,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         unit={result.data.unit}
         range={result.data.range}
         recentUsers={result.data.recentUsers}
-      />
+      >
+        <AdminDashboardMetrics data={auditorMetrics} />
+      </DashboardContent>
     );
   }
 
@@ -64,11 +70,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }
 
   // For non-admin users, show welcome page
-  const result = await getUserData();
+  const [result, auditorMetrics] = await Promise.all([
+    getUserData(), getUserAuditorDashboard(),
+  ]);
 
   if (result.response === 'error' || !result.data) {
     redirect("/auth/login");
   }
 
-  return <UserWelcome user={result.data} />;
+  return (
+    <UserWelcome user={result.data}>
+      <UserDashboardMetrics data={auditorMetrics} />
+    </UserWelcome>
+  );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { PageHeader } from "@/components/dashboard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { User, Settings, Shield, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 interface UserWelcomeProps {
+  children?: ReactNode;
   user: {
     name: string;
     email: string;
@@ -16,7 +18,7 @@ interface UserWelcomeProps {
   };
 }
 
-export function UserWelcome({ user }: UserWelcomeProps) {
+export function UserWelcome({ user, children }: UserWelcomeProps) {
   const quickActions = [
     {
       title: "Profile Settings",
@@ -38,6 +40,8 @@ export function UserWelcome({ user }: UserWelcomeProps) {
         title={`Welcome, ${user.name.split(" ")[0]}`}
         description="Your personal dashboard overview."
       />
+
+      {children}
 
       <div className="flex flex-col gap-6 p-5">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
