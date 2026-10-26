@@ -15,8 +15,6 @@ interface UsersTableProps {
   onEdit: (user: User) => void;
   onDelete: (user: User) => void;
   onChangeRole: (user: User) => void;
-  onResetPassword: (user: User) => void;
-  onResendInvitation: (user: User) => void;
   onToggleStatus: (user: User) => void;
   hiddenColumns: string[];
 }
@@ -30,8 +28,6 @@ export function UsersTable({
   onEdit,
   onDelete,
   onChangeRole,
-  onResetPassword,
-  onResendInvitation,
   onToggleStatus,
   hiddenColumns,
 }: UsersTableProps) {
@@ -103,8 +99,6 @@ export function UsersTable({
           onEdit={onEdit}
           onDelete={onDelete}
           onChangeRole={onChangeRole}
-          onResetPassword={onResetPassword}
-          onResendInvitation={onResendInvitation}
           onToggleStatus={onToggleStatus}
         />
       ),

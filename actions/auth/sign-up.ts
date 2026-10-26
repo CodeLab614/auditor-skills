@@ -11,6 +11,7 @@ import { TERMS_ACCEPTANCE_HEADER } from '@/lib/terms-acceptance';
 import { reportError } from '@/lib/report-error';
 import { prisma } from '@/lib/prisma';
 import { EmailDeliveryError, sendVerificationCodeEmail } from '@/lib/email';
+import { passwordAuthDisabled } from '@/lib/password-auth';
 
 type SignUpData = {
   email: string;
@@ -25,6 +26,9 @@ export const signUpAction = async (
   message: string;
   data: SignUpData | null;
 }> => {
+  const disabledResponse = passwordAuthDisabled();
+  if (disabledResponse.response === 'error') return disabledResponse;
+
   try {
     const { success, data } = registerSchema.safeParse(values);
 

@@ -30,6 +30,44 @@ export async function hasAdminUser(
   return admin !== null;
 }
 
+export async function promoteFirstRunAdmin(userId: string): Promise<boolean> {
+  try {
+    return await prisma.$transaction(
+      async (transaction) => {
+        if (!isFirstRunWindowOpen() || (await hasAdminUser(transaction))) {
+          return false;
+        }
+
+        await transaction.user.update({
+          where: { id: userId },
+          data: { role: 'admin' },
+        });
+
+        await transaction.activityLog.create({
+          data: {
+            userId,
+            action: 'register',
+            details: JSON.stringify({ method: 'first-run', role: 'admin' }),
+            ipAddress: 'unknown',
+            userAgent: 'unknown',
+          },
+        });
+
+        return true;
+      },
+      { isolationLevel: 'Serializable' }
+    );
+  } catch (error) {
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? error.code
+        : null;
+
+    if (code === 'P2034') return false;
+    throw error;
+  }
+}
+
 export async function getFirstRunState(): Promise<FirstRunState> {
   if (await hasAdminUser()) return 'completed';
   return isFirstRunWindowOpen() ? 'open' : 'closed';

@@ -50,7 +50,6 @@ export type EnvResolution = {
 };
 
 const PAIRS = [
-  { name: 'Google', keys: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'] },
   { name: 'GitHub', keys: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'] },
   {
     name: 'Turnstile',
@@ -221,9 +220,7 @@ export function resolveEnv(env: EnvSource = process.env): EnvResolution {
       secretKey: env.TURNSTILE_SECRET_KEY,
     },
     google: {
-      enabled: enabled.Google,
-      clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET,
+      enabled: false,
     },
     github: {
       enabled: enabled.GitHub,
@@ -256,7 +253,6 @@ export function formatEnvSummary(config: ResolvedEnv): string {
     `  Emails:    ${EMAIL_LABELS[config.email.provider]}`,
     `  Files:     ${config.storage.driver === 's3' ? 'S3' : 'local disk'}`,
     `  Turnstile: ${state(config.turnstile.enabled)}`,
-    `  Google:    ${state(config.google.enabled)}`,
     `  GitHub:    ${state(config.github.enabled)}`,
     `  Sentry:    ${state(config.sentry.enabled)}`,
   ];

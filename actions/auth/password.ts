@@ -19,6 +19,7 @@ import {
   hasExpiredTemporaryPassword,
   TEMPORARY_PASSWORD_EXPIRED_MESSAGE,
 } from '@/lib/temporary-password';
+import { passwordAuthDisabled } from '@/lib/password-auth';
 
 type ForgotPasswordData = {
   email: string;
@@ -32,6 +33,9 @@ export const forgotPasswordAction = async (
   message: string;
   data: ForgotPasswordData | null;
 }> => {
+  const disabledResponse = passwordAuthDisabled();
+  if (disabledResponse.response === 'error') return disabledResponse;
+
   try {
     const { success, data } = forgotPasswordSchema.safeParse(values);
 
@@ -111,6 +115,9 @@ export const resetPasswordWithCodeAction = async (
   message: string;
   data: null;
 }> => {
+  const disabledResponse = passwordAuthDisabled();
+  if (disabledResponse.response === 'error') return disabledResponse;
+
   try {
     const { success, data, error } =
       resetPasswordWithCodeSchema.safeParse(values);
@@ -220,6 +227,9 @@ export const changePasswordAction = async (
   message: string;
   data: null;
 }> => {
+  const disabledResponse = passwordAuthDisabled();
+  if (disabledResponse.response === 'error') return disabledResponse;
+
   try {
     const validation = changePasswordSchema.safeParse(values);
 

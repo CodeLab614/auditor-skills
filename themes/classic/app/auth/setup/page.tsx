@@ -10,11 +10,7 @@ export default async function SetupPage() {
   if (state === "completed") redirect("/auth/login");
   if (state === "closed") return <FirstRunClosed />;
 
-  const { turnstile } = getEnv().config;
+  const { github } = getEnv().config;
 
-  return (
-    <FirstRunAdminForm
-      turnstileSiteKey={turnstile.enabled ? turnstile.siteKey : undefined}
-    />
-  );
+  return <FirstRunAdminForm githubEnabled={github.enabled} />;
 }

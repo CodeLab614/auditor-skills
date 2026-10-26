@@ -11,6 +11,7 @@ import {
   INVALID_INVITATION_MESSAGE,
 } from "@/lib/user-invitations";
 import { acceptInviteSchema } from "@/validations/auth";
+import { passwordAuthDisabled } from "@/lib/password-auth";
 
 const acceptInviteActionSchema = acceptInviteSchema.and(
   z.object({ token: z.string().min(1).max(512) }),
@@ -23,6 +24,9 @@ export const acceptInviteAction = async (
   message: string;
   data: null;
 }> => {
+  const disabledResponse = passwordAuthDisabled();
+  if (disabledResponse.response === "error") return disabledResponse;
+
   try {
     const validation = acceptInviteActionSchema.safeParse(values);
     if (!validation.success) {

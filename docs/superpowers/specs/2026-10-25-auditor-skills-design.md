@@ -67,12 +67,17 @@ Por qué:
 - crear muchas cuentas de GitHub para gastar el límite gratuito de IA es mucho más difícil que crear correos;
 - no hay contraseñas que proteger, y el segundo factor lo pone GitHub, como la plantilla ya hace con los usuarios de OAuth.
 
-Cómo se hace, respetando la regla de que las mejoras de la base van primero en la plantilla:
+Cómo se hace (fase 2, decisión de la persona del 2026-10-26): **directamente en el auditor**, no como una opción de la plantilla, porque ningún otro proyecto la necesita.
 
-1. En la plantilla rapidauth-v2 se añade una opción para elegir los métodos de inicio de sesión (correo, Google, GitHub o cualquier combinación). Por defecto quedan todos activos, como hoy, así que no cambia nada para otros proyectos. Hoy `emailAndPassword` está fijo en `lib/auth.ts` y GitHub ya existe como proveedor en `lib/social-providers.ts`.
-2. El auditor trae esa mejora (sección 11) y configura «solo GitHub», sin tocar sus archivos de inicio de sesión.
+1. Better Auth queda solo con GitHub: el correo, la contraseña y Google se apagan.
+2. Lo que dependía de la contraseña se cierra, sin borrarlo, para que traer mejoras de la plantilla dé menos conflictos:
+   - sus páginas responden 404: recuperar y restablecer la contraseña, verificar el correo, aceptar una invitación, cambiar la contraseña temporal y el doble factor de la app;
+   - sus server actions devuelven un error en el servidor, aunque alguien las llame a mano.
+3. **Invitaciones:** el panel de usuarios no muestra «Añadir usuario», «Reenviar invitación» ni «Restablecer contraseña», y sus acciones también se rechazan en el servidor. Cada persona se registra sola con su GitHub.
+4. **Primer admin:** se crea desde `/auth/setup`, en los 15 minutos siguientes al arranque, con el botón de GitHub. Quien entra primero queda como admin; el ascenso se hace en una transacción `Serializable`, así que si dos personas entran a la vez solo una lo consigue y la otra queda como usuario normal.
+5. Sin el id y el secreto de GitHub la app arranca igual, y el login, el registro y `/auth/setup` muestran el aviso «GitHub sign-in is not configured».
 
-Queda abierto (sección 18): cómo se crea el primer admin con solo GitHub, porque hoy el primer admin y las invitaciones de la plantilla usan correo y contraseña temporal. Se decide en la fase 2.
+Los archivos de inicio de sesión del auditor ya no son iguales a los de la plantilla. Al traer mejoras, los conflictos en ellos se resuelven conservando la versión del auditor (sección 11).
 
 ## 4. Entrada: rutas de GitHub y detección de skills
 
@@ -374,7 +379,7 @@ Las maquetas de verdad se hacen en la **fase 1** (sección 17), dentro de la app
 ## 11. Infraestructura, stack y encaje con el repositorio
 
 - **Repositorio:** **`CodeLab614/auditor-skills`**, un **fork público** de `jotredev/rapidauth-v2`. El fork ya usa su propia imagen en `docker/app.yaml` (`ghcr.io/codelab614/auditor-skills`) y su propio proyecto de Compose (`auditor-skills`), para no compartir contenedores ni volúmenes con la plantilla.
-- **Traer mejoras de la plantilla:** el remoto `plantilla` (`jotredev/rapidauth-v2`), una rama `chore/actualizar-plantilla`, un merge de `plantilla/main` y un PR. No se usa el botón «Sync fork». Las mejoras de la base (login, Docker, CI, componentes) se hacen primero en la plantilla y luego se traen; lo propio del auditor va en sus carpetas y archivos. Si hay conflicto en las líneas propias del fork, se conserva la versión de la app. El remoto `plantilla` aún no está configurado en el clon local; se configura al traer la primera mejora, en la fase 2 **[decisión de Claude]**.
+- **Traer mejoras de la plantilla:** el remoto `plantilla` (`jotredev/rapidauth-v2`), una rama `chore/actualizar-plantilla`, un merge de `plantilla/main` y un PR. No se usa el botón «Sync fork». Las mejoras de la base (login, Docker, CI, componentes) se hacen primero en la plantilla y luego se traen; lo propio del auditor va en sus carpetas y archivos. Si hay conflicto en las líneas propias del fork, se conserva la versión de la app. El remoto `plantilla` aún no está configurado en el clon local; se configura al traer la primera mejora **[decisión de Claude]**. El inicio de sesión «solo GitHub» es una excepción: se hizo directamente en el auditor (sección 3.1).
 - **Web:** la plantilla rapidauth-v2 (Next.js 16, Better Auth, Prisma, shadcn/ui), respetando sus reglas de `AGENTS.md` (server actions, `/api/auth` cerrado, comprobación de sesión y rol en cada acción).
 - **Worker:** **Python**, como un proceso aparte, en la carpeta `worker/` del mismo repositorio **[decisión de Claude]**. No hace falta Go: el worker casi todo el tiempo espera (a GitHub, a la IA o a la caja aislada).
 - **Base de datos:** Postgres en **AWS RDS**, no en Neon. Las migraciones de Prisma son la única fuente del esquema; el worker lee y escribe esas tablas con SQL.
@@ -505,7 +510,7 @@ La app no se construye de una vez, sino por fases pequeñas que se pueden ver fu
 |---|---|---|---|
 | 0 | Documento de diseño | Este documento, con todo lo decidido | Lo lee y lo aprueba |
 | 1 | Maquetas | Todas las pantallas de la sección 9 con los componentes reales y datos inventados, sin base de datos, IA ni worker | Las ve en el navegador y pide cambios |
-| 2 | Solo GitHub | En la plantilla, la opción de elegir los métodos de inicio de sesión; se trae al auditor y se deja solo GitHub; se decide cómo se crea el admin | Entra con su GitHub en local |
+| 2 | Solo GitHub | En el auditor, solo GitHub; lo que usa contraseña, cerrado en el servidor; el primer admin con GitHub en `/auth/setup` | Entra con su GitHub en local |
 | 3 | Enviar skills | Validar la ruta, detectar las skills, la huella (paso 1), skills ocultas y repositorios bloqueados, el límite del mes y la cola. Todavía no se analiza nada | Pega los 3 repos de prueba y ve que detecta bien las skills |
 | 4 | Primer análisis, sin IA | El worker en Python con sus controles (uv, Ruff, pytest, CI, pre-commit), descarga segura, inventario, reglas, instalación con scripts remotos (paso 2 de la huella), veredicto y cobertura. La página de la skill muestra hallazgos reales | Mira si los hallazgos tienen sentido y si marca demasiado como peligroso |
 | 5 | La IA | Explicación línea por línea, «dice frente a hace», verificación de citas y medición del coste real | Lee las explicaciones de explain-changes y ve cuánto costó; con eso se fijan los límites |
@@ -527,5 +532,5 @@ Por qué este orden:
 ## 18. Pendientes abiertos
 
 1. **Scripts del propio repositorio descargados desde una rama que puede cambiar** (por ejemplo `raw.githubusercontent.com/<autor>/<repo>/main/install.sh`). Hoy cuentan como «cualquier otro dominio» (crítica). Queda por decidir si merecen otro nivel. Se decide antes de la fase 4.
-2. **Cómo se crea el primer admin con solo GitHub.** Se decide en la fase 2.
-3. **Memoria de Engram compartida con la plantilla.** El fork hereda `.forge614/project.json` de la plantilla, así que Engram trata este repositorio como `rapidauth-v2`. No afecta a la app; es una decisión del entorno de trabajo.
+2. ~~**Cómo se crea el primer admin con solo GitHub.**~~ Cerrado en la fase 2: con GitHub desde `/auth/setup` (sección 3.1).
+3. ~~**Memoria de Engram compartida con la plantilla.**~~ Cerrado el 2026-10-26: el auditor tiene su propio proyecto en Engram, `auditor-skills`, y su propio `.forge614/project.json`.

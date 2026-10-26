@@ -22,6 +22,7 @@ import { USER_INVITATION_PREFIX } from "@/lib/user-invitation-token";
 import { VERIFICATION_CODE_POLICY } from "@/lib/verification-code-policy";
 import { deleteStoredAvatar } from "@/lib/storage/avatar";
 import { createSocialProviders } from "@/lib/social-providers";
+import { promoteFirstRunAdmin } from "@/lib/first-run-admin";
 import {
   resolveTermsAcceptance,
   TERMS_ACCEPTANCE_HEADER,
@@ -71,7 +72,12 @@ export const auth = betterAuth({
         context.body?.requestSignUp === true &&
         additionalData?.termsAccepted === true
       ) {
-        await addOAuthServerContext({ termsAccepted: true });
+        await addOAuthServerContext({
+          termsAccepted: true,
+          ...(additionalData.firstRunAdmin === true
+            ? { firstRunAdmin: true }
+            : {}),
+        });
       }
     }),
   },
@@ -193,7 +199,21 @@ export const auth = betterAuth({
             },
           };
         },
-        after: async (user) => {
+        after: async (user, context) => {
+          if (context?.path?.startsWith('/callback/')) {
+            try {
+              const oauthState = await getOAuthState();
+              if (oauthState?.serverContext?.firstRunAdmin === true) {
+                await promoteFirstRunAdmin(user.id);
+              }
+            } catch (error) {
+              reportError(error, {
+                area: 'auth.first-run-admin-promotion',
+                userId: user.id,
+              });
+            }
+          }
+
           // Log registration activity when a new user is created
           try {
             await prisma.activityLog.create({
@@ -235,7 +255,7 @@ export const auth = betterAuth({
   },
   socialProviders: createSocialProviders(),
   emailAndPassword: {
-    enabled: true,
+    enabled: false,
     requireEmailVerification: true,
     revokeSessionsOnPasswordReset: true,
     onPasswordReset: async ({ user }) => {

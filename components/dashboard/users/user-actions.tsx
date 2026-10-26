@@ -17,8 +17,6 @@ import {
   Shield,
   Ban,
   UserCheck,
-  KeyRound,
-  MailPlus,
   Mail,
 } from 'lucide-react';
 import type { User } from '@/actions/users';
@@ -30,8 +28,6 @@ interface UserActionsProps {
   onEdit: (user: User) => void;
   onDelete: (user: User) => void;
   onChangeRole: (user: User) => void;
-  onResetPassword: (user: User) => void;
-  onResendInvitation: (user: User) => void;
   onToggleStatus: (user: User) => void;
 }
 
@@ -42,8 +38,6 @@ export function UserActions({
   onEdit,
   onDelete,
   onChangeRole,
-  onResetPassword,
-  onResendInvitation,
   onToggleStatus,
 }: UserActionsProps) {
   const isOAuthUser = user.provider !== 'email';
@@ -90,26 +84,6 @@ export function UserActions({
           >
             <Shield className='mr-2 h-4 w-4' />
             Change Role
-          </DropdownMenuItem>
-        )}
-
-        {isAdmin && !user.emailVerified && !user.hasCredentialAccount && (
-          <DropdownMenuItem
-            onClick={() => onResendInvitation(user)}
-            className='cursor-pointer'
-          >
-            <MailPlus className='mr-2 h-4 w-4' />
-            Resend Invitation
-          </DropdownMenuItem>
-        )}
-
-        {!isOAuthUser && (
-          <DropdownMenuItem
-            onClick={() => onResetPassword(user)}
-            className='cursor-pointer'
-          >
-            <KeyRound className='mr-2 h-4 w-4' />
-            Reset Password
           </DropdownMenuItem>
         )}
 
