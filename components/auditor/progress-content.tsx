@@ -1,5 +1,6 @@
 "use client";
 
+import { startTransition, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Clock3,
@@ -16,6 +17,7 @@ import { SectionHeader } from "@/components/auditor/ui/section-header";
 import { jobStateLabel } from "@/lib/auditor/labels";
 import { PageShell } from "@/components/auditor/page-shell";
 import type { AnalysisProgress } from "@/lib/auditor/types";
+import { getAnalysisProgressAction } from "@/actions/auditor/progress";
 
 const icon = {
   queued: Clock3,
@@ -26,8 +28,54 @@ const icon = {
   failed: CircleX,
 };
 export function ProgressContent({ progress }: { progress: AnalysisProgress }) {
-  const StateIcon = icon[progress.state];
-  const minutes = Math.floor(progress.elapsedSeconds / 60);
+  const [currentProgress, setCurrentProgress] = useState(progress);
+
+  useEffect(() => {
+    if (progress.id.startsWith("demo-")) return;
+
+    let interval: ReturnType<typeof setInterval> | undefined;
+    let inFlight = false;
+    const isActive = () =>
+      currentProgress.state === "queued" ||
+      currentProgress.state === "checking" ||
+      currentProgress.state === "running";
+
+    const stopPolling = () => {
+      if (interval) clearInterval(interval);
+      interval = undefined;
+    };
+    const poll = async () => {
+      if (document.visibilityState !== "visible" || inFlight || !isActive()) return;
+      inFlight = true;
+      try {
+        const result = await getAnalysisProgressAction(progress.id);
+        if (result.response === "success" && result.data) {
+          setCurrentProgress(result.data);
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+    const startPolling = () => {
+      if (document.visibilityState !== "visible" || !isActive() || interval) return;
+      interval = setInterval(() => startTransition(() => void poll()), 2500);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") stopPolling();
+      else startPolling();
+    };
+
+    startPolling();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [currentProgress.state, progress.id]);
+
+  const progressView = currentProgress;
+  const StateIcon = icon[progressView.state];
+  const minutes = Math.floor(progressView.elapsedSeconds / 60);
   return (
     <PageShell className="auditor-progress-shell">
     <div className="mx-auto py-8">
@@ -35,54 +83,54 @@ export function ProgressContent({ progress }: { progress: AnalysisProgress }) {
       <Panel className="auditor-progress-card">
           <div className="auditor-progress-heading">
             <StateIcon
-              className={`size-6 ${progress.state === "running" ? "animate-spin" : ""}`}
+              className={`size-6 ${progressView.state === "running" ? "animate-spin" : ""}`}
             />
             <div>
-              <p className="text-sm text-muted-foreground">{progress.repo}</p>
+              <p className="text-sm text-muted-foreground">{progressView.repo}</p>
             </div>
-            <Chip className="ml-auto" tone={progress.state === "failed" ? "critical" : "neutral"}>
-              {jobStateLabel[progress.state]}
+            <Chip className="ml-auto" tone={progressView.state === "failed" ? "critical" : "neutral"}>
+              {jobStateLabel[progressView.state]}
             </Chip>
           </div>
         <div className="auditor-progress-details">
           <p className="text-sm">
-            {progress.state === "checking"
+            {progressView.state === "checking"
               ? "Comprobando…"
-              : (progress.step ?? jobStateLabel[progress.state])}
+              : (progressView.step ?? jobStateLabel[progressView.state])}
           </p>
-          {progress.fileTotal && (
+          {progressView.fileTotal && (
             <div className="auditor-progress-meter">
               <div className="flex justify-between text-sm">
                 <span>Explicación por líneas</span>
                 <span>
-                  Archivo {progress.fileIndex} de {progress.fileTotal}
+                  Archivo {progressView.fileIndex} de {progressView.fileTotal}
                 </span>
               </div>
               <div className="auditor-meter-track"><span style={{
-                width: `${((progress.fileIndex ?? 0) / progress.fileTotal) * 100}%`,
+                width: `${((progressView.fileIndex ?? 0) / progressView.fileTotal) * 100}%`,
               }} /></div>
             </div>
           )}
-          {progress.state === "paused" && (
+          {progressView.state === "paused" && (
             <p className="auditor-inline-alert auditor-inline-alert--warning">
               En pausa por cupo de la plataforma. El análisis seguirá cuando
               haya cupo disponible.
             </p>
           )}
-          {progress.state === "failed" && (
+          {progressView.state === "failed" && (
             <p className="auditor-inline-alert auditor-inline-alert--danger">
-              {progress.failureReason}
+              {progressView.failureReason}
             </p>
           )}
-          {progress.state === "done" && progress.resultSlug && (
+          {progressView.state === "done" && progressView.resultSlug && (
             <Button asChild>
-              <Link href={`/skills/${progress.resultSlug}`}>Ver análisis</Link>
+              <Link href={`/skills/${progressView.resultSlug}`}>Ver análisis</Link>
             </Button>
           )}
           <p className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock3 className="size-3.5" />
             Tiempo transcurrido: {minutes > 0 ? `${minutes} min ` : ""}
-            {progress.elapsedSeconds % 60} s
+            {progressView.elapsedSeconds % 60} s
           </p>
         </div>
       </Panel>

@@ -20,12 +20,6 @@ import {
 import { formatDate, jobStateLabel } from "@/lib/auditor/labels";
 import type { Quota, Submission } from "@/lib/auditor/types";
 
-function progressIdFor(state: Submission["state"]): string {
-  if (state === "queued" || state === "checking") return "demo-queued";
-  if (state === "paused") return "demo-paused";
-  return "demo-running";
-}
-
 function statusVariant(state: Submission["state"]) {
   if (state === "failed") return "destructive" as const;
   if (state === "done") return "default" as const;
@@ -40,7 +34,11 @@ export function SubmissionsContent({
   submissions: Submission[];
   quota: Quota;
 }) {
-  const remaining = quota.limit - quota.used;
+  const remaining = Math.max(0, quota.limit - quota.used);
+  const renewalMonth = new Intl.DateTimeFormat("es", {
+    month: "long",
+    timeZone: "UTC",
+  }).format(new Date(quota.renewsOn));
 
   return (
     <>
@@ -51,8 +49,7 @@ export function SubmissionsContent({
       </PageHeader>
       <div className="flex flex-col gap-6 p-5">
         <p className="text-sm text-muted-foreground">
-          Historial de las skills que enviaste. El cupo se renueva el{" "}
-          {formatDate(quota.renewsOn)}.
+          Te quedan {remaining} de {quota.limit} · se renueva el 1 de {renewalMonth}
         </p>
         {submissions.length ? (
           <Card>
@@ -110,13 +107,17 @@ export function SubmissionsContent({
                             </Link>
                           ) : submission.state === "failed" ? (
                             submission.failureReason ?? "—"
-                          ) : (
+                          ) : submission.state === "queued" ||
+                            submission.state === "checking" ||
+                            submission.state === "running" ? (
                             <Link
                               className="underline underline-offset-4"
-                              href={`/analysis/${progressIdFor(submission.state)}`}
+                              href={`/analysis/${submission.progressId ?? submission.id}`}
                             >
                               Ver avance
                             </Link>
+                          ) : (
+                            "—"
                           )}
                         </TableCell>
                       </TableRow>

@@ -16,6 +16,7 @@ services:
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
       GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID:-}"
       GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET:-}"
+      GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
       CRON_SECRET: "${CRON_SECRET:-}"
       FROM_EMAIL: "${FROM_EMAIL:-RapidAuth <onboarding@resend.dev>}"
       STORAGE_DRIVER: "${STORAGE_DRIVER:-local}"

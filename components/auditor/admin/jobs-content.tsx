@@ -17,7 +17,10 @@ export function JobsContent({ jobs }: { jobs: AdminJob[] }) {
   );
   return (
     <div className="flex min-h-full flex-col">
-      <PageHeader title="Cola de análisis" description="Trabajos recientes y fallidos" />
+      <PageHeader
+        title="Cola de análisis"
+        description="Solo lectura. Las acciones estarán disponibles en la fase 7."
+      />
       <div className="flex flex-wrap gap-2 px-5 py-4">
         <Button variant={filter === "all" ? "secondary" : "outline"} size="sm"
           onClick={() => setFilter("all")}>Todos</Button>

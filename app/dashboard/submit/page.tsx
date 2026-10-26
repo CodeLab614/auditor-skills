@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { getQuota } from "@/lib/auditor/mock-data";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
+import { getQuota } from "@/lib/auditor/queries";
 import { SubmitContent } from "@/components/auditor/submit-content";
 
 export const metadata: Metadata = {
@@ -7,5 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function SubmitPage() {
-  return <SubmitContent quota={await getQuota()} />;
+  const session = await getSession();
+  if (!session?.user?.id) redirect("/auth/login");
+  return <SubmitContent quota={await getQuota(session.user.id)} />;
 }
