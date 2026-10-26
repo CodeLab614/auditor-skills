@@ -69,6 +69,7 @@ export interface DashboardContentProps {
   unit: BucketUnit;
   range: DashboardRange;
   recentUsers: RecentUser[];
+  children?: React.ReactNode;
 }
 
 export function DashboardContent({
@@ -76,6 +77,7 @@ export function DashboardContent({
   chartData,
   unit,
   recentUsers,
+  children,
 }: DashboardContentProps): React.JSX.Element {
   return (
     <>
@@ -83,6 +85,8 @@ export function DashboardContent({
         title="Dashboard"
         description="Overview of your user base and activity."
       />
+
+      {children}
 
       <div className="flex flex-col">
         <MetricGrid

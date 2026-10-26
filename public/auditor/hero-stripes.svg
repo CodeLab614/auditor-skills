@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <defs>
+    <pattern
+      id="stripes"
+      width="6"
+      height="6"
+      patternUnits="userSpaceOnUse"
+      patternTransform="rotate(45)"
+    >
+      <path d="M0 0v6" fill="none" stroke="#6b6b66" stroke-opacity=".07" />
+    </pattern>
+  </defs>
+  <path fill="url(#stripes)" opacity=".32" d="M0 170 170 0h300L300 170Z" />
+  <path fill="url(#stripes)" opacity=".27" d="m420 600 300-300h180v170L590 600Z" />
+  <path fill="url(#stripes)" opacity=".22" d="m710 180 180-180h10v210L710 500Z" />
+</svg>
