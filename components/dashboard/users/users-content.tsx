@@ -4,7 +4,6 @@ import { useCallback, useState } from 'react';
 import { PageHeader, ColumnPicker } from '@/components/dashboard';
 import { ConfirmDialog } from '@/components/dashboard/confirm-dialog';
 import { TableFooter } from '@/components/dashboard/table-footer';
-import { Button } from '@/components/ui/button';
 import type { User } from '@/actions/users';
 import { cn } from '@/lib/utils';
 import type { UserListParams } from '@/lib/user-list-query';
@@ -13,11 +12,8 @@ import { SearchAndFilters } from './search-and-filters';
 import { ActiveFilters } from './active-filters';
 import { UsersTable } from './users-table';
 import { BulkActionsBar } from './bulk-actions-bar';
-import { AddUserDialog } from './add-user-dialog';
 import { EditUserDialog } from './edit-user-dialog';
 import { ChangeRoleDialog } from './change-role-dialog';
-import { ResetPasswordDialog } from './reset-password-dialog';
-import { UserPlus } from 'lucide-react';
 
 interface UsersContentProps {
   users: User[];
@@ -69,14 +65,10 @@ export function UsersContent({
   const {
     selectedUser,
     bulkRole,
-    addDialogOpen,
-    setAddDialogOpen,
     editDialogOpen,
     setEditDialogOpen,
     roleDialogOpen,
     setRoleDialogOpen,
-    resetPasswordDialogOpen,
-    setResetPasswordDialogOpen,
     deleteDialogOpen,
     setDeleteDialogOpen,
     statusDialogOpen,
@@ -89,10 +81,8 @@ export function UsersContent({
     setBulkDeactivateDialogOpen,
     bulkRoleDialogOpen,
     setBulkRoleDialogOpen,
-    openAddDialog,
     openEditDialog,
     openRoleDialog,
-    openResetPasswordDialog,
     openStatusDialog,
     openDeleteDialog,
     openBulkRoleDialog,
@@ -104,7 +94,6 @@ export function UsersContent({
   const {
     handleToggleStatus,
     handleDeleteUser,
-    handleResendInvitation,
     handleBulkActivate,
     handleBulkDeactivate,
     handleBulkChangeRole,
@@ -126,12 +115,6 @@ export function UsersContent({
         title='Users'
         description='Manage your platform users.'
       >
-        {isAdmin && (
-          <Button onClick={openAddDialog}>
-            <UserPlus data-icon="inline-start" strokeWidth={1.5} />
-            Add User
-          </Button>
-        )}
       </PageHeader>
 
       <div className='flex flex-col'>
@@ -185,8 +168,6 @@ export function UsersContent({
             onEdit={openEditDialog}
             onDelete={openDeleteDialog}
             onChangeRole={openRoleDialog}
-            onResetPassword={openResetPasswordDialog}
-            onResendInvitation={handleResendInvitation}
             onToggleStatus={openStatusDialog}
             hiddenColumns={hidden}
           />
@@ -214,10 +195,6 @@ export function UsersContent({
       )}
 
       {/* Dialogs */}
-      {isAdmin && (
-        <AddUserDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
-      )}
-
       <EditUserDialog
         user={selectedUser}
         open={editDialogOpen}
@@ -232,12 +209,6 @@ export function UsersContent({
           onOpenChange={setRoleDialogOpen}
         />
       )}
-
-      <ResetPasswordDialog
-        user={selectedUser}
-        open={resetPasswordDialogOpen}
-        onOpenChange={setResetPasswordDialogOpen}
-      />
 
       <ConfirmDialog
         open={statusDialogOpen}

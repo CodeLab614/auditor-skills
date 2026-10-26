@@ -18,7 +18,7 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 
-/** Name, email, password, confirmation and terms fields shared by the register and first-run admin forms. */
+/** Name, email, password and confirmation fields used by the first-run admin form. */
 export function RegisterFields({
   form,
   disabled,
@@ -162,30 +162,55 @@ export function RegisterFields({
         )}
       />
 
-      <FormField
-        control={form.control}
-        name="acceptTerms"
-        render={({ field }) => (
-          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-            <FormControl>
-              <Checkbox
-                className="dark:border-foreground/60"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
-            </FormControl>
-            <div className="space-y-1 leading-none">
-              <FormLabel className="inline cursor-pointer gap-0 text-sm font-normal">
-                I agree to the{" "}
-                <AuthLink href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</AuthLink>{" "}and{" "}
-                <AuthLink href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</AuthLink>
-              </FormLabel>
-              <FormMessage />
-            </div>
-          </FormItem>
-        )}
-      />
+      <TermsAcceptanceField form={form} disabled={disabled} />
     </>
+  );
+}
+
+export function TermsAcceptanceField({
+  form,
+  disabled,
+}: {
+  form: UseFormReturn<RegisterFormData>;
+  disabled: boolean;
+}) {
+  return (
+    <FormField
+      control={form.control}
+      name="acceptTerms"
+      render={({ field }) => (
+        <FormItem className="flex flex-row items-start gap-3">
+          <FormControl>
+            <Checkbox
+              className="dark:border-foreground/60"
+              checked={field.value}
+              onCheckedChange={field.onChange}
+              disabled={disabled}
+            />
+          </FormControl>
+          <div className="flex flex-col gap-1 leading-none">
+            <FormLabel className="inline cursor-pointer gap-0 text-sm font-normal">
+              I agree to the{' '}
+              <AuthLink
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Terms of Service
+              </AuthLink>{' '}
+              and{' '}
+              <AuthLink
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Privacy Policy
+              </AuthLink>
+            </FormLabel>
+            <FormMessage />
+          </div>
+        </FormItem>
+      )}
+    />
   );
 }

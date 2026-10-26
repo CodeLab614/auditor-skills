@@ -11,4 +11,5 @@ export { AcceptTermsForm } from "./accept-terms-form";
 export { AcceptInviteForm } from "./accept-invite-form";
 export { ChangeTemporaryPasswordForm } from "./change-temporary-password-form";
 export { RegisterFields } from "./register-fields";
+export { TermsAcceptanceField } from "./register-fields";
 export { FirstRunAdminForm, FirstRunClosed } from "./first-run-admin-form";

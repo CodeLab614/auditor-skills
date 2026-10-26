@@ -23,13 +23,13 @@ gsap.registerPlugin(ScrollTrigger);
 const FEATURES = [
   {
     num: "01",
-    title: "Email & Password",
-    desc: "Secure authentication with bcrypt hashing, email verification, and password reset flows — production-ready from day one.",
+    title: "GitHub Authentication",
+    desc: "Secure account access through GitHub OAuth, with verified identity and a streamlined sign-in experience.",
   },
   {
     num: "02",
     title: "OAuth Providers",
-    desc: "One-click social login with Google, GitHub, and any provider. Extensible architecture for custom integrations.",
+    desc: "One-click sign-in with GitHub OAuth, configured for a simple and secure authentication flow.",
   },
   {
     num: "03",
@@ -803,13 +803,7 @@ export function LandingContent({ user }: { user?: LandingUser | null }) {
                 </span>
                 {"\n"}
                 <span className="text-foreground">
-                  {"  emailAndPassword: { enabled: "}
-                </span>
-                <span className="text-success">true</span>
-                <span className="text-foreground">{" },"}</span>
-                {"\n"}
-                <span className="text-foreground">
-                  {"  socialProviders: { google: { ... } },"}
+                  {"  socialProviders: { github: { ... } },"}
                 </span>
                 {"\n"}
                 <span className="text-muted-foreground">{"})"}</span>

@@ -4,15 +4,24 @@ import * as z from 'zod';
 import { auth } from '@/lib/auth';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/prisma';
-import { registerSchema } from '@/validations/auth';
 import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { reportError } from '@/lib/report-error';
-import { hasAdminUser, isFirstRunWindowOpen } from '@/lib/first-run-admin';
+import {
+  getFirstRunState,
+  hasAdminUser,
+  isFirstRunWindowOpen,
+} from '@/lib/first-run-admin';
 import {
   FIRST_RUN_ADMIN_EXISTS_MESSAGE,
   FIRST_RUN_CLOSED_MESSAGE,
+  FIRST_RUN_GITHUB_NOT_CONFIGURED_MESSAGE,
 } from '@/lib/first-run-admin-messages';
+import { passwordAuthDisabled } from '@/lib/password-auth';
+import { getEnv } from '@/lib/env';
+import { acceptTermsSchema, registerSchema } from '@/validations/auth';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 class AdminAlreadyExistsError extends Error {
   constructor() {
@@ -29,6 +38,9 @@ export const createFirstAdminAction = async (
   message: string;
   data: null;
 }> => {
+  const disabledResponse = passwordAuthDisabled();
+  if (disabledResponse.response === 'error') return disabledResponse;
+
   try {
     const { success, data } = registerSchema.safeParse(values);
 
@@ -163,4 +175,84 @@ export const createFirstAdminAction = async (
       data: null,
     };
   }
+};
+
+export const startFirstAdminWithGithubAction = async (
+  values: unknown
+): Promise<{
+  response: 'success' | 'error';
+  message: string;
+  data: null;
+}> => {
+  const parsed = acceptTermsSchema.safeParse(values);
+  if (!parsed.success) {
+    return {
+      response: 'error',
+      message:
+        parsed.error.issues[0]?.message ??
+        'You must accept the terms and conditions',
+      data: null,
+    };
+  }
+
+  if (!getEnv().config.github.enabled) {
+    return {
+      response: 'error',
+      message: FIRST_RUN_GITHUB_NOT_CONFIGURED_MESSAGE,
+      data: null,
+    };
+  }
+
+  let state: Awaited<ReturnType<typeof getFirstRunState>>;
+  try {
+    state = await getFirstRunState();
+  } catch (error) {
+    reportError(error, { area: 'auth.first-admin-github-state' });
+    return {
+      response: 'error',
+      message: 'An unexpected error occurred',
+      data: null,
+    };
+  }
+  if (state !== 'open') {
+    return {
+      response: 'error',
+      message:
+        state === 'completed'
+          ? FIRST_RUN_ADMIN_EXISTS_MESSAGE
+          : FIRST_RUN_CLOSED_MESSAGE,
+      data: null,
+    };
+  }
+
+  let url: string | undefined;
+
+  try {
+    const result = await auth.api.signInSocial({
+      body: {
+        provider: 'github',
+        requestSignUp: true,
+        additionalData: { termsAccepted: true, firstRunAdmin: true },
+        callbackURL: '/dashboard',
+        errorCallbackURL: '/auth/setup',
+      },
+      headers: await headers(),
+    });
+    url = result.url;
+  } catch (error) {
+    reportError(error, { area: 'auth.first-admin-github' });
+    return {
+      response: 'error',
+      message: 'Failed to authenticate with GitHub',
+      data: null,
+    };
+  }
+
+  if (url) redirect(url);
+
+  return {
+    response: 'success',
+    message: 'Authentication started',
+    data: null,
+  };
 };

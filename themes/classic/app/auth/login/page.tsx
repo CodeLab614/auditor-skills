@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   await redirectToFirstRunIfNoAdmin();
   const session = await getSession();
   if (session) redirect("/dashboard");
-  const { google, github } = getEnv().config;
+  const { github } = getEnv().config;
 
   const { error, provider, notice } = await searchParams;
   const normalizedError = error?.toLowerCase().replaceAll('_', ' ');
@@ -34,7 +34,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     <LoginForm
       oauthSignupDisabledProvider={oauthSignupDisabledProvider}
       notice={getLoginNotice(notice)}
-      googleEnabled={google.enabled}
       githubEnabled={github.enabled}
     />
   );

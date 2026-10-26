@@ -18,6 +18,7 @@ import { prisma } from '@/lib/prisma';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { reportError } from '@/lib/report-error';
 import { getTemporaryPasswordExpiration } from '@/lib/temporary-password';
+import { passwordAuthDisabled } from '@/lib/password-auth';
 import { deleteUserRecord } from '@/lib/user-deletion';
 import {
   buildUsersWhere,
@@ -54,6 +55,9 @@ export const addUserAction = async (
   message: string;
   data: AddUserData | null;
 }> => {
+  const disabledResponse = passwordAuthDisabled();
+  if (disabledResponse.response === 'error') return disabledResponse;
+
   try {
     const session = await getSession();
 
@@ -173,6 +177,9 @@ export const resendUserInvitationAction = async (
   message: string;
   data: null;
 }> => {
+  const disabledResponse = passwordAuthDisabled();
+  if (disabledResponse.response === 'error') return disabledResponse;
+
   try {
     const session = await getSession();
     if (!session?.user?.id) {
@@ -1089,6 +1096,9 @@ export const adminResetPasswordAction = async (
   message: string;
   data: ResetPasswordData | null;
 }> => {
+  const disabledResponse = passwordAuthDisabled();
+  if (disabledResponse.response === 'error') return disabledResponse;
+
   try {
     const session = await getSession();
 

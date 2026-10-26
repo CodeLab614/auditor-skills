@@ -6,6 +6,7 @@ import { APIError } from 'better-auth/api';
 import { auth } from '@/lib/auth';
 import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 import { reportError } from '@/lib/report-error';
+import { passwordAuthDisabled } from '@/lib/password-auth';
 
 const verifyEmailCodeSchema = z.object({
   email: z.string().trim().email(),
@@ -19,6 +20,9 @@ export const verifyEmailCodeAction = async (
   message: string;
   data: null;
 }> => {
+  const disabledResponse = passwordAuthDisabled();
+  if (disabledResponse.response === 'error') return disabledResponse;
+
   try {
     const parsed = verifyEmailCodeSchema.safeParse(values);
 

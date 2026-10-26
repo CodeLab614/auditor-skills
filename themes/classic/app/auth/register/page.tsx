@@ -8,13 +8,11 @@ export default async function RegisterPage() {
   await redirectToFirstRunIfNoAdmin();
   const session = await getSession();
   if (session) redirect("/dashboard");
-  const { google, github, turnstile } = getEnv().config;
+  const { github } = getEnv().config;
 
   return (
     <RegisterForm
-      googleEnabled={google.enabled}
       githubEnabled={github.enabled}
-      turnstileSiteKey={turnstile.enabled ? turnstile.siteKey : undefined}
     />
   );
 }

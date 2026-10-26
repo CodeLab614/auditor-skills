@@ -1,5 +1,5 @@
-import { TwoFactorForm } from "@/components/auth";
+import { notFound } from "next/navigation";
 
 export default function TwoFactorPage() {
-  return <TwoFactorForm />;
+  notFound();
 }

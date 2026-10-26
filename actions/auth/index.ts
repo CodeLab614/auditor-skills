@@ -4,7 +4,10 @@ export { verifyEmailCodeAction } from './verify-email';
 
 // Sign Up
 export { signUpAction } from './sign-up';
-export { createFirstAdminAction } from './first-admin';
+export {
+  createFirstAdminAction,
+  startFirstAdminWithGithubAction,
+} from './first-admin';
 
 // Sign Out
 export { signOut } from './sign-out';

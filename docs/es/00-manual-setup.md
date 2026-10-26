@@ -118,7 +118,13 @@ El esquema de usuario guarda la fecha y la versión de los términos aceptados, 
 
 Toda persona creada desde el panel de administración recibe un email de invitación. La invitación es válida durante 7 días, permite definir una contraseña y aceptar los términos actuales, y se puede reenviar desde la tabla de usuarios mientras siga pendiente. Una contraseña temporal generada por un admin debe cambiarse en el siguiente inicio de sesión y caduca después de 72 horas. Un admin no puede generar una contraseña temporal para otro admin; en ese caso debe enviar el enlace de restablecimiento por email.
 
-Hay dos formas de crear la primera cuenta de admin. La predeterminada es la pantalla de configuración: mientras no exista un admin, el inicio, el inicio de sesión y el registro te llevan a **Create your admin account** (`/auth/setup`), donde escribes nombre, email y contraseña y aceptas los términos. La pantalla se cierra 15 minutos después de que arranca la app si nadie la usó; entonces lo explica en pantalla y debes reiniciar la app para abrirla de nuevo. La alternativa es el seed, que no necesita pantalla: ejecuta `bun run db:seed`. Con el seed, `SEED_ADMIN_EMAIL` tiene como valor predeterminado `admin@admin.com`. Puedes configurar `SEED_ADMIN_PASSWORD` con una contraseña de al menos 8 caracteres antes de ejecutar el seed. Si no la defines, el seed genera una y la muestra una sola vez; guárdala porque el seed no volverá a mostrarla. Si ya existe una cuenta con ese email, el seed no crea otra. Después de iniciar sesión, este admin con contraseña debe activar la autenticación de dos factores en **Profile → Security** antes de usar el panel de administración. Los admins solo OAuth quedan exentos porque su proveedor aporta el segundo factor.
+El primer admin se crea con GitHub desde **Create your admin account** (`/auth/setup`). La pantalla está disponible
+durante los 15 minutos posteriores al arranque de la app. Si otra persona se registra antes, su cuenta queda como
+usuario normal y la primera persona que complete la configuración será admin. Reinicia la app para volver a abrir la
+configuración cuando se cierre la ventana. También puedes crear un admin con `bun run db:seed`;
+`SEED_ADMIN_EMAIL` tiene `admin@admin.com` como valor predeterminado. Si `SEED_ADMIN_PASSWORD` no está definida,
+el seed genera una contraseña y la muestra una sola vez. Guárdala porque no volverá a mostrarse. Si ya existe una
+cuenta con ese email, el seed no crea otra.
 
 ## 8. Elige un tema de auth (opcional)
 
@@ -229,7 +235,10 @@ RapidAuth envía un aviso por email al dueño de la cuenta cuando cambia su cont
 bun dev
 ```
 
-Si usas Docker, inicia primero la base y Mailpit con `cd docker && docker compose up -d db mailpit`; `bun dev` no los inicia. Abre [http://localhost:3000](http://localhost:3000). Si no ejecutaste el seed, la app muestra **Create your admin account**: crea ahí el admin dentro de los 15 minutos posteriores al arranque (reinicia la app si la ventana se cerró). Después inicia sesión con esa cuenta, o con `SEED_ADMIN_EMAIL` y la contraseña impresa o configurada durante el seed. Abre **Profile → Security**, activa la autenticación de dos factores y después confirma que cargue el panel de admin.
+Si usas Docker, inicia primero la base y Mailpit con `cd docker && docker compose up -d db mailpit`; `bun dev` no los
+inicia. Abre [http://localhost:3000](http://localhost:3000). Si no ejecutaste el seed, crea el primer admin con GitHub
+desde `/auth/setup` dentro de los 15 minutos posteriores al arranque. Si otra persona se registra antes de completar la
+configuración, su cuenta queda como usuario normal. Reinicia la app si se cierra la ventana de configuración.
 
 ## Antes de desplegar
 
@@ -241,7 +250,9 @@ Si usas Docker, inicia primero la base y Mailpit con `cd docker && docker compos
 - Agrega todos los hostnames desde donde se sirve la app, o un hostname padre que cubra sus subdominios, al widget de Turnstile.
 - Si habilitaste OAuth, configura las URLs de callback con el `BETTER_AUTH_URL` publicado. Define el client ID y el secret del proveedor como variables de ejecución; los botones las siguen tras un reinicio.
 - Elige el almacenamiento de avatares para producción: configura `STORAGE_DRIVER=s3` con el bucket, las llaves y la URL pública, o usa Local solo si el servidor tiene disco persistente y escribible. Consulta [Almacenamiento de archivos](05-file-storage.md).
-- Crea el admin antes de que la app reciba tráfico público: mientras no exista un admin, cualquiera que llegue a `/auth/setup` en los 15 minutos posteriores al arranque del servidor puede crearlo. Prefiere el seed con un `SEED_ADMIN_EMAIL` deliberado y un `SEED_ADMIN_PASSWORD` seguro, o guarda la contraseña generada que solo se muestra una vez y cámbiala tras iniciar sesión.
+- Crea el admin antes de que la app reciba tráfico público: la primera persona que complete la configuración con
+  GitHub en `/auth/setup` dentro de los 15 minutos posteriores al arranque será admin. Quien se registre antes queda
+  como usuario normal.
 - Mantén `.env`, `.env.local` y todos los secretos fuera del control de versiones y de los argumentos de build de imágenes.
 
 Al cambiar de motor, primero ejecuta `bun run storage:migrate` para ver el plan y después `bun run storage:migrate --apply` para mover los avatares existentes.

@@ -1,5 +1,5 @@
-import { TwoFactorBackupForm } from "@/components/auth";
+import { notFound } from "next/navigation";
 
 export default function TwoFactorBackupPage() {
-  return <TwoFactorBackupForm />;
+  notFound();
 }

@@ -9,6 +9,7 @@ import { checkRateLimit, getClientIp, hashKey } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { reportError } from '@/lib/report-error';
 import { EmailDeliveryError } from '@/lib/email';
+import { passwordAuthDisabled } from '@/lib/password-auth';
 
 type SignInData = {
   twoFactorRequired?: boolean;
@@ -22,6 +23,9 @@ export const signInAction = async (
   message: string;
   data: SignInData | null;
 }> => {
+  const disabledResponse = passwordAuthDisabled();
+  if (disabledResponse.response === 'error') return disabledResponse;
+
   try {
     const { success, data } = loginSchema.safeParse(values);
 
@@ -102,6 +106,9 @@ export const resendVerificationCodeAction = async (
   message: string;
   data: null;
 }> => {
+  const disabledResponse = passwordAuthDisabled();
+  if (disabledResponse.response === 'error') return disabledResponse;
+
   try {
     const emailValidation = z.string().email().safeParse(email);
 

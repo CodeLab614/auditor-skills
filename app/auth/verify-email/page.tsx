@@ -1,28 +1,5 @@
-import { VerifyEmailForm } from "@/components/auth";
-import { getEnv } from "@/lib/env";
+import { notFound } from "next/navigation";
 
-interface VerifyEmailPageProps {
-  searchParams: Promise<{
-    email?: string;
-    delivery?: string;
-    sent?: string;
-  }>;
-}
-
-export default async function VerifyEmailPage({
-  searchParams,
-}: VerifyEmailPageProps) {
-  const { email, delivery, sent } = await searchParams;
-
-  const { turnstile } = getEnv().config;
-  const turnstileSiteKey = turnstile.enabled ? turnstile.siteKey : undefined;
-
-  return (
-    <VerifyEmailForm
-      email={email}
-      delivery={delivery}
-      sent={sent}
-      turnstileSiteKey={turnstileSiteKey}
-    />
-  );
+export default function VerifyEmailPage() {
+  notFound();
 }

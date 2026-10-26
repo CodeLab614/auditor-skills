@@ -5,10 +5,8 @@ export function useUserDialogs() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Single user dialogs
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
-  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
 
@@ -20,8 +18,6 @@ export function useUserDialogs() {
   const [bulkRole, setBulkRole] = useState<string>('user');
 
   // Dialog openers
-  const openAddDialog = useCallback(() => setAddDialogOpen(true), []);
-
   const openEditDialog = useCallback((user: User) => {
     setSelectedUser(user);
     setEditDialogOpen(true);
@@ -30,11 +26,6 @@ export function useUserDialogs() {
   const openRoleDialog = useCallback((user: User) => {
     setSelectedUser(user);
     setRoleDialogOpen(true);
-  }, []);
-
-  const openResetPasswordDialog = useCallback((user: User) => {
-    setSelectedUser(user);
-    setResetPasswordDialogOpen(true);
   }, []);
 
   const openStatusDialog = useCallback((user: User) => {
@@ -61,14 +52,10 @@ export function useUserDialogs() {
     bulkRole,
 
     // Single user dialog states
-    addDialogOpen,
-    setAddDialogOpen,
     editDialogOpen,
     setEditDialogOpen,
     roleDialogOpen,
     setRoleDialogOpen,
-    resetPasswordDialogOpen,
-    setResetPasswordDialogOpen,
     deleteDialogOpen,
     setDeleteDialogOpen,
     statusDialogOpen,
@@ -85,10 +72,8 @@ export function useUserDialogs() {
     setBulkRoleDialogOpen,
 
     // Dialog openers
-    openAddDialog,
     openEditDialog,
     openRoleDialog,
-    openResetPasswordDialog,
     openStatusDialog,
     openDeleteDialog,
     openBulkRoleDialog,

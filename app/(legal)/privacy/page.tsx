@@ -10,10 +10,9 @@ export const metadata: Metadata = {
 };
 
 export default async function PrivacyPage() {
-  // Read Google/GitHub credentials on each request, not at build time.
+  // Read GitHub credentials on each request, not at build time.
   await connection();
-  const { google, github } = getEnv().config;
-  const googleEnabled = google.enabled;
+  const { github } = getEnv().config;
   const githubEnabled = github.enabled;
   const supportEmail = getPublicSupportEmail();
   const supportLink = supportEmail ? (
@@ -38,30 +37,41 @@ export default async function PrivacyPage() {
         <section>
           <h2>2. Information we process</h2>
           <ul className="list-disc space-y-2 pl-6 marker:text-foreground/50">
-            <li><strong className="text-foreground">Account details:</strong> name, email address, password stored as a cryptographic hash for password-based accounts, email-verification state, role, and account status.</li>
+            <li>
+              <strong className="text-foreground">Account details:</strong>
+              {' '}name, email address, GitHub account identifier, role, and
+              account status.
+            </li>
             <li><strong className="text-foreground">Optional profile image:</strong> an avatar you choose to upload. It is stored with the file-storage provider configured for the service, and its public URL can be accessed by anyone who has that URL.</li>
             <li><strong className="text-foreground">Sessions:</strong> session identifier and expiry, plus IP address and browser user-agent when available. Sessions expire after 7 days.</li>
             <li><strong className="text-foreground">Activity records:</strong> account activity events, with IP address and browser user-agent when available.</li>
             <li><strong className="text-foreground">Two-factor authentication:</strong> an authenticator secret and backup codes when you enable two-factor authentication.</li>
             <li><strong className="text-foreground">Abuse-prevention records:</strong> rate-limit counters and keys used to limit repeated attempts.</li>
-            <li><strong className="text-foreground">Verification and recovery tokens:</strong> temporary tokens used for email verification and password recovery.</li>
           </ul>
         </section>
         <section>
           <h2>3. How we use information</h2>
-          <p>We use this information to provide and secure account access, verify email addresses, support password recovery and optional two-factor authentication, display your profile, limit abusive requests, maintain activity records, and respond to support requests.</p>
+          <p>
+            We use this information to provide and secure GitHub account
+            access, display your profile, limit abusive requests, maintain
+            activity records, and respond to support requests.
+          </p>
         </section>
         <section>
           <h2>4. Service providers</h2>
           <p>We share information with service providers only as needed to operate the app:</p>
           <ul className="mt-3 list-disc space-y-2 pl-6 marker:text-foreground/50">
-            <li>Cloudflare Turnstile processes registration and password-recovery requests to help detect automated abuse.</li>
-            <li>Resend processes email addresses and message content to deliver verification and recovery emails.</li>
+            <li>Cloudflare Turnstile processes registration requests to help detect automated abuse.</li>
+            <li>Resend processes email addresses and message content to deliver account and security notices.</li>
             <li>Our database provider stores account, session, security, and activity records.</li>
             <li>Our hosting provider processes requests and stores or serves the application and uploaded files.</li>
             <li>The configured file-storage provider stores avatars and serves them from their public URLs.</li>
-            {googleEnabled && <li>Google processes information you provide when you choose Google sign-in, under Google’s privacy terms.</li>}
-            {githubEnabled && <li>GitHub processes information you provide when you choose GitHub sign-in, under GitHub’s privacy terms.</li>}
+            {githubEnabled && (
+              <li>
+                GitHub processes information you provide when you choose
+                GitHub sign-in, under GitHub’s privacy terms.
+              </li>
+            )}
           </ul>
         </section>
         <section>
@@ -70,11 +80,22 @@ export default async function PrivacyPage() {
         </section>
         <section>
           <h2>6. Retention</h2>
-          <p>We keep account and related records while your account is active and for as long as needed to operate the service, protect it, resolve disputes, or meet legal obligations. Verification and recovery tokens are temporary and expire. When you delete your account, your profile and related records are removed and your stored avatar is deleted.</p>
+          <p>
+            We keep account and related records while your account is active
+            and for as long as needed to operate the service, protect it,
+            resolve disputes, or meet legal obligations. When you delete your
+            account, your profile and related records are removed and your
+            stored avatar is deleted.
+          </p>
         </section>
         <section>
           <h2>7. Security</h2>
-          <p>We use measures intended to protect information, including password hashing, session controls, access checks, rate limits, and optional two-factor authentication. No internet service or storage system can be guaranteed completely secure.</p>
+          <p>
+            We use measures intended to protect information, including session
+            controls, access checks, rate limits, and security features
+            provided by GitHub. No internet service or storage system can be
+            guaranteed completely secure.
+          </p>
         </section>
         <section>
           <h2>8. Your choices and rights</h2>
