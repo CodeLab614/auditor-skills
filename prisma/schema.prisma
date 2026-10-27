@@ -22,11 +22,14 @@ model User {
   mustChangePassword         Boolean   @default(false)
   temporaryPasswordExpiresAt DateTime?
 
-  sessions        Session[]
-  accounts        Account[]
-  twoFactors      TwoFactor[]
-  activityLogs    ActivityLog[]
-  operationalLogs OperationalLog[]
+  sessions            Session[]
+  accounts            Account[]
+  twoFactors          TwoFactor[]
+  activityLogs        ActivityLog[]
+  operationalLogs     OperationalLog[]
+  submittedVersions   SkillVersion[]
+  analysisJobs        AnalysisJob[]
+  blockedRepositories BlockedRepository[]
 
   @@index([createdAt, id])
   @@map("user")
@@ -133,4 +136,85 @@ model OperationalLog {
   @@index([userId, createdAt])
   @@index([level, createdAt])
   @@map("operational_log")
+}
+
+enum AnalysisJobKind {
+  analysis
+  fingerprint_check
+}
+
+enum AnalysisJobStatus {
+  queued
+  running
+  done
+  failed
+}
+
+model Skill {
+  id          String         @id @default(cuid())
+  owner       String
+  repo        String
+  path        String
+  name        String
+  description String
+  slug        String         @unique
+  hiddenAt    DateTime?
+  createdAt   DateTime       @default(now())
+  versions    SkillVersion[]
+
+  @@unique([owner, repo, path])
+  @@map("skill")
+}
+
+model SkillVersion {
+  id               String        @id @default(cuid())
+  skillId          String
+  commitSha        String
+  submittedRef     String
+  filesFingerprint String
+  fingerprint      String?
+  hasRemoteScripts Boolean       @default(false)
+  submittedById    String?
+  createdAt        DateTime      @default(now())
+  skill            Skill         @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  submittedBy      User?         @relation(fields: [submittedById], references: [id], onDelete: SetNull)
+  analysisJobs     AnalysisJob[]
+
+  @@unique([skillId, fingerprint])
+  @@index([skillId, filesFingerprint])
+  @@map("skill_version")
+}
+
+model AnalysisJob {
+  id               String            @id @default(cuid())
+  versionId        String
+  kind             AnalysisJobKind
+  status           AnalysisJobStatus @default(queued)
+  attempts         Int               @default(0)
+  failureReason    String?
+  userId           String?
+  creditMonth      String?
+  creditReturnedAt DateTime?
+  createdAt        DateTime          @default(now())
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  version          SkillVersion      @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId, creditMonth])
+  @@map("analysis_job")
+}
+
+model BlockedRepository {
+  id          String   @id @default(cuid())
+  owner       String
+  repo        String
+  reason      String
+  createdAt   DateTime @default(now())
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([owner, repo])
+  @@map("blocked_repository")
 }
