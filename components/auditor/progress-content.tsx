@@ -85,8 +85,9 @@ export function ProgressContent({ progress }: { progress: AnalysisProgress }) {
             <StateIcon
               className={`size-6 ${progressView.state === "running" ? "animate-spin" : ""}`}
             />
-            <div>
-              <p className="text-sm text-muted-foreground">{progressView.repo}</p>
+            <div className="min-w-0">
+              <p className="truncate font-medium">{progressView.skillName}</p>
+              <p className="truncate text-sm text-muted-foreground">{progressView.repo}</p>
             </div>
             <Chip className="ml-auto" tone={progressView.state === "failed" ? "critical" : "neutral"}>
               {jobStateLabel[progressView.state]}
