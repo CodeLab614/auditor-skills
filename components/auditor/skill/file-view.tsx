@@ -5,23 +5,36 @@ import type { ExplanationRange, Finding, SkillFile } from "@/lib/auditor/types";
 import { cn } from "@/lib/utils";
 import { EvidenceText } from "./evidence-text";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useGithubFile } from "./use-github-file";
 
 function rowsFor(
   file: SkillFile,
+  lines: string[],
+  findings: Finding[],
 ): { range?: ExplanationRange; lines: number[] }[] {
   const covered = new Set<number>();
   const rows: { range?: ExplanationRange; lines: number[] }[] =
     file.explanations.map((range) => {
-      const lines = Array.from(
+      const lineRange = Array.from(
         { length: Math.max(0, range.to - range.from + 1) },
         (_, index) => range.from + index,
       );
-      lines.forEach((line) => covered.add(line));
-      return { range, lines };
+      lineRange.forEach((line) => covered.add(line));
+      return { range, lines: lineRange };
     });
-  for (let line = 1; line <= file.lines.length; line += 1) {
+
+  for (let line = 1; line <= lines.length; line += 1) {
     if (!covered.has(line)) rows.push({ lines: [line] });
   }
+
+  for (const finding of findings) {
+    if (finding.file === file.path && !covered.has(finding.line) && finding.line > lines.length) {
+      covered.add(finding.line);
+      rows.push({ lines: [finding.line] });
+    }
+  }
+
   return rows.sort((a, b) => a.lines[0] - b.lines[0]);
 }
 
@@ -51,12 +64,18 @@ export function FileView({
   file,
   findings,
   highlightedLine,
+  owner,
+  repo,
 }: {
   file: SkillFile;
   findings: Finding[];
   highlightedLine?: number;
+  owner: string;
+  repo: string;
 }) {
-  const rows = rowsFor(file);
+  const { status, lines } = useGithubFile(file, owner, repo);
+  const effectiveLines = lines.length > 0 ? lines : file.lines;
+  const rows = rowsFor(file, effectiveLines, findings);
   const fileFindings = findings.filter((finding) => finding.file === file.path);
   const mode =
     file.review === "source"
@@ -64,28 +83,40 @@ export function FileView({
       : file.review === "decompiled"
         ? "Revisado por descompilación"
         : "No revisable";
-  const noCode = file.availability !== "available" || file.source === "remote";
+
+  const isGone = status === "gone" || file.availability === "gone";
+  const isMismatch = status === "sha-mismatch" || file.availability === "sha-mismatch";
+  const isError = status === "error";
+  const isBinary = file.availability === "binary";
+  const isRemote = file.source === "remote";
+  const isLoading = status === "loading";
+  const noCode = isGone || isMismatch || isError || isBinary || isRemote;
 
   return (
     <Panel className="auditor-file-panel" contentClassName="min-w-0">
       <div className="auditor-file-meta">
         <strong className="font-mono text-foreground">{file.path}</strong> ·{" "}
-        {pluralize(file.lines.length, "línea", "líneas")}
+        {pluralize(effectiveLines.length, "línea", "líneas")}
         <p className="mt-1">Para qué sirve: {file.purpose}</p>
         <p className="mt-1">{mode}</p>
       </div>
       <Separator />
-      {file.availability === "gone" && (
+      {isGone && (
         <div className="auditor-file-warning">
           Código ya no disponible en GitHub.
         </div>
       )}
-      {file.availability === "sha-mismatch" && (
+      {isMismatch && (
         <div className="auditor-file-warning">
           El archivo actual de GitHub no coincide con el analizado.
         </div>
       )}
-      {file.source === "remote" && (
+      {isError && (
+        <div className="auditor-file-warning">
+          No se pudo cargar el archivo desde GitHub.
+        </div>
+      )}
+      {isRemote && (
         <div className="auditor-file-warning">
           <p className="font-medium">
             Este archivo vive fuera de GitHub y puede haber cambiado desde el
@@ -101,24 +132,32 @@ export function FileView({
           </p>
         </div>
       )}
-      {file.availability === "binary" && (
+      {isBinary && (
         <div className="auditor-file-warning">
           {file.review === "decompiled"
             ? "Revisado por descompilación"
             : "No revisable"}
         </div>
       )}
-      {noCode ? (
+      {isLoading ? (
         <div className="flex flex-col gap-3 p-4">
-          {rows.map(({ range, lines }) => (
-            <div key={range ? `${range.from}-${range.to}` : lines[0]}>
+          <Skeleton className="h-5 w-3/4" />
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-5 w-5/6" />
+          <Skeleton className="h-5 w-2/3" />
+          <Skeleton className="h-5 w-4/5" />
+        </div>
+      ) : noCode ? (
+        <div className="flex flex-col gap-3 p-4">
+          {rows.map(({ range, lines: rowLines }) => (
+            <div key={range ? `${range.from}-${range.to}` : rowLines[0]}>
               {range && (
                 <p className="auditor-editor-explanation leading-relaxed">
                   {range.text}
                 </p>
               )}
               {fileFindings
-                .filter((finding) => lines.includes(finding.line))
+                .filter((finding) => rowLines.includes(finding.line))
                 .map((finding) => (
                   <FindingNote key={finding.id} finding={finding} />
                 ))}
@@ -127,17 +166,17 @@ export function FileView({
         </div>
       ) : (
         <div className="auditor-editor-code divide-y divide-border/60 font-mono text-xs">
-          {rows.map(({ range, lines }) => {
+          {rows.map(({ range, lines: rowLines }) => {
             const rowFindings = fileFindings.filter((finding) =>
-              lines.includes(finding.line),
+              rowLines.includes(finding.line),
             );
             return (
               <div
-                key={range ? `${range.from}-${range.to}` : lines[0]}
+                key={range ? `${range.from}-${range.to}` : rowLines[0]}
                 className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]"
               >
                 <div className="w-full min-w-0 overflow-x-auto py-1 lg:border-r">
-                  {lines.map((number) => {
+                  {rowLines.map((number) => {
                     const hasFinding = fileFindings.some(
                       (finding) => finding.line === number,
                     );
@@ -158,7 +197,7 @@ export function FileView({
                           {number}
                         </span>
                         <code className="whitespace-pre pr-3">
-                          {file.lines[number - 1] || " "}
+                          {effectiveLines[number - 1] || " "}
                         </code>
                       </div>
                     );

@@ -20,11 +20,17 @@ export class GithubClientError extends Error {
 
 export type GithubRepository = {
   default_branch: string;
+  full_name: string;
   name: string;
   owner: { login: string };
 };
 
-export type ResolvedGithubPath = { commitSha: string; ref: string; path: string };
+export type ResolvedGithubPath = {
+  commitSha: string;
+  ref: string;
+  path: string;
+  fullName: string;
+};
 
 export function splitRefCandidates(segments: string[]): Array<{ ref: string; path: string }> {
   const candidates: Array<{ ref: string; path: string }> = [];
@@ -84,7 +90,12 @@ export function createGithubClient(token?: string) {
         const commit = await request<{ sha: string }>(
           `/repos/${encode(owner)}/${encode(repo)}/commits/${encode(repository.default_branch)}`,
         );
-        return { commitSha: commit.sha, ref: repository.default_branch, path: '' };
+        return {
+          commitSha: commit.sha,
+          ref: repository.default_branch,
+          path: '',
+          fullName: repository.full_name,
+        };
       }
 
       for (const candidate of splitRefCandidates(segments)) {
@@ -92,7 +103,12 @@ export function createGithubClient(token?: string) {
           const commit = await request<{ sha: string }>(
             `/repos/${encode(owner)}/${encode(repo)}/commits/${encode(candidate.ref)}`,
           );
-          return { commitSha: commit.sha, ref: candidate.ref, path: candidate.path };
+          return {
+            commitSha: commit.sha,
+            ref: candidate.ref,
+            path: candidate.path,
+            fullName: repository.full_name,
+          };
         } catch (error) {
           // GitHub answers 422, not 404, when the ref does not exist; both mean "try a shorter prefix".
           const missingRef = error instanceof GithubClientError

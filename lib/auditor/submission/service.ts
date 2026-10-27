@@ -3,7 +3,7 @@ import { createGithubClient } from '@/lib/auditor/github/client';
 import { getGithubToken } from '@/lib/auditor/config';
 import { SUBMISSION_LIMITS, currentCreditMonth } from '@/lib/auditor/limits';
 import { prisma } from '@/lib/prisma';
-import { detectSkills } from './detect-skills';
+import { detectSkills, type TreeEntry } from './detect-skills';
 import { filesFingerprint as createFilesFingerprint } from './fingerprint';
 import { parseGithubUrl } from './parse-github-url';
 import { parseSkillManifest } from './skill-manifest';
@@ -11,6 +11,7 @@ import {
   generateSkillSlug,
   getManifestPathsToRead,
   getSkillLimitReason,
+  needsSourceFiles,
   validateSelectedSkillPaths,
   type SubmissionSkill,
 } from './submission-rules';
@@ -136,6 +137,21 @@ export async function submitSkills(
           });
 
           if (skill?.hiddenAt) throw new SubmissionServiceError(BLOCKED_REPOSITORY_MESSAGE);
+
+          if (
+            skill
+            && (skill.displayOwner !== prepared.displayOwner || skill.displayRepo !== prepared.displayRepo)
+          ) {
+            await tx.skill.update({
+              where: { id: skill.id },
+              data: {
+                displayOwner: prepared.displayOwner,
+                displayRepo: prepared.displayRepo,
+              },
+            });
+            skill.displayOwner = prepared.displayOwner;
+            skill.displayRepo = prepared.displayRepo;
+          }
           const version = skill?.versions?.[0];
           const activeJob = version?.analysisJobs.find((job) =>
             job.status === 'queued' || job.status === 'running');
@@ -203,6 +219,8 @@ export async function submitSkills(
               data: {
                 owner: prepared.owner,
                 repo: prepared.repo,
+                displayOwner: prepared.displayOwner,
+                displayRepo: prepared.displayRepo,
                 path: plan.requested.path,
                 name: plan.requested.name,
                 description: plan.requested.description,
@@ -215,11 +233,18 @@ export async function submitSkills(
             data: {
               skillId: skill.id,
               filesFingerprint: plan.requested.filesFingerprint,
+              sourceFiles: plan.requested.sourceFiles,
               commitSha: prepared.commitSha,
               submittedRef: prepared.ref,
               submittedById: userId,
             },
           });
+          if (plan.version && needsSourceFiles(plan.version.sourceFiles)) {
+            await tx.skillVersion.update({
+              where: { id: version.id },
+              data: { sourceFiles: plan.requested.sourceFiles },
+            });
+          }
           const job = await tx.analysisJob.create({
             data: {
               versionId: version.id,
@@ -248,12 +273,14 @@ export async function submitSkills(
 
 type PreparedSkill = SubmissionSkill & {
   filesFingerprint: string;
+  sourceFiles: TreeEntry[];
 };
 
 type SubmissionVersion = {
   id: string;
   filesFingerprint: string;
   hasRemoteScripts: boolean;
+  sourceFiles?: unknown;
   analysisJobs: { id: string; kind: 'analysis' | 'fingerprint_check'; status: string }[];
 };
 
@@ -262,6 +289,8 @@ type ExistingSubmissionSkill = {
   path: string;
   slug: string;
   hiddenAt: Date | null;
+  displayOwner?: string | null;
+  displayRepo?: string | null;
   versions?: SubmissionVersion[];
 };
 
@@ -277,6 +306,8 @@ type PlannedSkill = {
 async function inspectRepository(url: string): Promise<{
   owner: string;
   repo: string;
+  displayOwner: string;
+  displayRepo: string;
   commitSha: string;
   ref: string;
   skills: PreparedSkill[];
@@ -294,6 +325,7 @@ async function inspectRepository(url: string): Promise<{
 
   const github = createGithubClient(getGithubToken());
   const resolved = await github.resolveRefAndPath(owner, repo, parsed.refAndPath ?? []);
+  const { displayOwner, displayRepo } = splitFullName(resolved.fullName);
   const tree = await github.getTree(owner, repo, resolved.commitSha);
   const manifestPaths = getManifestPathsToRead(tree, resolved.path);
   if (!Array.isArray(manifestPaths)) throw new SubmissionServiceError(manifestPaths.error);
@@ -361,15 +393,35 @@ async function inspectRepository(url: string): Promise<{
       ...(target ? { target } : {}),
       ...(state === 'rejected' ? { reason: limitReason } : {}),
       filesFingerprint: fingerprint,
+      sourceFiles: skill.files.map((file) => ({
+        path: file.path,
+        type: file.type,
+        sha: file.sha,
+        mode: file.mode,
+        ...(file.size !== undefined ? { size: file.size } : {}),
+      })),
     };
   });
 
   return {
     owner,
     repo,
+    displayOwner,
+    displayRepo,
     commitSha: resolved.commitSha,
     ref: resolved.ref,
     skills,
+  };
+}
+
+function splitFullName(fullName: string): { displayOwner: string; displayRepo: string } {
+  const slashIndex = fullName.indexOf('/');
+  if (slashIndex < 0) {
+    return { displayOwner: fullName, displayRepo: '' };
+  }
+  return {
+    displayOwner: fullName.slice(0, slashIndex),
+    displayRepo: fullName.slice(slashIndex + 1),
   };
 }
 

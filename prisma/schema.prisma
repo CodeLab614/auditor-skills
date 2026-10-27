@@ -150,17 +150,45 @@ enum AnalysisJobStatus {
   failed
 }
 
+enum FindingSeverity {
+  critical
+  high
+  medium
+  low
+}
+
+enum Verdict {
+  dangerous
+  review
+  no_serious_findings
+}
+
+enum FileReview {
+  source
+  decompiled
+  unreviewable
+}
+
+enum FileOrigin {
+  skill
+  plugin
+  readme
+  remote
+}
+
 model Skill {
-  id          String         @id @default(cuid())
-  owner       String
-  repo        String
-  path        String
-  name        String
-  description String
-  slug        String         @unique
-  hiddenAt    DateTime?
-  createdAt   DateTime       @default(now())
-  versions    SkillVersion[]
+  id           String         @id @default(cuid())
+  owner        String
+  repo         String
+  displayOwner String?
+  displayRepo  String?
+  path         String
+  name         String
+  description  String
+  slug         String         @unique
+  hiddenAt     DateTime?
+  createdAt    DateTime       @default(now())
+  versions     SkillVersion[]
 
   @@unique([owner, repo, path])
   @@map("skill")
@@ -174,15 +202,61 @@ model SkillVersion {
   filesFingerprint String
   fingerprint      String?
   hasRemoteScripts Boolean       @default(false)
+  sourceFiles      Json          @default("[]")
+  verdict          Verdict?
+  analyzedAt       DateTime?
+  report           Json?
   submittedById    String?
   createdAt        DateTime      @default(now())
   skill            Skill         @relation(fields: [skillId], references: [id], onDelete: Cascade)
   submittedBy      User?         @relation(fields: [submittedById], references: [id], onDelete: SetNull)
   analysisJobs     AnalysisJob[]
+  files            VersionFile[]
+  findings         Finding[]
 
   @@unique([skillId, fingerprint])
   @@index([skillId, filesFingerprint])
   @@map("skill_version")
+}
+
+model VersionFile {
+  id            String       @id @default(cuid())
+  versionId     String
+  path          String
+  origin        FileOrigin
+  blobSha       String?
+  contentSha256 String
+  remoteUrl     String?
+  downloadedAt  DateTime?
+  kind          String
+  language      String?
+  lineCount     Int
+  byteSize      Int
+  review        FileReview
+  flags         String[]
+  version       SkillVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, path])
+  @@map("version_file")
+}
+
+model Finding {
+  id        String          @id @default(cuid())
+  versionId String
+  ruleId    String
+  category  String
+  severity  FindingSeverity
+  declared  Boolean         @default(false)
+  origin    String          @default("rules")
+  filePath  String
+  line      Int
+  title     String
+  evidence  String
+  createdAt DateTime        @default(now())
+  version   SkillVersion    @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId, severity])
+  @@map("finding")
 }
 
 model AnalysisJob {
@@ -190,6 +264,9 @@ model AnalysisJob {
   versionId        String
   kind             AnalysisJobKind
   status           AnalysisJobStatus @default(queued)
+  step             String?
+  progressCurrent  Int?
+  progressTotal    Int?
   attempts         Int               @default(0)
   failureReason    String?
   userId           String?
@@ -198,6 +275,7 @@ model AnalysisJob {
   createdAt        DateTime          @default(now())
   startedAt        DateTime?
   finishedAt       DateTime?
+  heartbeatAt      DateTime?
   version          SkillVersion      @relation(fields: [versionId], references: [id], onDelete: Cascade)
   user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
 

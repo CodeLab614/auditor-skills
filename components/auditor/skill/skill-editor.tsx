@@ -55,7 +55,7 @@ export function SkillEditor({
     if (selected === "install") return [
       ...analysis.install.map((step, index) => [
         `install-${index}`, step.method === "plugin"
-          ? "Como plugin" : "Copiando la carpeta",
+          ? "Como plugin" : step.method === "readme" ? "Desde el README" : "Copiando la carpeta",
       ] as [string, string]),
       ["packages", "Paquetes instalados"],
     ];
@@ -175,6 +175,8 @@ export function SkillEditor({
                   file={analysis.files.find((entry) => entry.path === selected)!}
                   findings={analysis.findings}
                   highlightedLine={highlightedLine}
+                  owner={analysis.owner}
+                  repo={analysis.repo}
                 />
               ) : selected === "summary" ? (
                 <SummarySection analysis={analysis} onOpenFile={openFile} />
