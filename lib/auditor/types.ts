@@ -148,20 +148,31 @@ export interface AdminJob {
   repo: string;
   submittedBy: string;
   state: JobState;
+  kind: "analysis" | "fingerprint_check";
   attempts: number;
   createdAt: string;
+  progressId?: string;
+  resultSlug?: string;
   failureReason?: string;
 }
 export interface ModeratedSkill {
+  id: string;
   slug: string;
   name: string;
   repo: string;
+  path: string;
   hidden: boolean;
+  hiddenAt?: string | null;
+  analyzedVersions: number;
+  latestVerdict: Verdict | null;
+  createdAt: string;
 }
 export interface BlockedRepo {
+  id: string;
   repo: string;
   blockedAt: string;
   reason: string;
+  blockedBy: string;
 }
 export interface TakedownRequest {
   id: string;

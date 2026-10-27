@@ -1,24 +1,23 @@
+"use client";
+
 import Link from "next/link";
-import { PageHeader } from "@/components/dashboard";
+import {
+  PageHeader,
+  TableView,
+  type RowAction,
+  type TableViewColumn,
+  type TableViewFilter,
+} from "@/components/dashboard";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { formatDate, jobStateLabel } from "@/lib/auditor/labels";
+import { auditorTableLabels } from "@/lib/auditor/table-labels";
+import {
+  JOB_STATUSES,
+  submissionsTableQuery,
+  type SubmissionsTableFilter,
+} from "@/lib/auditor/table-queries";
 import type { Quota, Submission } from "@/lib/auditor/types";
+import type { TableParams } from "@/lib/table-query";
 
 function statusVariant(state: Submission["state"]) {
   if (state === "failed") return "destructive" as const;
@@ -27,18 +26,112 @@ function statusVariant(state: Submission["state"]) {
   return "secondary" as const;
 }
 
+const SUBMISSION_FILTERS: TableViewFilter<SubmissionsTableFilter>[] = [
+  {
+    key: "status",
+    label: "Estado",
+    options: JOB_STATUSES.map((status) => ({
+      value: status,
+      label: jobStateLabel[status],
+    })),
+  },
+];
+
+const SUBMISSION_COLUMNS: TableViewColumn<Submission>[] = [
+  {
+    id: "skill",
+    header: "Skill",
+    required: true,
+    render: (item) =>
+      item.resultSlug ? (
+        <Link
+          className="underline underline-offset-4"
+          href={`/skills/${item.resultSlug}`}
+        >
+          {item.skillName}
+        </Link>
+      ) : (
+        item.skillName
+      ),
+  },
+  {
+    id: "repo",
+    header: "Repositorio",
+    render: (item) => <span className="break-all">{item.repo}</span>,
+  },
+  {
+    id: "submittedAt",
+    header: "Fecha",
+    render: (item) => (
+      <span className="font-mono text-[13px] text-muted-foreground">
+        {formatDate(item.submittedAt)}
+      </span>
+    ),
+  },
+  {
+    id: "state",
+    header: "Estado",
+    render: (item) => (
+      <Badge variant={statusVariant(item.state)}>
+        {jobStateLabel[item.state]}
+      </Badge>
+    ),
+  },
+  {
+    id: "failureReason",
+    header: "Motivo",
+    render: (item) => item.failureReason ?? "—",
+  },
+];
+
+interface SubmissionsContentProps {
+  submissions: Submission[];
+  total: number;
+  totalPages: number;
+  params: TableParams<SubmissionsTableFilter>;
+  quota: Quota;
+  hiddenColumns: string[];
+}
+
 export function SubmissionsContent({
   submissions,
+  total,
+  totalPages,
+  params,
   quota,
-}: {
-  submissions: Submission[];
-  quota: Quota;
-}) {
+  hiddenColumns,
+}: SubmissionsContentProps) {
   const remaining = Math.max(0, quota.limit - quota.used);
   const renewalMonth = new Intl.DateTimeFormat("es", {
     month: "long",
     timeZone: "UTC",
   }).format(new Date(quota.renewsOn));
+
+  const rowActions = (item: Submission): RowAction<Submission>[] => {
+    if (
+      item.state === "queued" ||
+      item.state === "checking" ||
+      item.state === "running"
+    ) {
+      return [
+        {
+          id: "progress",
+          label: "Ver avance",
+          href: `/analysis/${item.progressId ?? item.id}`,
+        },
+      ];
+    }
+    if (item.state === "done" && item.resultSlug) {
+      return [
+        {
+          id: "analysis",
+          label: "Ver análisis",
+          href: `/skills/${item.resultSlug}`,
+        },
+      ];
+    }
+    return [];
+  };
 
   return (
     <>
@@ -47,102 +140,29 @@ export function SubmissionsContent({
           {remaining} de {quota.limit} disponibles
         </Badge>
       </PageHeader>
-      <div className="flex flex-col gap-6 p-5">
-        <p className="text-sm text-muted-foreground">
-          Te quedan {remaining} de {quota.limit} · se renueva el 1 de {renewalMonth}
-        </p>
-        {submissions.length ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Historial</CardTitle>
-              <CardDescription>
-                Consulta el análisis, el avance o el motivo de cada envío.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Skill</TableHead>
-                      <TableHead>Repositorio</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Detalle</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {submissions.map((submission) => (
-                      <TableRow key={submission.id} className="align-top">
-                        <TableCell className="whitespace-normal break-words">
-                          {submission.resultSlug ? (
-                            <Link
-                              className="underline underline-offset-4"
-                              href={`/skills/${submission.resultSlug}`}
-                            >
-                              {submission.skillName}
-                            </Link>
-                          ) : (
-                            submission.skillName
-                          )}
-                        </TableCell>
-                        <TableCell className="break-all">
-                          {submission.repo}
-                        </TableCell>
-                        <TableCell>
-                          {formatDate(submission.submittedAt)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={statusVariant(submission.state)}>
-                            {jobStateLabel[submission.state]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {submission.resultSlug ? (
-                            <Link
-                              className="underline underline-offset-4"
-                              href={`/skills/${submission.resultSlug}`}
-                            >
-                              Ver análisis
-                            </Link>
-                          ) : submission.state === "failed" ? (
-                            submission.failureReason ?? "—"
-                          ) : submission.state === "queued" ||
-                            submission.state === "checking" ||
-                            submission.state === "running" ? (
-                            <Link
-                              className="underline underline-offset-4"
-                              href={`/analysis/${submission.progressId ?? submission.id}`}
-                            >
-                              Ver avance
-                            </Link>
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Aún no tienes envíos</CardTitle>
-              <CardDescription>
-                Cuando envíes una skill, su estado aparecerá aquí.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild>
-                <Link href="/dashboard/submit">Enviar una skill</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      <p className="px-5 py-2.5 text-sm text-muted-foreground">
+        Te quedan {remaining} de {quota.limit} · se renueva el 1 de {renewalMonth}
+      </p>
+      <TableView
+        tableId="auditor-submissions"
+        basePath="/dashboard/submissions"
+        query={submissionsTableQuery}
+        params={params}
+        rows={submissions}
+        total={total}
+        totalPages={totalPages}
+        columns={SUBMISSION_COLUMNS}
+        hiddenColumns={hiddenColumns}
+        filters={SUBMISSION_FILTERS}
+        rowActions={rowActions}
+        labels={{
+          ...auditorTableLabels(
+            { singular: "envío", plural: "envíos" },
+            "Todavía no has enviado ninguna skill.",
+          ),
+          searchPlaceholder: "Buscar por skill o repositorio…",
+        }}
+      />
     </>
   );
 }
