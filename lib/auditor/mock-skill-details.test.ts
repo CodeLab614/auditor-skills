@@ -1,35 +1,42 @@
 import { describe, expect, test } from "bun:test";
 import { getSkillAnalysis } from "./mock-data";
-import { getMockSkillDetails } from "./mock-skill-details";
+import {
+  getMockSkillAi,
+  getMockSkillDetailsView,
+} from "./mock-skill-details";
 
 describe("mock skill details", () => {
-  test("skill details list every file of the mock analysis", async () => {
-    const analysis = await getSkillAnalysis("explicar-cambios");
-    expect(analysis).not.toBeNull();
-    const details = getMockSkillDetails("explicar-cambios");
-    expect(details).not.toBeNull();
+  test("getMockSkillAi returns details for explicar-cambios and null for others", () => {
+    expect(getMockSkillAi("otra")).toBeNull();
+    expect(getMockSkillAi("")).toBeNull();
+    expect(getMockSkillAi("sincronizador")).toBeNull();
 
-    expect(details!.files.map((file) => file.path)).toEqual(
-      analysis!.files.map((file) => file.path),
-    );
+    const ai = getMockSkillAi("explicar-cambios");
+    expect(ai).not.toBeNull();
+    expect(ai!.steps.length > 0).toBe(true);
+    expect(Object.keys(ai!.files).length > 0).toBe(true);
   });
 
-  test("skill details line counts match the mock files", async () => {
+  test("getMockSkillDetailsView builds view from mock analysis", async () => {
     const analysis = await getSkillAnalysis("explicar-cambios");
     expect(analysis).not.toBeNull();
-    const details = getMockSkillDetails("explicar-cambios");
+    const details = await getMockSkillDetailsView("explicar-cambios");
     expect(details).not.toBeNull();
 
     expect(details!.files.length).toBe(analysis!.files.length);
     for (let i = 0; i < details!.files.length; i++) {
+      expect(details!.files[i].path).toBe(analysis!.files[i].path);
       expect(details!.files[i].lineCount).toBe(analysis!.files[i].lines.length);
-      expect(details!.files[i].purpose).toBe(analysis!.files[i].purpose);
     }
   });
 
-  test("unknown skill has no details", () => {
-    expect(getMockSkillDetails("unknown-skill")).toBeNull();
-    expect(getMockSkillDetails("sincronizador")).toBeNull();
-    expect(getMockSkillDetails("")).toBeNull();
+  test("unknown skill has no mock details view", async () => {
+    expect(await getMockSkillDetailsView("unknown-skill")).toBeNull();
+    expect(await getMockSkillDetailsView("")).toBeNull();
   });
+});
+
+test("the mock skill page lists what the skill needs", async () => {
+  const view = await getMockSkillDetailsView("explicar-cambios");
+  expect((view?.needs.length ?? 0) > 0).toBe(true);
 });

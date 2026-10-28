@@ -11,6 +11,11 @@ import {
   type ToFindingInput,
   type ToVersionInput,
 } from "@/lib/auditor/skill-analysis";
+import {
+  displayLanguage,
+  toSkillDetailsView,
+  type SkillDetailsView,
+} from "@/lib/auditor/skill-details";
 import type { TableParams } from "@/lib/table-query";
 import {
   buildBlockedReposWhere,
@@ -65,6 +70,65 @@ export async function getSkillAnalysisFromDb(
   if (!skill || skill.hiddenAt) return null;
 
   return toSkillAnalysis(skill, skill.versions, version);
+}
+
+export async function getSkillDetailsFromDb(
+  slug: string,
+): Promise<SkillDetailsView | null> {
+  const skill = await prisma.skill.findUnique({
+    where: { slug },
+  });
+
+  if (!skill || skill.hiddenAt !== null || !skill.latestVersionId) {
+    return null;
+  }
+
+  const version = await prisma.skillVersion.findUnique({
+    where: { id: skill.latestVersionId },
+    include: {
+      files: {
+        select: { path: true, language: true, lineCount: true },
+        orderBy: { path: "asc" },
+      },
+      findings: {
+        select: {
+          ruleId: true,
+          category: true,
+          title: true,
+          evidence: true,
+          filePath: true,
+          line: true,
+        },
+      },
+    },
+  });
+
+  if (!version || !version.verdict || !version.analyzedAt) {
+    return null;
+  }
+
+  const files = version.files.map((file) => ({
+    path: file.path,
+    language: displayLanguage(file.path, file.language),
+    lineCount: file.lineCount,
+  }));
+
+  return toSkillDetailsView({
+    skill: {
+      slug: skill.slug,
+      name: skill.name,
+      owner: skill.displayOwner ?? skill.owner,
+      repo: skill.displayRepo ?? skill.repo,
+      path: skill.path,
+      description: skill.description,
+    },
+    version: {
+      verdict: version.verdict,
+      analyzedAt: version.analyzedAt.toISOString(),
+    },
+    files,
+    findings: version.findings,
+  });
 }
 
 export async function getQuota(userId: string): Promise<Quota> {

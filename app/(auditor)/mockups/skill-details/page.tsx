@@ -1,39 +1,32 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getSkillAnalysis } from "@/lib/auditor/mock-data";
-import { getMockSkillDetails } from "@/lib/auditor/mock-skill-details";
-import { analysisHref } from "@/lib/auditor/skill-links";
 import { SkillDetailsContent } from "@/components/auditor/skill/skill-details-content";
+import {
+  getMockSkillAi,
+  getMockSkillDetailsView,
+} from "@/lib/auditor/mock-skill-details";
+import { getSkillDetailsFromDb } from "@/lib/auditor/queries";
 
 export const metadata: Metadata = {
   title: "explicar-cambios · Ficha (maqueta) · Auditor de skills",
 };
 
 export default async function MockupFichaPage() {
-  const analysis = await getSkillAnalysis("explicar-cambios");
-  const details = getMockSkillDetails("explicar-cambios");
+  const slug = "explicar-cambios";
+  const details =
+    (await getSkillDetailsFromDb(slug)) ?? (await getMockSkillDetailsView(slug));
 
-  if (!analysis || !details) {
+  if (!details) {
     notFound();
   }
 
-  const currentVersion =
-    analysis.versions.find((item) => item.number === analysis.version) ??
-    analysis.versions.at(-1);
-
-  const analyzedAt = currentVersion?.analyzedAt ?? "2026-10-24";
+  const ai = getMockSkillAi(slug);
 
   return (
     <SkillDetailsContent
-      analysis={{
-        name: analysis.name,
-        owner: analysis.owner,
-        repo: analysis.repo,
-        verdict: analysis.verdict,
-        analyzedAt,
-      }}
       details={details}
-      otherHref={analysisHref("explicar-cambios", { section: "summary" })}
+      ai={ai}
+      showCommentsPlaceholder
     />
   );
 }

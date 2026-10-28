@@ -3522,6 +3522,13 @@ body:has(.auditor-public-site) .auditor-public-sheet__close svg {
   font-weight: 500;
 }
 
+.auditor-skill-details__author-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
 /* Sección 2: Para qué sirve y para qué no */
 .auditor-skill-details__columns {
   display: grid;
@@ -3646,7 +3653,7 @@ body:has(.auditor-public-site) .auditor-public-sheet__close svg {
 
 .auditor-skill-details__requirement-group {
   display: grid;
-  grid-template-columns: 180px 1fr;
+  grid-template-columns: 180px minmax(0, 1fr);
   align-items: baseline;
   gap: 20px;
   padding: 14px 0;
@@ -3664,6 +3671,7 @@ body:has(.auditor-public-site) .auditor-public-sheet__close svg {
 
 .auditor-skill-details__requirement-items {
   margin: 0;
+  min-width: 0;
 }
 
 .auditor-skill-details__requirement-list {
@@ -3674,6 +3682,71 @@ body:has(.auditor-public-site) .auditor-public-sheet__close svg {
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
+  color: var(--text-primary);
+}
+
+.auditor-skill-details__need-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auditor-skill-details__need-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.auditor-skill-details__need-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+}
+
+.auditor-skill-details__need-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.auditor-skill-details__need-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.auditor-skill-details__need-evidence-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.auditor-skill-details__need-evidence {
+  font-family: var(--auditor-font-mono, monospace);
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.auditor-skill-details__need-link {
+  font-family: var(--auditor-font-mono, monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.auditor-skill-details__need-link:hover {
   color: var(--text-primary);
 }
 
@@ -3912,7 +3985,13 @@ body:has(.auditor-public-site) .auditor-public-sheet__close svg {
   }
 
   .auditor-skill-details__requirement-group {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .auditor-skill-details__need-evidence-row {
+    flex-direction: column;
+    align-items: flex-start;
     gap: 6px;
   }
 
