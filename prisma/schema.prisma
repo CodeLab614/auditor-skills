@@ -177,20 +177,31 @@ enum FileOrigin {
 }
 
 model Skill {
-  id           String         @id @default(cuid())
-  owner        String
-  repo         String
-  displayOwner String?
-  displayRepo  String?
-  path         String
-  name         String
-  description  String
-  slug         String         @unique
-  hiddenAt     DateTime?
-  createdAt    DateTime       @default(now())
-  versions     SkillVersion[]
+  id                     String         @id @default(cuid())
+  owner                  String
+  repo                   String
+  displayOwner           String?
+  displayRepo            String?
+  path                   String
+  name                   String
+  description            String
+  slug                   String         @unique
+  hiddenAt               DateTime?
+  latestVersionId        String?
+  latestVerdict          Verdict?
+  latestAnalyzedAt       DateTime?
+  latestWarningCount     Int?
+  latestHasRemoteScripts Boolean?
+  searchText             String         @default("")
+  createdAt              DateTime       @default(now())
+  versions               SkillVersion[]
 
   @@unique([owner, repo, path])
+  @@index([latestAnalyzedAt])
+  @@index([name])
+  @@index([latestWarningCount])
+  @@index([latestVerdict])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("skill")
 }
 
