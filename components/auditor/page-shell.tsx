@@ -73,7 +73,7 @@ export function SiteFooter() {
         <div className="auditor-site-footer__columns">
           <FooterColumn title="Producto">
             <NavLink href="/skills">Catálogo</NavLink>
-            <NavLink href="/skills#how-it-works">Cómo funciona</NavLink>
+            <NavLink href="/#how-it-works">Cómo funciona</NavLink>
             <NavLink href="/dashboard/submit">Enviar una skill</NavLink>
           </FooterColumn>
           <FooterColumn title="Tu cuenta">

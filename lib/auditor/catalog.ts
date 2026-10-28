@@ -6,7 +6,10 @@ import type {
   CatalogFilter,
   CatalogPage,
   CatalogRow,
+  HomeStats,
 } from "@/lib/auditor/catalog-query";
+
+export const CATALOG_BASE_CONDITION = Prisma.sql`s."hiddenAt" IS NULL AND s."latestVersionId" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "blocked_repository" b WHERE lower(b."owner") = lower(s."owner") AND lower(b."repo") = lower(s."repo"))`;
 
 export function escapeLike(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
@@ -43,7 +46,7 @@ export async function queryCatalog(
   client: { $queryRaw: PrismaClient["$queryRaw"] },
   params: TableParams<CatalogFilter>,
 ): Promise<CatalogPage> {
-  const baseCondition = Prisma.sql`s."hiddenAt" IS NULL AND s."latestVersionId" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "blocked_repository" b WHERE lower(b."owner") = lower(s."owner") AND lower(b."repo") = lower(s."repo"))`;
+  const baseCondition = CATALOG_BASE_CONDITION;
 
   const n = normalizeSearchText(params.q);
   const searchCondition =
@@ -217,3 +220,52 @@ export async function queryCatalog(
     remoteCounts,
   };
 }
+
+export async function queryHomeStats(
+  client: { $queryRaw: PrismaClient["$queryRaw"] },
+): Promise<HomeStats> {
+  const [skillsResult, versionsResult, findingsResult, jobsResult] =
+    await Promise.all([
+      client.$queryRaw<CountResult[]>(
+        Prisma.sql`
+          SELECT count(*)::bigint AS count
+          FROM "skill" s
+          WHERE ${CATALOG_BASE_CONDITION}
+        `,
+      ),
+      client.$queryRaw<CountResult[]>(
+        Prisma.sql`
+          SELECT count(*)::bigint AS count
+          FROM "skill_version" v
+          JOIN "skill" s ON s."id" = v."skillId"
+          WHERE ${CATALOG_BASE_CONDITION}
+            AND v."verdict" IS NOT NULL
+            AND v."analyzedAt" IS NOT NULL
+        `,
+      ),
+      client.$queryRaw<CountResult[]>(
+        Prisma.sql`
+          SELECT count(*)::bigint AS count
+          FROM "finding" f
+          JOIN "skill" s ON s."latestVersionId" = f."versionId"
+          WHERE ${CATALOG_BASE_CONDITION}
+            AND f."severity" = 'critical'::"FindingSeverity"
+        `,
+      ),
+      client.$queryRaw<CountResult[]>(
+        Prisma.sql`
+          SELECT count(*)::bigint AS count
+          FROM "analysis_job" j
+          WHERE j."status" IN ('queued'::"AnalysisJobStatus", 'running'::"AnalysisJobStatus")
+        `,
+      ),
+    ]);
+
+  return {
+    skills: Number(skillsResult[0]?.count ?? 0),
+    versions: Number(versionsResult[0]?.count ?? 0),
+    criticalFindings: Number(findingsResult[0]?.count ?? 0),
+    activeJobs: Number(jobsResult[0]?.count ?? 0),
+  };
+}
+

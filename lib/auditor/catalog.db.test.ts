@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { catalogQuery } from "./catalog-query";
-import { queryCatalog } from "./catalog";
+import { queryCatalog, queryHomeStats } from "./catalog";
 import { skillSearchText } from "./search-text";
 
 const url = process.env.AUDITOR_TEST_DATABASE_URL;
@@ -36,7 +36,7 @@ describe.skipIf(!url)("catalog database queries", () => {
 
   beforeEach(async () => {
     await prisma.$executeRawUnsafe(
-      'TRUNCATE "finding", "skill_version", "skill", "blocked_repository" CASCADE'
+      'TRUNCATE "finding", "skill_version", "skill", "blocked_repository", "analysis_job" CASCADE'
     );
   });
 
@@ -383,5 +383,156 @@ describe.skipIf(!url)("catalog database queries", () => {
     expect(result.rows.length).toBe(1);
     expect(result.rows[0].owner).toBe("Acme");
     expect(result.rows[0].repo).toBe("Custom-Skills");
+  });
+
+  test("home stats count only listed skills", async () => {
+    const visibleSkill = await createSkill({
+      name: "visible-skill",
+      verdict: "review",
+      analyzedAt: new Date("2026-10-25T12:00:00Z"),
+      extraFinishedVersions: [
+        {
+          verdict: "review",
+          analyzedAt: new Date("2026-10-20T12:00:00Z"),
+        },
+      ],
+    });
+
+    await prisma.finding.create({
+      data: {
+        versionId: visibleSkill.latestVersionId!,
+        ruleId: "rule-crit-1",
+        category: "security",
+        severity: "critical",
+        filePath: "index.js",
+        line: 10,
+        title: "Critical finding 1",
+        evidence: "eval(input)",
+      },
+    });
+    await prisma.finding.create({
+      data: {
+        versionId: visibleSkill.latestVersionId!,
+        ruleId: "rule-crit-2",
+        category: "security",
+        severity: "critical",
+        filePath: "index.js",
+        line: 20,
+        title: "Critical finding 2",
+        evidence: "exec(cmd)",
+      },
+    });
+    await prisma.finding.create({
+      data: {
+        versionId: visibleSkill.latestVersionId!,
+        ruleId: "rule-high-1",
+        category: "security",
+        severity: "high",
+        filePath: "index.js",
+        line: 30,
+        title: "High finding",
+        evidence: "warning",
+      },
+    });
+
+    const hiddenSkill = await createSkill({
+      name: "hidden-skill",
+      hiddenAt: new Date("2026-10-20T10:00:00Z"),
+    });
+    await prisma.finding.create({
+      data: {
+        versionId: hiddenSkill.latestVersionId!,
+        ruleId: "rule-hidden-crit",
+        category: "security",
+        severity: "critical",
+        filePath: "index.js",
+        line: 1,
+        title: "Hidden finding",
+        evidence: "bad",
+      },
+    });
+
+    const unfinishedSkill = await createSkill({
+      name: "unfinished-skill",
+      skipLatestVersion: true,
+    });
+    const unfinishedVersion = await prisma.skillVersion.create({
+      data: {
+        id: crypto.randomUUID(),
+        skillId: unfinishedSkill.id,
+        commitSha: "sha-unf",
+        submittedRef: "main",
+        filesFingerprint: crypto.randomUUID(),
+        verdict: null,
+        analyzedAt: null,
+      },
+    });
+    await prisma.finding.create({
+      data: {
+        versionId: unfinishedVersion.id,
+        ruleId: "rule-unf-crit",
+        category: "security",
+        severity: "critical",
+        filePath: "index.js",
+        line: 1,
+        title: "Unfinished finding",
+        evidence: "bad",
+      },
+    });
+
+    const blockedSkill = await createSkill({
+      name: "blocked-skill",
+      owner: "blocked-owner",
+      repo: "blocked-repo",
+    });
+    await prisma.blockedRepository.create({
+      data: {
+        owner: "Blocked-Owner",
+        repo: "Blocked-Repo",
+        reason: "Blocked by admin",
+      },
+    });
+    await prisma.finding.create({
+      data: {
+        versionId: blockedSkill.latestVersionId!,
+        ruleId: "rule-blocked-crit",
+        category: "security",
+        severity: "critical",
+        filePath: "index.js",
+        line: 1,
+        title: "Blocked finding",
+        evidence: "bad",
+      },
+    });
+
+    await prisma.analysisJob.create({
+      data: {
+        versionId: visibleSkill.latestVersionId!,
+        kind: "analysis",
+        status: "queued",
+      },
+    });
+    await prisma.analysisJob.create({
+      data: {
+        versionId: visibleSkill.latestVersionId!,
+        kind: "analysis",
+        status: "running",
+      },
+    });
+    await prisma.analysisJob.create({
+      data: {
+        versionId: visibleSkill.latestVersionId!,
+        kind: "analysis",
+        status: "done",
+      },
+    });
+
+    const stats = await queryHomeStats(prisma);
+    expect(stats).toEqual({
+      skills: 1,
+      versions: 2,
+      criticalFindings: 2,
+      activeJobs: 2,
+    });
   });
 });

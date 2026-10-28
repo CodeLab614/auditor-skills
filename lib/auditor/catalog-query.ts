@@ -51,3 +51,11 @@ export interface CatalogPage<R extends CatalogRow = CatalogRow> {
   verdictCounts: Record<Verdict | "all", number>;
   remoteCounts: Record<"all" | "yes" | "no", number>;
 }
+
+export interface HomeStats {
+  skills: number;
+  versions: number;
+  criticalFindings: number;
+  activeJobs: number;
+}
+

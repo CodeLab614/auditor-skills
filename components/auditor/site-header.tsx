@@ -20,7 +20,7 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
     <header className="auditor-site-header">
       <nav className="auditor-site-header__nav" aria-label="Navegación principal">
         <div className="auditor-site-header__brand">
-          <Link href="/skills" className="auditor-wordmark">
+          <Link href="/" className="auditor-wordmark">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M3.5 3.5h7v7h-7zM13.5 3.5h7v7h-7zM3.5 13.5h7v7h-7z" />
               <path d="m13.5 17 3.5-3.5 3.5 3.5-3.5 3.5z" />
@@ -29,8 +29,8 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
           </Link>
         </div>
         <div className="auditor-site-header__links">
-          <NavLink className="auditor-header-link" href="/skills#catalog">Catálogo</NavLink>
-          <NavLink className="auditor-header-link" href="/skills#how-it-works">
+          <NavLink className="auditor-header-link" href="/skills">Catálogo</NavLink>
+          <NavLink className="auditor-header-link" href="/#how-it-works">
             Cómo funciona
           </NavLink>
           <NavLink className="auditor-header-link" href="/takedowns">Retiradas</NavLink>
@@ -59,8 +59,8 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
               <SheetTitle>Navegación</SheetTitle>
             </SheetHeader>
             <div className="auditor-mobile-links">
-              <NavLink href="/skills#catalog">Catálogo</NavLink>
-              <NavLink href="/skills#how-it-works">Cómo funciona</NavLink>
+              <NavLink href="/skills">Catálogo</NavLink>
+              <NavLink href="/#how-it-works">Cómo funciona</NavLink>
               <NavLink href="/takedowns">Retiradas</NavLink>
               <NavLink href="/dashboard/submit">Enviar una skill</NavLink>
               <NavLink href={accountHref}>{accountLabel}</NavLink>
