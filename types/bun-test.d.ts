@@ -21,7 +21,14 @@ declare module 'bun:test' {
     readonly rejects: Matchers;
   }
 
-  export const describe: (name: string, callback: () => void) => void;
+  interface DescribeFunction {
+    (name: string, callback: () => void): void;
+    skipIf(condition: boolean): (name: string, callback: () => void) => void;
+  }
+
+  export const describe: DescribeFunction;
+  export const beforeEach: (callback: () => void | Promise<void>) => void;
+  export const afterAll: (callback: () => void | Promise<void>) => void;
   export const test: TestFunction;
   export const expect: (actual: unknown) => Matchers;
 }

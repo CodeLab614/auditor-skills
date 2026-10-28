@@ -1,48 +1,17 @@
-import { defineTableQuery, type TableParams } from "@/lib/table-query";
-import type { CatalogEntry, Verdict } from "@/lib/auditor/types";
+import type { TableParams } from "@/lib/table-query";
+import type { Verdict } from "@/lib/auditor/types";
+import {
+  catalogQuery,
+  type CatalogFilter,
+  type CatalogPage,
+  type CatalogRow,
+} from "./catalog-query";
 
-export type MockCatalogEntry = CatalogEntry & {
-  hasRemoteScripts: boolean;
-  description: string;
+export { catalogQuery, type CatalogFilter };
+
+export type MockCatalogEntry = CatalogRow & {
+  path: string;
 };
-
-export type CatalogFilter = "verdict" | "remote" | "sort";
-
-export const catalogQuery = defineTableQuery<CatalogFilter>({
-  searchMaxLength: 100,
-  filters: {
-    verdict: {
-      param: "verdict",
-      values: ["dangerous", "review", "no-serious-findings"] as const,
-      multiple: false,
-    },
-    remote: {
-      param: "remote",
-      values: ["yes", "no"] as const,
-      multiple: false,
-    },
-    sort: {
-      param: "sort",
-      values: [
-        "recent",
-        "name",
-        "most-warnings",
-        "fewest-warnings",
-      ] as const,
-      multiple: false,
-    },
-  },
-});
-
-export interface MockCatalogQueryResult {
-  rows: MockCatalogEntry[];
-  total: number;
-  catalogTotal: number;
-  totalPages: number;
-  page: number;
-  verdictCounts: Record<Verdict | "all", number>;
-  remoteCounts: Record<"all" | "yes" | "no", number>;
-}
 
 export function normalizeSearch(text: string): string {
   return text
@@ -328,7 +297,7 @@ function matchesSearch(entry: MockCatalogEntry, rawQuery: string): boolean {
 
 export function queryMockCatalog(
   params: TableParams<CatalogFilter>,
-): MockCatalogQueryResult {
+): CatalogPage<MockCatalogEntry> {
   const catalog = getMockCatalog();
   const rawQ = params.q;
   const verdictFilter = params.filters.verdict[0] as Verdict | undefined;

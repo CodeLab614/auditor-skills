@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { queryCatalog } from "@/lib/auditor/catalog";
+import type { CatalogFilter } from "@/lib/auditor/catalog-query";
 import { currentCreditMonth, nextRenewal, SUBMISSION_LIMITS } from "@/lib/auditor/limits";
 import { mapJobState } from "@/lib/auditor/job-state";
 import { analysisStepLabel } from "@/lib/auditor/labels";
@@ -327,3 +329,8 @@ export async function getAnalysisProgress(id: string): Promise<AnalysisProgress 
     ...(state === "done" ? { resultSlug: skill.slug } : {}),
   };
 }
+
+export function getCatalogPage(params: TableParams<CatalogFilter>) {
+  return queryCatalog(prisma, params);
+}
+

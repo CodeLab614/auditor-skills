@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { catalogQuery } from "./catalog-query";
 import {
-  catalogQuery,
   getMockCatalog,
   queryMockCatalog,
 } from "./mock-catalog";
