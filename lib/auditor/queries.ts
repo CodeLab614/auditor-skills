@@ -9,12 +9,26 @@ import {
   type ToFindingInput,
   type ToVersionInput,
 } from "@/lib/auditor/skill-analysis";
+import type { TableParams } from "@/lib/table-query";
+import {
+  buildBlockedReposWhere,
+  buildQueueWhere,
+  buildSkillsWhere,
+  buildSubmissionsWhere,
+  type BlockedReposTableFilter,
+  type QueueTableFilter,
+  type SkillsTableFilter,
+  type SubmissionsTableFilter,
+} from "@/lib/auditor/table-queries";
 import type {
   AdminJob,
   AnalysisProgress,
+  BlockedRepo,
+  ModeratedSkill,
   Quota,
   SkillAnalysis,
   Submission,
+  Verdict,
 } from "@/lib/auditor/types";
 
 export {
@@ -67,14 +81,32 @@ export async function getQuota(userId: string): Promise<Quota> {
   };
 }
 
-export async function getMySubmissions(userId: string): Promise<Submission[]> {
-  const jobs = await prisma.analysisJob.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    include: { version: { include: { skill: true } } },
-  });
+export async function getMySubmissions(
+  userId: string,
+  params: TableParams<SubmissionsTableFilter>,
+): Promise<{
+  rows: Submission[];
+  total: number;
+  totalPages: number;
+  page: number;
+}> {
+  const where = buildSubmissionsWhere(userId, params);
 
-  return jobs.map((job) => {
+  const [total, jobs] = await prisma.$transaction([
+    prisma.analysisJob.count({ where }),
+    prisma.analysisJob.findMany({
+      where,
+      skip: (params.page - 1) * params.pageSize,
+      take: params.pageSize,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: { version: { include: { skill: true } } },
+    }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / params.pageSize));
+  const page = Math.min(params.page, totalPages);
+
+  const rows: Submission[] = jobs.map((job) => {
     const state = mapJobState(job.status, job.kind);
     const resultSlug = state === "done" ? job.version.skill.slug : undefined;
     const skill = job.version.skill;
@@ -82,9 +114,10 @@ export async function getMySubmissions(userId: string): Promise<Submission[]> {
 
     return {
       id: job.id,
-      progressId: state === "queued" || state === "checking" || state === "running"
-        ? job.id
-        : undefined,
+      progressId:
+        state === "queued" || state === "checking" || state === "running"
+          ? job.id
+          : undefined,
       skillName: skill.name,
       repo,
       submittedAt: job.createdAt.toISOString(),
@@ -93,32 +126,167 @@ export async function getMySubmissions(userId: string): Promise<Submission[]> {
       ...(job.failureReason ? { failureReason: job.failureReason } : {}),
     };
   });
+
+  return { rows, total, totalPages, page };
 }
 
-export async function getAdminJobs(): Promise<AdminJob[]> {
-  const jobs = await prisma.analysisJob.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      user: { select: { name: true, email: true } },
-      version: { include: { skill: true } },
-    },
-  });
+export async function getAdminJobs(
+  params: TableParams<QueueTableFilter>,
+): Promise<{
+  rows: AdminJob[];
+  total: number;
+  totalPages: number;
+  page: number;
+}> {
+  const where = buildQueueWhere(params);
 
-  return jobs.map((job) => {
+  const [total, jobs] = await prisma.$transaction([
+    prisma.analysisJob.count({ where }),
+    prisma.analysisJob.findMany({
+      where,
+      skip: (params.page - 1) * params.pageSize,
+      take: params.pageSize,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: {
+        user: { select: { name: true, email: true } },
+        version: { include: { skill: true } },
+      },
+    }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / params.pageSize));
+  const page = Math.min(params.page, totalPages);
+
+  const rows: AdminJob[] = jobs.map((job) => {
     const skill = job.version.skill;
     const repo = `${skill.displayOwner ?? skill.owner}/${skill.displayRepo ?? skill.repo}`;
+    const state = mapJobState(job.status, job.kind);
 
     return {
       id: job.id,
       skillName: skill.name,
       repo,
       submittedBy: job.user?.name || job.user?.email || "Usuario eliminado",
-      state: mapJobState(job.status, job.kind),
+      state,
+      kind: job.kind,
       attempts: job.attempts,
       createdAt: job.createdAt.toISOString(),
+      progressId:
+        state === "queued" || state === "checking" || state === "running"
+          ? job.id
+          : undefined,
+      resultSlug: state === "done" ? skill.slug : undefined,
       ...(job.failureReason ? { failureReason: job.failureReason } : {}),
     };
   });
+
+  return { rows, total, totalPages, page };
+}
+
+export async function getSkills(
+  params: TableParams<SkillsTableFilter>,
+): Promise<{
+  rows: ModeratedSkill[];
+  total: number;
+  totalPages: number;
+  page: number;
+}> {
+  const where = buildSkillsWhere(params);
+
+  const [total, skills] = await prisma.$transaction([
+    prisma.skill.count({ where }),
+    prisma.skill.findMany({
+      where,
+      skip: (params.page - 1) * params.pageSize,
+      take: params.pageSize,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: {
+        versions: {
+          select: {
+            verdict: true,
+            analyzedAt: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / params.pageSize));
+  const page = Math.min(params.page, totalPages);
+
+  const rows: ModeratedSkill[] = skills.map((skill) => {
+    const repo = `${skill.displayOwner ?? skill.owner}/${skill.displayRepo ?? skill.repo}`;
+    const analyzedVersions = skill.versions.filter((v) => v.verdict !== null).length;
+
+    const versionsWithVerdict = skill.versions.filter((v) => v.verdict !== null);
+    const latestVersion = versionsWithVerdict.sort((a, b) => {
+      const timeA = a.analyzedAt ? a.analyzedAt.getTime() : 0;
+      const timeB = b.analyzedAt ? b.analyzedAt.getTime() : 0;
+      return timeB - timeA;
+    })[0];
+
+    const rawVerdict = latestVersion?.verdict;
+    const latestVerdict: Verdict | null = rawVerdict
+      ? (rawVerdict.replaceAll("_", "-") as Verdict)
+      : null;
+
+    return {
+      id: skill.id,
+      slug: skill.slug,
+      name: skill.name,
+      repo,
+      path: skill.path,
+      hidden: skill.hiddenAt !== null,
+      hiddenAt: skill.hiddenAt ? skill.hiddenAt.toISOString() : null,
+      analyzedVersions,
+      latestVerdict,
+      createdAt: skill.createdAt.toISOString(),
+    };
+  });
+
+  return { rows, total, totalPages, page };
+}
+
+export async function getBlockedRepos(
+  params: TableParams<BlockedReposTableFilter>,
+): Promise<{
+  rows: BlockedRepo[];
+  total: number;
+  totalPages: number;
+  page: number;
+}> {
+  const where = buildBlockedReposWhere(params);
+
+  const [total, repos] = await prisma.$transaction([
+    prisma.blockedRepository.count({ where }),
+    prisma.blockedRepository.findMany({
+      where,
+      skip: (params.page - 1) * params.pageSize,
+      take: params.pageSize,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: {
+        createdBy: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / params.pageSize));
+  const page = Math.min(params.page, totalPages);
+
+  const rows: BlockedRepo[] = repos.map((item) => ({
+    id: item.id,
+    repo: `${item.owner}/${item.repo}`,
+    blockedAt: item.createdAt.toISOString(),
+    reason: item.reason,
+    blockedBy: item.createdBy?.name || item.createdBy?.email || "—",
+  }));
+
+  return { rows, total, totalPages, page };
 }
 
 export async function getAnalysisProgress(id: string): Promise<AnalysisProgress | null> {

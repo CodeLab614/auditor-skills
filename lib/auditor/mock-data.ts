@@ -1007,8 +1007,10 @@ const adminJobs: AdminJob[] = [
     repo: "ejemplo-org/skills-demo",
     submittedBy: "@demo-author",
     state: "done",
+    kind: "analysis",
     attempts: 1,
     createdAt: "2026-10-24T12:15:00Z",
+    resultSlug: "explicar-cambios",
   },
   {
     id: "job-2",
@@ -1016,8 +1018,10 @@ const adminJobs: AdminJob[] = [
     repo: "ejemplo-org/sincronizador",
     submittedBy: "@usuario-prueba",
     state: "running",
+    kind: "analysis",
     attempts: 2,
     createdAt: "2026-10-25T09:42:00Z",
+    progressId: "job-2",
   },
   {
     id: "job-3",
@@ -1025,6 +1029,7 @@ const adminJobs: AdminJob[] = [
     repo: "ejemplo-org/pruebas",
     submittedBy: "@cuenta-demo",
     state: "failed",
+    kind: "analysis",
     attempts: 3,
     createdAt: "2026-10-25T08:30:00Z",
     failureReason: "No se pudo resolver la rama del repositorio.",
@@ -1035,8 +1040,10 @@ const adminJobs: AdminJob[] = [
     repo: "ejemplo-org/skills-demo",
     submittedBy: "@persona-demo",
     state: "queued",
+    kind: "analysis",
     attempts: 0,
     createdAt: "2026-10-25T10:10:00Z",
+    progressId: "job-4",
   },
 ];
 const takedowns: TakedownRequest[] = [
@@ -1228,25 +1235,39 @@ export async function getAdminJobs(): Promise<AdminJob[]> {
 export async function getModeratedSkills(): Promise<ModeratedSkill[]> {
   return [
     {
+      id: "skill-1",
       slug: "explicar-cambios",
       name: "explicar-cambios",
       repo: "ejemplo-org/skills-demo",
+      path: "skills/explicar-cambios",
       hidden: false,
+      hiddenAt: null,
+      analyzedVersions: 2,
+      latestVerdict: "review",
+      createdAt: "2026-10-20T10:00:00Z",
     },
     {
+      id: "skill-2",
       slug: "sincronizador",
       name: "sync-config",
       repo: "ejemplo-org/sincronizador",
+      path: "skills/sync-config",
       hidden: true,
+      hiddenAt: "2026-10-25T12:00:00Z",
+      analyzedVersions: 2,
+      latestVerdict: "dangerous",
+      createdAt: "2026-10-18T10:00:00Z",
     },
   ];
 }
 export async function getBlockedRepos(): Promise<BlockedRepo[]> {
   return [
     {
+      id: "blocked-1",
       repo: "otra-org/pruebas-antiguas",
       blockedAt: "2026-10-12",
       reason: "Solicitudes automatizadas repetidas.",
+      blockedBy: "admin@ejemplo.invalid",
     },
   ];
 }
