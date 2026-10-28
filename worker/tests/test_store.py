@@ -9,7 +9,7 @@ import psycopg
 import pytest
 
 from auditor_worker import pipeline
-from auditor_worker.db import claim_job, new_id
+from auditor_worker.db import claim_job, fail_job, new_id
 from auditor_worker.fetch import FetchResult
 from auditor_worker.findings import Finding
 from auditor_worker.fingerprint import final_fingerprint
@@ -450,3 +450,163 @@ def test_concurrent_fingerprint_conflict(db_conn: psycopg.Connection) -> None:
         # Loser version was deleted
         cur.execute('SELECT COUNT(*) FROM "skill_version" WHERE "id" = %s', (v_loser_id,))
         assert cur.fetchone()[0] == 0
+
+
+def test_store_updates_skill_latest(db_conn: psycopg.Connection) -> None:
+    """save_analysis refreshes latest* columns on the skill."""
+    skill_id = insert_skill(db_conn, slug="latest-test-skill")
+    version_id = insert_version(db_conn, skill_id=skill_id)
+    insert_job(db_conn, version_id=version_id)
+    job = claim_job(db_conn)
+    assert job is not None
+
+    f1 = Finding("net.http", "network", "high", "medium", "f1.py", 1, "t1", "e1", True, "medium")
+    f2 = Finding("secrets.path", "secrets", "high", "high", "f2.py", 2, "t2", "e2", False, "high")
+    vf1 = VersionFileRow("f1.py", "skill", "s1", "cs1", None, None, "code", "python", 1, 10, "source", [])
+    vf2 = VersionFileRow("f2.py", "skill", "s2", "cs2", None, None, "code", "python", 2, 20, "source", [])
+
+    res = AnalysisResult(
+        verdict="review",
+        top_finding=None,
+        findings=[f1, f2],
+        files=[vf1, vf2],
+        report={"schemaVersion": 1},
+        fingerprint="fp_latest_update",
+        has_remote_scripts=True,
+    )
+    save_analysis(db_conn, job, version_id, res, created_version=False)
+
+    with db_conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT "latestVersionId", "latestVerdict", "latestWarningCount",
+                   "latestHasRemoteScripts", "latestAnalyzedAt"
+            FROM "skill"
+            WHERE "id" = %s
+            """,
+            (skill_id,),
+        )
+        row = cur.fetchone()
+
+    assert row is not None
+    assert row[0] == version_id
+    assert row[1] == "review"
+    assert row[2] == 2
+    assert row[3] is True
+    assert row[4] is not None
+
+
+def test_store_keeps_newer_version_as_latest(db_conn: psycopg.Connection) -> None:
+    """A newer analyzed version remains the skill's latest even when an older version completes later."""
+    skill_id = insert_skill(db_conn, slug="newer-latest-skill")
+    v1_id = insert_version(db_conn, skill_id=skill_id)
+    insert_job(db_conn, version_id=v1_id)
+    job1 = claim_job(db_conn)
+    assert job1 is not None
+
+    f1 = Finding("net.http", "network", "high", "medium", "f1.py", 1, "t1", "e1", True, "medium")
+    vf1 = VersionFileRow("f1.py", "skill", "s1", "cs1", None, None, "code", "python", 1, 10, "source", [])
+    res1 = AnalysisResult(
+        verdict="review",
+        top_finding=None,
+        findings=[f1],
+        files=[vf1],
+        report={"schemaVersion": 1},
+        fingerprint="fp_newer_v1",
+        has_remote_scripts=False,
+    )
+    save_analysis(db_conn, job1, v1_id, res1, created_version=False)
+
+    with db_conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE "skill_version"
+            SET "analyzedAt" = now() + interval '1 day'
+            WHERE "id" = %s
+            """,
+            (v1_id,),
+        )
+
+    v2_id = insert_version(db_conn, skill_id=skill_id)
+    insert_job(db_conn, version_id=v2_id)
+    job2 = claim_job(db_conn)
+    assert job2 is not None
+
+    f2 = Finding("secrets.path", "secrets", "high", "high", "f2.py", 2, "t2", "e2", False, "high")
+    vf2 = VersionFileRow("f2.py", "skill", "s2", "cs2", None, None, "code", "python", 2, 20, "source", [])
+    res2 = AnalysisResult(
+        verdict="dangerous",
+        top_finding=None,
+        findings=[f2],
+        files=[vf2],
+        report={"schemaVersion": 1},
+        fingerprint="fp_newer_v2",
+        has_remote_scripts=False,
+    )
+    save_analysis(db_conn, job2, v2_id, res2, created_version=False)
+
+    with db_conn.cursor() as cur:
+        cur.execute('SELECT "latestVersionId" FROM "skill" WHERE "id" = %s', (skill_id,))
+        row = cur.fetchone()
+
+    assert row is not None
+    assert row[0] == v1_id
+
+
+def test_failed_job_leaves_skill_latest(db_conn: psycopg.Connection) -> None:
+    """A failing job leaves the skill's latest columns unchanged."""
+    skill_id = insert_skill(db_conn, slug="failed-job-skill")
+    v1_id = insert_version(db_conn, skill_id=skill_id)
+    insert_job(db_conn, version_id=v1_id)
+    job1 = claim_job(db_conn)
+    assert job1 is not None
+
+    f1 = Finding("net.http", "network", "high", "medium", "f1.py", 1, "t1", "e1", True, "medium")
+    vf1 = VersionFileRow("f1.py", "skill", "s1", "cs1", None, None, "code", "python", 1, 10, "source", [])
+    res1 = AnalysisResult(
+        verdict="review",
+        top_finding=None,
+        findings=[f1],
+        files=[vf1],
+        report={"schemaVersion": 1},
+        fingerprint="fp_failed_v1",
+        has_remote_scripts=True,
+    )
+    save_analysis(db_conn, job1, v1_id, res1, created_version=False)
+
+    with db_conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT "latestVersionId", "latestVerdict", "latestAnalyzedAt",
+                   "latestHasRemoteScripts", "latestWarningCount"
+            FROM "skill"
+            WHERE "id" = %s
+            """,
+            (skill_id,),
+        )
+        before = cur.fetchone()
+
+    assert before is not None
+    assert before[0] == v1_id
+
+    v2_id = insert_version(db_conn, skill_id=skill_id)
+    insert_job(db_conn, version_id=v2_id)
+    job2 = claim_job(db_conn)
+    assert job2 is not None
+
+    fail_job(db_conn, job2.id, "boom")
+
+    with db_conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT "latestVersionId", "latestVerdict", "latestAnalyzedAt",
+                   "latestHasRemoteScripts", "latestWarningCount"
+            FROM "skill"
+            WHERE "id" = %s
+            """,
+            (skill_id,),
+        )
+        after = cur.fetchone()
+
+    assert after is not None
+    assert after == before
