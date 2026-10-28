@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import { SkillHeader } from "./skill-header";
 import { formatCount } from "@/lib/auditor/labels";
+import { analysisHref } from "@/lib/auditor/skill-links";
 import type { SkillDetails } from "@/lib/auditor/mock-skill-details";
 import type { Verdict } from "@/lib/auditor/types";
 
@@ -344,7 +345,7 @@ export function SkillDetailsContent({
                     className="auditor-skill-details__file-wrapper"
                   >
                     <NavLink
-                      href={`/skills/explicar-cambios?file=${encodeURIComponent(file.path)}`}
+                      href={analysisHref("explicar-cambios", { file: file.path })}
                       bareChildren
                       className="auditor-skill-details__file-item auditor-link-box"
                     >
@@ -401,7 +402,7 @@ export function SkillDetailsContent({
           <footer className="auditor-mono-label auditor-skill-details__disclaimer">
             Este texto lo generó la IA a partir de los archivos de la skill; puede
             contener errores. Lo que se comprobó está en el{" "}
-            <InlineLink href="/skills/explicar-cambios?section=summary">
+            <InlineLink href={analysisHref("explicar-cambios", { section: "summary" })}>
               informe de análisis
             </InlineLink>
             .

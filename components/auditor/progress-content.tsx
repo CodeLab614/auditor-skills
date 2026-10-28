@@ -15,6 +15,7 @@ import { Panel } from "@/components/auditor/ui/panel";
 import { Chip } from "@/components/auditor/ui/chip";
 import { SectionHeader } from "@/components/auditor/ui/section-header";
 import { jobStateLabel } from "@/lib/auditor/labels";
+import { analysisHref } from "@/lib/auditor/skill-links";
 import { PageShell } from "@/components/auditor/page-shell";
 import type { AnalysisProgress } from "@/lib/auditor/types";
 import { getAnalysisProgressAction } from "@/actions/auditor/progress";
@@ -125,7 +126,7 @@ export function ProgressContent({ progress }: { progress: AnalysisProgress }) {
           )}
           {progressView.state === "done" && progressView.resultSlug && (
             <Button asChild>
-              <Link href={`/skills/${progressView.resultSlug}`}>Ver análisis</Link>
+              <Link href={analysisHref(progressView.resultSlug)}>Ver análisis</Link>
             </Button>
           )}
           <p className="flex items-center gap-2 text-xs text-muted-foreground">

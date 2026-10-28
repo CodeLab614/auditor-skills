@@ -5,6 +5,7 @@ import { Panel } from "@/components/auditor/ui/panel";
 import { PanelGrid } from "@/components/auditor/ui/panel-grid";
 import { SectionHeader } from "@/components/auditor/ui/section-header";
 import { PageShell } from "@/components/auditor/page-shell";
+import { analysisHref } from "@/lib/auditor/skill-links";
 
 const groups = [
   {
@@ -15,32 +16,38 @@ const groups = [
       ["Catálogo", "/skills"],
       [
         "Explicar cambios · Resumen",
-        "/skills/explicar-cambios?section=summary",
+        analysisHref("explicar-cambios", { section: "summary" }),
       ],
       [
         "Explicar cambios · archivo con hallazgos",
-        "/skills/explicar-cambios?file=scripts%2Fexplain.py#L49",
+        analysisHref("explicar-cambios", {
+          file: "scripts/explain.py",
+          line: 49,
+        }),
       ],
       [
         "Explicar cambios · cambios",
-        "/skills/explicar-cambios?section=changes",
+        analysisHref("explicar-cambios", { section: "changes" }),
       ],
       [
         "Sync config · Instalación",
-        "/skills/sincronizador?section=install",
+        analysisHref("sincronizador", { section: "install" }),
       ],
       [
         "Sync config · archivo sync.py",
-        "/skills/sincronizador?file=sync.py#L41",
+        analysisHref("sincronizador", { file: "sync.py", line: 41 }),
       ],
-      ["Sync config · Hallazgos", "/skills/sincronizador?section=findings"],
+      [
+        "Sync config · Hallazgos",
+        analysisHref("sincronizador", { section: "findings" }),
+      ],
       [
         "Formatear Markdown · Hallazgos",
-        "/skills/formateador?section=findings",
+        analysisHref("formateador", { section: "findings" }),
       ],
       [
         "Formatear Markdown · archivo SKILL.md",
-        "/skills/formateador?file=SKILL.md",
+        analysisHref("formateador", { file: "SKILL.md" }),
       ],
     ],
   },

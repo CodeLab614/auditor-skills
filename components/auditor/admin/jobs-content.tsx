@@ -11,6 +11,7 @@ import {
 } from "@/components/dashboard";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, jobStateLabel } from "@/lib/auditor/labels";
+import { analysisHref } from "@/lib/auditor/skill-links";
 import { auditorTableLabels } from "@/lib/auditor/table-labels";
 import {
   JOB_STATUSES,
@@ -55,7 +56,7 @@ const QUEUE_COLUMNS: TableViewColumn<AdminJob>[] = [
       job.resultSlug ? (
         <Link
           className="underline underline-offset-4"
-          href={`/skills/${job.resultSlug}`}
+          href={analysisHref(job.resultSlug)}
         >
           {job.skillName}
         </Link>
@@ -143,7 +144,7 @@ export function JobsContent({
         {
           id: "analysis",
           label: "Ver análisis",
-          href: `/skills/${job.resultSlug}`,
+          href: analysisHref(job.resultSlug),
         },
       ];
     }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageShell } from "@/components/auditor/page-shell";
 import { NavLink } from "@/components/auditor/ui/nav-link";
+import { analysisHref } from "@/lib/auditor/skill-links";
 import type { SkillAnalysis } from "@/lib/auditor/types";
 import { AuthorDialog } from "./author-dialog";
 import { ChangesSection } from "./changes-section";
@@ -83,7 +84,10 @@ export function SkillEditor({
       if (!analysis.files.some((file) => file.path === path)) {
         setSelected("install");
         router.replace(
-          `/skills/${analysis.slug}?v=${analysis.version}&section=install`,
+          analysisHref(analysis.slug, {
+            version: analysis.version,
+            section: "install",
+          }),
           { scroll: false },
         );
         return;
@@ -91,7 +95,11 @@ export function SkillEditor({
       setSelected(path);
       setHighlightedLine(line);
       router.replace(
-        `/skills/${analysis.slug}?v=${analysis.version}&file=${encodeURIComponent(path)}${line ? `#L${line}` : ""}`,
+        analysisHref(analysis.slug, {
+          version: analysis.version,
+          file: path,
+          line,
+        }),
         { scroll: false },
       );
     },
@@ -101,7 +109,10 @@ export function SkillEditor({
   const openSection = (section: SectionId) => {
     setSelected(section);
     router.replace(
-      `/skills/${analysis.slug}?v=${analysis.version}&section=${section}`,
+      analysisHref(analysis.slug, {
+        version: analysis.version,
+        section,
+      }),
       { scroll: false },
     );
   };

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate } from "@/lib/auditor/labels";
+import { analysisHref } from "@/lib/auditor/skill-links";
 import type { SkillAnalysis } from "@/lib/auditor/types";
 
 export function SkillTopBar({
@@ -75,7 +76,11 @@ export function SkillTopBar({
           <div className="auditor-skill-heading-actions">
             <Select
               value={String(analysis.version)}
-              onValueChange={(value) => router.push(`/skills/${analysis.slug}?v=${value}`)}
+              onValueChange={(value) =>
+                router.push(
+                  analysisHref(analysis.slug, { version: Number(value) }),
+                )
+              }
             >
               <Tooltip>
                 <TooltipTrigger asChild>

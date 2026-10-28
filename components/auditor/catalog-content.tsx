@@ -32,6 +32,7 @@ import {
   type CatalogFilter,
   type CatalogPage,
 } from "@/lib/auditor/catalog-query";
+import { skillHref } from "@/lib/auditor/skill-links";
 import type { TableParams } from "@/lib/table-query";
 import { useTableUrlState } from "@/components/dashboard/table-view/use-table-url-state";
 import { cn } from "@/lib/utils";
@@ -329,7 +330,7 @@ export function CatalogContent({
                       className="auditor-catalog-table__item"
                     >
                       <NavLink
-                        href={`/skills/${entry.slug}`}
+                        href={skillHref(entry.slug)}
                         bareChildren
                         className="auditor-catalog-row auditor-link-box"
                       >

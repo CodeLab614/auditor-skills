@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getSkillAnalysis } from "@/lib/auditor/mock-data";
 import { getMockSkillDetails } from "@/lib/auditor/mock-skill-details";
+import { analysisHref } from "@/lib/auditor/skill-links";
 import { SkillDetailsContent } from "@/components/auditor/skill/skill-details-content";
 
 export const metadata: Metadata = {
@@ -32,7 +33,7 @@ export default async function MockupFichaPage() {
         analyzedAt,
       }}
       details={details}
-      otherHref="/skills/explicar-cambios?section=summary"
+      otherHref={analysisHref("explicar-cambios", { section: "summary" })}
     />
   );
 }

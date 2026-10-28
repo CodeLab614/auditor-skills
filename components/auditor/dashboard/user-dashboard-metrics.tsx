@@ -9,6 +9,7 @@ import {
   type Column,
 } from "@/components/dashboard";
 import { formatDate, jobStateLabel, verdictLabel } from "@/lib/auditor/labels";
+import { analysisHref } from "@/lib/auditor/skill-links";
 import type { getUserAuditorDashboard } from "@/lib/auditor/mock-data";
 import type { Submission } from "@/lib/auditor/types";
 
@@ -34,7 +35,7 @@ const submissionColumns: Column<Submission>[] = [
     className: "w-[24%]",
     headerClassName: "w-[24%]",
     render: (submission) => submission.resultSlug ? (
-      <Link className="underline underline-offset-4" href={`/skills/${submission.resultSlug}`}>
+      <Link className="underline underline-offset-4" href={analysisHref(submission.resultSlug)}>
         {submission.skillName}
       </Link>
     ) : submission.skillName,
@@ -61,7 +62,7 @@ const submissionColumns: Column<Submission>[] = [
     className: "w-[39%] whitespace-normal break-words",
     headerClassName: "w-[39%]",
     render: (item) => item.resultSlug ? (
-      <Link className="underline underline-offset-4" href={`/skills/${item.resultSlug}`}>
+      <Link className="underline underline-offset-4" href={analysisHref(item.resultSlug)}>
         Ver análisis
       </Link>
     ) : item.state === "failed" ? (

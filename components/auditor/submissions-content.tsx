@@ -10,6 +10,7 @@ import {
 } from "@/components/dashboard";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, jobStateLabel } from "@/lib/auditor/labels";
+import { analysisHref } from "@/lib/auditor/skill-links";
 import { auditorTableLabels } from "@/lib/auditor/table-labels";
 import {
   JOB_STATUSES,
@@ -46,7 +47,7 @@ const SUBMISSION_COLUMNS: TableViewColumn<Submission>[] = [
       item.resultSlug ? (
         <Link
           className="underline underline-offset-4"
-          href={`/skills/${item.resultSlug}`}
+          href={analysisHref(item.resultSlug)}
         >
           {item.skillName}
         </Link>
@@ -126,7 +127,7 @@ export function SubmissionsContent({
         {
           id: "analysis",
           label: "Ver análisis",
-          href: `/skills/${item.resultSlug}`,
+          href: analysisHref(item.resultSlug),
         },
       ];
     }
