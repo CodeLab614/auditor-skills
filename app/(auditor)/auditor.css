@@ -2628,6 +2628,9 @@ body:has(.auditor-public-site) .auditor-public-sheet__close svg {
     max-height: none;
     overflow: visible;
   }
+  .auditor-skill-editor .auditor-page-shell__left-content {
+    height: auto;
+  }
   .auditor-page-shell__main,
   .auditor-page-shell > .auditor-site-footer {
     grid-column: 1;
