@@ -7,7 +7,7 @@
 
 **Objetivo:** pasar a la app real lo que se aprobó en las maquetas: el catálogo en `/skills`, con todo resuelto en el
 servidor; la portada del auditor en `/`; la ficha de cada skill en `/skills/<slug>` (versión básica, sin IA); y el
-informe en `/skills/<slug>/analisis`, con la cabecera nueva y el botón «Reportar un problema».
+informe en `/skills/<slug>/analysis`, con la cabecera nueva y el botón «Reportar un problema».
 
 **Arquitectura:**
 - `Skill` guarda los datos de su última versión terminada (`latest*`) y un `searchText` normalizado. El worker
@@ -23,11 +23,15 @@ informe en `/skills/<slug>/analisis`, con la cabecera nueva y el botón «Report
 pytest en el worker.
 
 **Diseño:** `docs/superpowers/specs/2026-10-28-catalogo-y-ficha-design.md` (aprobado el 2026-10-28). Las maquetas de
-referencia son `/mockups/catalogo` y `/mockups/ficha`.
+referencia son `/mockups/catalog` y `/mockups/skill-details`.
 
 ## Restricciones globales
 
 - **Repositorio y rama:** `~/Desktop/auditor-skills`, rama `feat/catalogo` (ya existe, con las maquetas).
+- **Rutas siempre en inglés** (lo pidió la persona el 2026-10-28): el informe va en `/skills/<slug>/analysis` y las
+  maquetas en `/mockups/catalog` y `/mockups/skill-details`. El texto visible sigue en español.
+- **Orden de ejecución:** 0, 1, 2, 3, 4, 5, **7**, 6. Al hacer clic en una skill del catálogo se llega a la ficha, así
+  que la ficha va justo después de mover el informe; la cabecera nueva del informe (tarea 6) va al final.
 - **Todo en el servidor:** en el navegador no se filtra, ordena ni cuenta nada del catálogo; solo llegan las 20 filas
   de la página, el total y los recuentos.
 - **Página:** 20 skills (`pageSize` por defecto de `defineTableQuery`).
@@ -230,7 +234,7 @@ referencia son `/mockups/catalogo` y `/mockups/ficha`.
 - Sustituir: `components/auditor/catalog-content.tsx` por el contenido de `catalog-mock-content.tsx` (que se borra),
   con la prop `basePath`.
 - Modificar: `app/page.tsx`, `app/(auditor)/layout.tsx`, `app/(auditor)/skills/page.tsx`,
-  `app/(auditor)/mockups/catalogo/page.tsx`, `components/auditor/site-header.tsx`, `components/auditor/page-shell.tsx`,
+  `app/(auditor)/mockups/catalog/page.tsx`, `components/auditor/site-header.tsx`, `components/auditor/page-shell.tsx`,
   `components/auditor/index.ts` y `lib/auditor/queries.ts`; añadir una prueba a `lib/auditor/catalog.db.test.ts`.
 
 **Interfaces:**
@@ -253,7 +257,7 @@ referencia son `/mockups/catalogo` y `/mockups/ficha`.
   `<AuditorShell><HomeContent stats={await getHomeStats()} /></AuditorShell>`; `app/(auditor)/layout.tsx` usa
   `AuditorShell`.
 - [ ] **Paso 5:** `/skills` lee `searchParams`, `catalogQuery.parse`, `getCatalogPage` y renderiza
-  `CatalogContent basePath="/skills"`; la maqueta usa `queryMockCatalog` con `basePath="/mockups/catalogo"`.
+  `CatalogContent basePath="/skills"`; la maqueta usa `queryMockCatalog` con `basePath="/mockups/catalog"`.
 - [ ] **Paso 6:** enlaces: el logotipo → `/`; «Catálogo» → `/skills`; «Cómo funciona» → `/#how-it-works`, en
   site-header.tsx y page-shell.tsx.
 - [ ] **Paso 7:** `bun run typecheck` y `bun run test` → pasan.
@@ -263,10 +267,10 @@ referencia son `/mockups/catalogo` y `/mockups/ficha`.
 
 ---
 
-### Tarea 5: El informe pasa a `/skills/<slug>/analisis`
+### Tarea 5: El informe pasa a `/skills/<slug>/analysis`
 
 **Archivos:**
-- Mover: `app/(auditor)/skills/[slug]/page.tsx` → `app/(auditor)/skills/[slug]/analisis/page.tsx` (sin cambios de
+- Mover: `app/(auditor)/skills/[slug]/page.tsx` → `app/(auditor)/skills/[slug]/analysis/page.tsx` (sin cambios de
   lógica).
 - Crear: `app/(auditor)/skills/[slug]/page.tsx` (redirección provisional), `lib/auditor/skill-links.ts` y
   `lib/auditor/skill-links.test.ts`.
@@ -283,10 +287,10 @@ referencia son `/mockups/catalogo` y `/mockups/ficha`.
 - [ ] **Paso 1: Pruebas que fallan** en `skill-links.test.ts`:
   - `analysisHref builds version, file and line links`:
     `analysisHref("x", { version: 2, file: "scripts/a b.py", line: 49 })` es
-    `"/skills/x/analisis?v=2&file=scripts%2Fa%20b.py#L49"`; `analysisHref("x", { section: "install" })` es
-    `"/skills/x/analisis?section=install"`; `analysisHref("x")` es `"/skills/x/analisis"`.
+    `"/skills/x/analysis?v=2&file=scripts%2Fa%20b.py#L49"`; `analysisHref("x", { section: "install" })` es
+    `"/skills/x/analysis?section=install"`; `analysisHref("x")` es `"/skills/x/analysis"`.
   - `legacy links with v, file or section go to the analysis page`:
-    `legacyAnalysisRedirect("x", { v: "2", file: "a b.py" })` es `"/skills/x/analisis?v=2&file=a%20b.py"`;
+    `legacyAnalysisRedirect("x", { v: "2", file: "a b.py" })` es `"/skills/x/analysis?v=2&file=a%20b.py"`;
     `legacyAnalysisRedirect("x", {})` es `null`.
 - [ ] **Paso 2:** `bun run test` → fallan.
 - [ ] **Paso 3:** implementar `skill-links.ts`; el nuevo `[slug]/page.tsx` hace `redirect(legacyAnalysisRedirect(...)
@@ -336,10 +340,11 @@ referencia son `/mockups/catalogo` y `/mockups/ficha`.
 **Archivos:**
 - Crear: `lib/auditor/skill-details.ts` y `lib/auditor/skill-details.test.ts`.
 - Modificar: `components/auditor/skill/skill-details-content.tsx`, `lib/auditor/mock-skill-details.ts` y su prueba,
-  `app/(auditor)/mockups/ficha/page.tsx`, `lib/auditor/queries.ts` y `app/(auditor)/skills/[slug]/page.tsx`.
+  `app/(auditor)/mockups/skill-details/page.tsx`, `lib/auditor/queries.ts` y `app/(auditor)/skills/[slug]/page.tsx`.
 
 **Interfaces:**
-- Consume: `analysisHref` (tarea 5), `SkillHeader` (tarea 6).
+- Consume: `analysisHref` y `skillHref` (tarea 5) y el `SkillHeader` que ya existe (name, owner, repo, verdict,
+  analyzedAt, current, otherHref); la tarea 6, que va después, le añade versiones y «Reportar un problema».
 - Produce, en `skill-details.ts`:
 
   ```ts
@@ -390,7 +395,7 @@ referencia son `/mockups/catalogo` y `/mockups/ficha`.
     `showCommentsPlaceholder` (la maqueta lo pasa, la página real no).
 - [ ] **Paso 5:** `/skills/[slug]/page.tsx`: `legacyAnalysisRedirect` primero (si devuelve algo, `redirect`); después
   `getSkillDetailsFromDb(slug) ?? getMockSkillDetailsView(slug)`, `notFound()` si no hay nada, y
-  `ai = getMockSkillAi(slug)`; metadata «<nombre> · Auditor de skills». La maqueta `/mockups/ficha` usa las mismas
+  `ai = getMockSkillAi(slug)`; metadata «<nombre> · Auditor de skills». La maqueta `/mockups/skill-details` usa las mismas
   funciones con `showCommentsPlaceholder`.
 - [ ] **Paso 6:** `bun run typecheck` y `bun run test` → pasan.
 - [ ] **Paso 7 (Claude):** capturas de la ficha de una skill real (sin IA) y de `explicar-cambios` (con los textos de la

@@ -44,7 +44,7 @@ instalarla. Hoy pasan tres cosas:
 
 ### 3.1 Dónde vive
 
-- `/skills` pasa a ser solo el catálogo completo (el de la maqueta `/mockups/catalogo`).
+- `/skills` pasa a ser solo el catálogo completo (el de la maqueta `/mockups/catalog`).
 - `/` (la raíz, que hoy muestra la página «RAPID» de la plantilla) pasa a ser la **portada del auditor**: la
   presentación («Entiende una skill antes de instalarla», con «Enviar una skill» y «Ver el catálogo») y «Del enlace al
   veredicto», que hoy están encima del catálogo en `/skills`.
@@ -110,7 +110,7 @@ una versión terminada. Cada fila muestra la **última versión terminada**.
 
 ### 3.5 La fila
 
-Como en la maqueta `/mockups/catalogo`, en tabla con encabezados: «Skill», «Veredicto», «Instalable», «Avisos»,
+Como en la maqueta `/mockups/catalog`, en tabla con encabezados: «Skill», «Veredicto», «Instalable», «Avisos»,
 «Versiones analizadas», «Último análisis». La columna por la que se ordena lleva la flecha.
 
 - **Skill:** el icono de documento (el mismo en todas las filas), el nombre, la descripción en hasta 2 líneas con «…» y
@@ -132,13 +132,13 @@ Como en la maqueta `/mockups/catalogo`, en tabla con encabezados: «Skill», «V
 | | Ficha | Informe de análisis |
 |---|---|---|
 | Responde a | «¿Qué es y me sirve?» | «¿Es peligrosa y por qué?» |
-| Dirección | `/skills/<slug>` | `/skills/<slug>/analisis` |
+| Dirección | `/skills/<slug>` | `/skills/<slug>/analysis` |
 | Diseño | Para leer, como un artículo largo | El actual: informe con editor de código |
 
 Las dos comparten **solo** la cabecera (4.1). Desde el catálogo se llega a la ficha.
 
 **Enlaces antiguos** **[decisión de Claude]**: `/skills/<slug>?section=…`, `?file=…` y `?v=…` redirigen a
-`/skills/<slug>/analisis` con los mismos parámetros (y la misma `#L…`, que el navegador conserva), porque esos enlaces ya
+`/skills/<slug>/analysis` con los mismos parámetros (y la misma `#L…`, que el navegador conserva), porque esos enlaces ya
 existen en «Mis envíos», el panel de admin, la página de avance y los correos futuros. Los enlaces internos se cambian a
 la dirección nueva: submissions-content.tsx, progress-content.tsx, admin/jobs-content.tsx, admin/moderation-content.tsx,
 dashboard/user-dashboard-metrics.tsx y los de components/auditor/skill/.
@@ -152,7 +152,7 @@ informe. En el informe, además, el botón «Reportar un problema» (4.3).
 
 - **Sin selector de versión.** Si la skill tiene más de un análisis, debajo de la fecha aparece «Ver análisis anteriores
   (N)», que abre un panel lateral (`Sheet`) con la lista: la fecha y el commit corto en pequeño; cada uno lleva a
-  `/skills/<slug>/analisis?v=N` **[decisión de Claude]**. Con un solo análisis no aparece nada. Hoy no se guarda ningún
+  `/skills/<slug>/analysis?v=N` **[decisión de Claude]**. Con un solo análisis no aparece nada. Hoy no se guarda ningún
   «motivo del cambio» por versión, así que no se muestra; si la fase 6 lo añade, se pone en esa lista.
 - **El número `N` de `?v=`** se sigue calculando al leer, como hoy en lib/auditor/skill-analysis.ts (posición por
   `analyzedAt` entre las versiones terminadas), para no romper los enlaces que ya existen **[decisión de Claude]**.
@@ -161,7 +161,7 @@ informe. En el informe, además, el botón «Reportar un problema» (4.3).
 
 ### 4.2 La ficha
 
-Como la maqueta `/mockups/ficha`. Tres columnas: a la izquierda «En esta página» (se marca la sección visible al
+Como la maqueta `/mockups/skill-details`. Tres columnas: a la izquierda «En esta página» (se marca la sección visible al
 bajar); en el centro, el artículo; a la derecha, «Datos». En móvil, el índice se abre desde el botón «En esta página» y
 los datos van al final de la primera sección.
 
@@ -204,7 +204,7 @@ solo para que la persona viera dónde irían.
 
 ### 4.3 El informe de análisis
 
-El contenido actual de `/skills/<slug>` se mueve tal cual a `/skills/<slug>/analisis`, con dos cambios en la cabecera:
+El contenido actual de `/skills/<slug>` se mueve tal cual a `/skills/<slug>/analysis`, con dos cambios en la cabecera:
 `SkillHeader` en lugar de `SkillTopBar`, y el botón «Reportar un problema».
 
 **«Reportar un problema»** sustituye a «Soy el autor / reportar un error»:
@@ -229,7 +229,7 @@ mock-data.ts y consulta la base. La ficha y el informe mantienen el respaldo act
 (`getSkillAnalysisFromDb(...) ?? getSkillAnalysis(...)`), porque los enlaces de `/mockups` a `/skills/explicar-cambios`
 y las demás skills inventadas lo necesitan. Ese respaldo se quita cuando se borren las maquetas, no en este trabajo.
 
-Las maquetas `/mockups/catalogo` y `/mockups/ficha` se quedan como referencia hasta que las páginas reales estén hechas;
+Las maquetas `/mockups/catalog` y `/mockups/skill-details` se quedan como referencia hasta que las páginas reales estén hechas;
 después se borran junto con sus datos inventados **[decisión de Claude]**.
 
 ## 6. Pruebas

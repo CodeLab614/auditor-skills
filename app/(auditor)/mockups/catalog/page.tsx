@@ -18,6 +18,6 @@ export default async function MockupCatalogPage({
   const result = queryMockCatalog(params);
 
   return (
-    <CatalogContent {...result} params={params} basePath="/mockups/catalogo" />
+    <CatalogContent {...result} params={params} basePath="/mockups/catalog" />
   );
 }
