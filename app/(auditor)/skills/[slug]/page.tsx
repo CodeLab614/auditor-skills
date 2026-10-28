@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { SkillEditor } from "@/components/auditor/skill/skill-editor";
-import { getSkillAnalysis } from "@/lib/auditor/mock-data";
-import { getSkillAnalysisFromDb } from "@/lib/auditor/queries";
-import { getSession } from "@/lib/auth";
-
-type Params = {
-  v?: string | string[];
-  file?: string | string[];
-  section?: string | string[];
-};
+import { notFound, redirect } from "next/navigation";
+import { SkillDetailsContent } from "@/components/auditor/skill/skill-details-content";
+import {
+  getMockSkillAi,
+  getMockSkillDetailsView,
+} from "@/lib/auditor/mock-skill-details";
+import { getSkillDetailsFromDb } from "@/lib/auditor/queries";
+import { legacyAnalysisRedirect } from "@/lib/auditor/skill-links";
 
 export async function generateMetadata({
   params,
@@ -17,52 +14,35 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const analysis = (await getSkillAnalysisFromDb(slug)) ?? (await getSkillAnalysis(slug));
+  const details =
+    (await getSkillDetailsFromDb(slug)) ?? (await getMockSkillDetailsView(slug));
   return {
-    title: analysis
-      ? `${analysis.name} · Auditor de skills`
+    title: details
+      ? `${details.name} · Auditor de skills`
       : "Skill · Auditor de skills",
   };
 }
 
-export default async function SkillPage({
+export default async function SkillDetailsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<Params>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [{ slug }, query, session] = await Promise.all([
-    params,
-    searchParams,
-    getSession(),
-  ]);
-  const selectedVersion = Number(Array.isArray(query.v) ? query.v[0] : query.v);
-  const versionNum =
-    Number.isFinite(selectedVersion) && selectedVersion > 0
-      ? selectedVersion
-      : undefined;
-  const analysis =
-    (await getSkillAnalysisFromDb(slug, versionNum)) ??
-    (await getSkillAnalysis(slug, versionNum));
-  if (!analysis) notFound();
-  const requestedFile = Array.isArray(query.file) ? query.file[0] : query.file;
-  const initialFile = analysis.files.some((file) => file.path === requestedFile)
-    ? requestedFile
-    : undefined;
-  const requestedSection = Array.isArray(query.section)
-    ? query.section[0]
-    : query.section;
-  const sections = ["summary", "install", "findings", "sandbox", "changes"];
-  const initialSection = sections.includes(requestedSection ?? "")
-    ? (requestedSection as "summary" | "install" | "findings" | "sandbox" | "changes")
-    : undefined;
-  return (
-    <SkillEditor
-      analysis={analysis}
-      initialFile={initialFile}
-      initialSection={initialSection}
-      signedIn={Boolean(session)}
-    />
-  );
+  const [{ slug }, search] = await Promise.all([params, searchParams]);
+  const legacyRedirect = legacyAnalysisRedirect(slug, search);
+  if (legacyRedirect) {
+    redirect(legacyRedirect);
+  }
+
+  const details =
+    (await getSkillDetailsFromDb(slug)) ?? (await getMockSkillDetailsView(slug));
+  if (!details) {
+    notFound();
+  }
+
+  const ai = getMockSkillAi(slug);
+
+  return <SkillDetailsContent details={details} ai={ai} />;
 }

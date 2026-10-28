@@ -5,6 +5,7 @@ import { PanelGrid } from "@/components/auditor/ui/panel-grid";
 import { SectionHeader } from "@/components/auditor/ui/section-header";
 import { EvidenceText } from "./evidence-text";
 import { severityLabel } from "@/lib/auditor/labels";
+import { analysisHref } from "@/lib/auditor/skill-links";
 import type { SkillAnalysis } from "@/lib/auditor/types";
 
 const origins = { rules: "Reglas", ai: "IA", binary: "Binario", sandbox: "Ejecución aislada" } as const;
@@ -21,9 +22,11 @@ export function FindingsSection({ analysis, onOpenFile }: {
       {sorted.length ? <PanelGrid columns={2} className="auditor-report-grid">
         {sorted.map((finding) => (
         <NavLink key={finding.id} bareChildren className="auditor-finding-row"
-          href={
-            `/skills/${analysis.slug}?v=${analysis.version}&file=${encodeURIComponent(finding.file)}#L${finding.line}`
-          }
+          href={analysisHref(analysis.slug, {
+            version: analysis.version,
+            file: finding.file,
+            line: finding.line,
+          })}
           onClick={(event) => {
             if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
             event.preventDefault();

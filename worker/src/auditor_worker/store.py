@@ -13,6 +13,25 @@ if TYPE_CHECKING:
     from auditor_worker.pipeline import AnalysisResult
 
 
+def refresh_skill_latest(cur: psycopg.Cursor, version_id: str) -> None:
+    """Refresh the skill's cached latest analysis columns for the given version."""
+    cur.execute(
+        """
+        UPDATE "skill" s
+        SET ("latestVersionId", "latestVerdict", "latestAnalyzedAt", "latestHasRemoteScripts", "latestWarningCount") = (
+          SELECT v."id", v."verdict", v."analyzedAt", v."hasRemoteScripts",
+                 (SELECT count(*) FROM "finding" f WHERE f."versionId" = v."id")::int
+          FROM "skill_version" v
+          WHERE v."skillId" = s."id" AND v."verdict" IS NOT NULL AND v."analyzedAt" IS NOT NULL
+          ORDER BY v."analyzedAt" DESC, v."id" DESC
+          LIMIT 1
+        )
+        WHERE s."id" = (SELECT "skillId" FROM "skill_version" WHERE "id" = %s)
+        """,
+        (version_id,),
+    )
+
+
 def save_analysis(
     conn: psycopg.Connection,
     job: ClaimedJob,
@@ -114,7 +133,10 @@ def save_analysis(
                     ),
                 )
 
-                # 5. Mark job as done
+                # 5. Refresh the skill's latest analysis
+                refresh_skill_latest(cur, version_id)
+
+                # 6. Mark job as done
                 cur.execute(
                     """
                     UPDATE "analysis_job"

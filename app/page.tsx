@@ -1,16 +1,19 @@
+import type { Metadata } from "next";
 import { redirectToFirstRunIfNoAdmin } from "@/lib/first-run-admin";
-import { LandingContent } from "@/components/landing-content";
-import { getSession } from "@/lib/auth";
+import { AuditorShell } from "@/components/auditor/auditor-shell";
+import { HomeContent } from "@/components/auditor/home-content";
+import { getHomeStats } from "@/lib/auditor/queries";
+
+export const metadata: Metadata = {
+  title: "Auditor de skills",
+};
 
 export default async function Home() {
   await redirectToFirstRunIfNoAdmin();
-  const session = await getSession();
 
-  const user = session ? {
-    name: session.user.name,
-    email: session.user.email,
-    image: session.user.image ?? undefined,
-  } : null;
-
-  return <LandingContent user={user} />;
+  return (
+    <AuditorShell>
+      <HomeContent stats={await getHomeStats()} />
+    </AuditorShell>
+  );
 }

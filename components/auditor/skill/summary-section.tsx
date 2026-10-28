@@ -14,6 +14,7 @@ import { Chip } from "@/components/auditor/ui/chip";
 import { InlineLink } from "@/components/auditor/ui/inline-link";
 import { SectionHeader } from "@/components/auditor/ui/section-header";
 import { formatDate, severityLabel, verdictLabel } from "@/lib/auditor/labels";
+import { analysisHref } from "@/lib/auditor/skill-links";
 import type { Severity, SkillAnalysis } from "@/lib/auditor/types";
 
 const severityTone = {
@@ -124,9 +125,11 @@ export function SummarySection({
             </Button>
             {topFinding && (
               <InlineLink
-                href={`/skills/${analysis.slug}?v=${analysis.version}&file=${encodeURIComponent(
-                  topFinding.file,
-                )}#L${topFinding.line}`}
+                href={analysisHref(analysis.slug, {
+                  version: analysis.version,
+                  file: topFinding.file,
+                  line: topFinding.line,
+                })}
                 onClick={(event) => {
                   if (event.metaKey || event.ctrlKey || event.shiftKey ||
                     event.altKey || event.button !== 0) return;
@@ -166,8 +169,11 @@ export function SummarySection({
                   </Chip>
                   <span>{finding.explanation}</span>
                   <InlineLink
-                    href={`/skills/${analysis.slug}?v=${analysis.version}&file=${
-                      encodeURIComponent(finding.file)}#L${finding.line}`}
+                    href={analysisHref(analysis.slug, {
+                      version: analysis.version,
+                      file: finding.file,
+                      line: finding.line,
+                    })}
                     onClick={(event) => {
                       if (event.metaKey || event.ctrlKey || event.shiftKey ||
                         event.altKey || event.button !== 0) return;

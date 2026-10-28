@@ -4,14 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageShell } from "@/components/auditor/page-shell";
 import { NavLink } from "@/components/auditor/ui/nav-link";
+import { analysisHref, skillHref } from "@/lib/auditor/skill-links";
 import type { SkillAnalysis } from "@/lib/auditor/types";
-import { AuthorDialog } from "./author-dialog";
 import { ChangesSection } from "./changes-section";
 import { FileView } from "./file-view";
 import { FindingsSection } from "./findings-section";
 import { InstallSection } from "./install-section";
+import { ReportDialog } from "./report-dialog";
 import { SandboxSection } from "./sandbox-section";
-import { SkillTopBar } from "./skill-top-bar";
+import { SkillHeader } from "./skill-header";
 import { SkillTree } from "./skill-tree";
 import { SummarySection } from "./summary-section";
 
@@ -41,7 +42,7 @@ export function SkillEditor({
   const router = useRouter();
   const initialItem = initialFile ?? initialSection ?? "summary";
   const [selected, setSelected] = useState(initialItem);
-  const [authorOpen, setAuthorOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [highlightedLine, setHighlightedLine] = useState(initialLine);
   const [activeBlock, setActiveBlock] = useState("");
   const tocBlocks = useMemo<Array<[string, string]>>(() => {
@@ -83,7 +84,10 @@ export function SkillEditor({
       if (!analysis.files.some((file) => file.path === path)) {
         setSelected("install");
         router.replace(
-          `/skills/${analysis.slug}?v=${analysis.version}&section=install`,
+          analysisHref(analysis.slug, {
+            version: analysis.version,
+            section: "install",
+          }),
           { scroll: false },
         );
         return;
@@ -91,7 +95,11 @@ export function SkillEditor({
       setSelected(path);
       setHighlightedLine(line);
       router.replace(
-        `/skills/${analysis.slug}?v=${analysis.version}&file=${encodeURIComponent(path)}${line ? `#L${line}` : ""}`,
+        analysisHref(analysis.slug, {
+          version: analysis.version,
+          file: path,
+          line,
+        }),
         { scroll: false },
       );
     },
@@ -101,7 +109,10 @@ export function SkillEditor({
   const openSection = (section: SectionId) => {
     setSelected(section);
     router.replace(
-      `/skills/${analysis.slug}?v=${analysis.version}&section=${section}`,
+      analysisHref(analysis.slug, {
+        version: analysis.version,
+        section,
+      }),
       { scroll: false },
     );
   };
@@ -167,7 +178,23 @@ export function SkillEditor({
           analysis.files.some((entry) => entry.path === selected) ? "is-file-view" : ""
         }`}
       >
-        <SkillTopBar analysis={analysis} onAuthor={() => setAuthorOpen(true)} />
+        <SkillHeader
+          className="auditor-skill-editor__header"
+          name={analysis.name}
+          owner={analysis.owner}
+          repo={analysis.repo}
+          verdict={analysis.verdict}
+          analyzedAt={
+            analysis.versions.find((v) => v.number === analysis.version)
+              ?.analyzedAt ?? ""
+          }
+          slug={analysis.slug}
+          current="analysis"
+          otherHref={skillHref(analysis.slug)}
+          versions={analysis.versions}
+          currentVersion={analysis.version}
+          onReport={() => setReportOpen(true)}
+        />
           <div className="auditor-skill-main">
             <div className="auditor-report-content">
               {analysis.files.find((entry) => entry.path === selected) ? (
@@ -192,9 +219,9 @@ export function SkillEditor({
             </div>
           </div>
       </PageShell>
-      <AuthorDialog
-        open={authorOpen}
-        onOpenChange={setAuthorOpen}
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
         signedIn={signedIn}
       />
     </>

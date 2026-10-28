@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate, verdictLabel } from "@/lib/auditor/labels";
+import { analysisHref } from "@/lib/auditor/skill-links";
 import { auditorTableLabels } from "@/lib/auditor/table-labels";
 import {
   blockedReposTableQuery,
@@ -42,7 +43,7 @@ const SKILL_COLUMNS: TableViewColumn<ModeratedSkill>[] = [
       <div className="flex flex-col">
         <Link
           className="underline underline-offset-4"
-          href={`/skills/${item.slug}`}
+          href={analysisHref(item.slug)}
         >
           {item.name}
         </Link>
@@ -159,7 +160,7 @@ export function ModerationContent(props: ModerationContentProps) {
     {
       id: "view",
       label: "Ver página",
-      href: `/skills/${item.slug}`,
+      href: analysisHref(item.slug),
     },
     {
       id: "toggle-hide",

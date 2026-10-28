@@ -2,6 +2,8 @@ import { Prisma } from '@prisma/client';
 import { createGithubClient } from '@/lib/auditor/github/client';
 import { getGithubToken } from '@/lib/auditor/config';
 import { SUBMISSION_LIMITS, currentCreditMonth } from '@/lib/auditor/limits';
+import { skillSearchText } from '@/lib/auditor/search-text';
+import { analysisHref } from '@/lib/auditor/skill-links';
 import { prisma } from '@/lib/prisma';
 import { detectSkills, type TreeEntry } from './detect-skills';
 import { filesFingerprint as createFilesFingerprint } from './fingerprint';
@@ -208,7 +210,7 @@ export async function submitSkills(
             continue;
           }
           if (plan.version && !plan.spendsCredit) {
-            targets.push(`/skills/${plan.skill!.slug}`);
+            targets.push(analysisHref(plan.skill!.slug));
             continue;
           }
 
@@ -225,6 +227,12 @@ export async function submitSkills(
                 name: plan.requested.name,
                 description: plan.requested.description,
                 slug,
+                searchText: skillSearchText({
+                  name: plan.requested.name,
+                  description: plan.requested.description,
+                  owner: prepared.displayOwner ?? prepared.owner,
+                  repo: prepared.displayRepo ?? prepared.repo,
+                }),
               },
             });
           }
@@ -382,7 +390,7 @@ async function inspectRepository(url: string): Promise<{
       target = `/analysis/${activeJob.id}`;
     } else if (matchingVersion && !matchingVersion.hasRemoteScripts && hasDoneJob) {
       state = 'analyzed';
-      target = `/skills/${existing!.slug}`;
+      target = analysisHref(existing!.slug);
     }
 
     return {
