@@ -1,0 +1,42 @@
+[project]
+name = "auditor-worker"
+version = "0.1.0"
+description = "Analysis worker for skill auditor"
+readme = "README.md"
+requires-python = "==3.14.*"
+dependencies = [
+    "psycopg[binary]==3.3.6",
+]
+
+[project.scripts]
+auditor-worker = "auditor_worker.__main__:main"
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "ruff==0.17.1",
+]
+
+[build-system]
+requires = ["uv_build==0.13.2"]
+build-backend = "uv_build"
+
+[tool.uv]
+exclude-newer = "2026-10-20T00:00:00Z"
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "S106"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "db: marks tests that require a database connection",
+]

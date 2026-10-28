@@ -2154,6 +2154,7 @@ body:has(.auditor-public-site) .auditor-public-sheet__close svg {
 .auditor-skill-tree { display: flex; flex-direction: column; padding: 0 8px; }
 .auditor-skill-tree .auditor-sidebar-section { padding-block: 10px; }
 .auditor-skill-tree .auditor-nav-link { min-height: 30px; }
+.auditor-skill-tree .auditor-nav-link__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .auditor-tree-child { padding-left: 13px; }
 .auditor-risk-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; }
 .auditor-risk-dot--critical { background: #c92f27; }
@@ -2565,6 +2566,8 @@ body:has(.auditor-public-site) .auditor-public-sheet__close svg {
 .auditor-skill-editor .auditor-skill-scroll [data-slot="scroll-area-viewport"] {
   padding: 8px;
 }
+.auditor-skill-scroll [data-slot="scroll-area-viewport"] > div { display: block !important; }
+.auditor-skill-scroll [data-slot="scroll-area-scrollbar"] { display: none; }
 .auditor-page-shell.auditor-skill-editor .auditor-skill-sidebar--desktop {
   position: static;
   height: 100%;

@@ -102,7 +102,7 @@ export function ProgressContent({ progress }: { progress: AnalysisProgress }) {
           {progressView.fileTotal && (
             <div className="auditor-progress-meter">
               <div className="flex justify-between text-sm">
-                <span>Explicación por líneas</span>
+                <span>{progressView.step ?? "Pasando las reglas"}</span>
                 <span>
                   Archivo {progressView.fileIndex} de {progressView.fileTotal}
                 </span>

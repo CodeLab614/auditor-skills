@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SkillEditor } from "@/components/auditor/skill/skill-editor";
 import { getSkillAnalysis } from "@/lib/auditor/mock-data";
+import { getSkillAnalysisFromDb } from "@/lib/auditor/queries";
 import { getSession } from "@/lib/auth";
 
 type Params = {
@@ -16,7 +17,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const analysis = await getSkillAnalysis(slug);
+  const analysis = (await getSkillAnalysisFromDb(slug)) ?? (await getSkillAnalysis(slug));
   return {
     title: analysis
       ? `${analysis.name} · Auditor de skills`
@@ -37,12 +38,13 @@ export default async function SkillPage({
     getSession(),
   ]);
   const selectedVersion = Number(Array.isArray(query.v) ? query.v[0] : query.v);
-  const analysis = await getSkillAnalysis(
-    slug,
+  const versionNum =
     Number.isFinite(selectedVersion) && selectedVersion > 0
       ? selectedVersion
-      : undefined,
-  );
+      : undefined;
+  const analysis =
+    (await getSkillAnalysisFromDb(slug, versionNum)) ??
+    (await getSkillAnalysis(slug, versionNum));
   if (!analysis) notFound();
   const requestedFile = Array.isArray(query.file) ? query.file[0] : query.file;
   const initialFile = analysis.files.some((file) => file.path === requestedFile)

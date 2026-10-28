@@ -181,3 +181,36 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Auditor de skills: reglas propias
+
+This section specifies architecture, infrastructure, and toolchain rules for the Skill Auditor.
+These rules take precedence over inherited boilerplate rules above.
+
+### Database & Queue
+- The production and staging database is PostgreSQL on **AWS RDS**, not Neon. Prisma schema and migrations are
+  the single source of truth for all database tables and enums.
+- Job queueing uses the `analysis_job` PostgreSQL table with transactional `SELECT ... FOR UPDATE SKIP LOCKED`
+  polling.
+
+### Python Worker (`worker/`)
+- Background analysis jobs are processed by the Python 3.14 worker located in `worker/`.
+- **Untrusted skill code is never executed**: analysis is performed strictly in-memory (reading raw bytes for
+  hash validation, static analysis, and pattern matching).
+- Worker controls and tooling:
+  - Managed with `uv`. Dependencies are pinned to exact versions (`==x.y.z`) and locked in `worker/uv.lock`.
+  - Ruff enforces linting (`select = ["E", "F", "W", "I", "B", "UP", "S"]`) and code style (`line-length = 120`).
+  - Pytest runs test suites with the `db` marker for integration tests requiring a database connection.
+  - Pre-commit runs worker checks (step 5/5) whenever files under `worker/` are modified.
+  - CI includes a dedicated `Worker` job with a live PostgreSQL service container.
+
+### Documentation & Environment Variables
+- Auditor-specific environment variables are documented in `docs/en/auditor-environment-variables.md` and
+  `docs/es/auditor-environment-variables.md` (specifying whether each variable is used by the web app,
+  the worker, or both).
+- Optional defaults are commented in `.env.example` under the `# Auditor de skills` block.
+
+### Design Specification
+- The full project specification is in `docs/superpowers/specs/2026-10-25-auditor-skills-design.md`.
+- Implementation plans are tracked in `docs/superpowers/plans/`.
+

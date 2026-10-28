@@ -107,6 +107,10 @@ export function validateSelectedSkillPaths<
   return { ok: true, skills: selected };
 }
 
+export function needsSourceFiles(sourceFiles: unknown): boolean {
+  return !Array.isArray(sourceFiles) || sourceFiles.length === 0;
+}
+
 function normalizePath(path: string): string {
   return path.replace(/^\/+|\/+$/g, '');
 }

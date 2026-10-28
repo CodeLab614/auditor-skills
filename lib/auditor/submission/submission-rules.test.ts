@@ -4,6 +4,7 @@ import {
   generateSkillSlug,
   getManifestPathsToRead,
   getSkillLimitReason,
+  needsSourceFiles,
   validateSelectedSkillPaths,
 } from './submission-rules';
 
@@ -106,5 +107,15 @@ describe('validateSelectedSkillPaths', () => {
     expect(validateSelectedSkillPaths(['skills/missing'], skills)).toMatchObject({ ok: false });
     expect(validateSelectedSkillPaths(['skills/retired'], skills)).toMatchObject({ ok: false });
     expect(validateSelectedSkillPaths(['skills/too-large'], skills)).toMatchObject({ ok: false });
+  });
+});
+
+describe('needsSourceFiles', () => {
+  test('returns true for empty arrays, null, undefined, or non-arrays', () => {
+    expect(needsSourceFiles([])).toBe(true);
+    expect(needsSourceFiles(null)).toBe(true);
+    expect(needsSourceFiles(undefined)).toBe(true);
+    expect(needsSourceFiles('x')).toBe(true);
+    expect(needsSourceFiles([{ path: 'a' }])).toBe(false);
   });
 });

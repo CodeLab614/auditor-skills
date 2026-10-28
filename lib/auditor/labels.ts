@@ -22,6 +22,17 @@ export const jobStateLabel: Record<JobState, string> = {
   failed: "Fallido",
 };
 
+export const analysisStepLabel: Record<string, string> = {
+  download: "Descargando el commit",
+  inventory: "Haciendo el inventario",
+  rules: "Pasando las reglas",
+  install: "Analizando la instalación",
+  remote: "Descargando los scripts remotos",
+  dependencies: "Consultando las dependencias",
+  verdict: "Calculando el veredicto",
+  save: "Guardando el resultado",
+};
+
 export const takedownKindLabel: Record<TakedownRequest["kind"], string> = {
   error: "Error del análisis",
   takedown: "Solicitud de retirada",

@@ -203,7 +203,7 @@ Reglas deterministas, con archivo y línea en cada hallazgo. Como mínimo:
 
 Cada hallazgo de las reglas se cruza con lo que declara el `SKILL.md` para marcarlo como **declarado** o **no declarado**. Ese cruce lo propone la IA (7.6) y lo confirma la verificación (7.7), pero el hallazgo ya existe antes.
 
-**Cruce provisional sin IA** **[decisión de Claude]**: en la fase 4 todavía no hay IA. Para que el veredicto no salga inflado, un hallazgo cuenta como declarado si el `SKILL.md` contiene literalmente su dato concreto (el dominio, el comando o paquete, o la ruta). Es la misma comprobación determinista de 7.7, escrita una sola vez. Desde la fase 5 se exige además que la IA cite la línea que lo declara, y la comprobación confirma esa línea.
+**Cruce provisional sin IA** **[decisión de Claude]**: en la fase 4 todavía no hay IA. Para que el veredicto no salga inflado, un hallazgo cuenta como declarado si el `SKILL.md` contiene literalmente su dato concreto (el dominio, el comando o paquete, o la ruta). Es la misma comprobación determinista de 7.7, escrita una sola vez. Desde la fase 5 se exige además que la IA cite la línea que lo declara, y la comprobación confirma esa línea. Los comentarios HTML (`<!-- … -->`) no cuentan: no se ven al leer el `SKILL.md`, así que lo que esconden no es un aviso.
 
 ### 7.3 Binarios
 
@@ -224,6 +224,7 @@ Se determina **cómo se instala** y se analiza cada paso:
 - **Scripts remotos:** si un comando descarga algo y lo ejecuta (`curl … | bash`), el worker descarga ese contenido **sin ejecutarlo** y lo analiza como un archivo más, indicando su URL de origen. Lo descarga el worker, nunca la web (sección 5) ni la caja aislada (7.5).
 - **Gravedad de un `curl … | bash`** (sección 8):
   - si es el **instalador oficial de una herramienta muy conocida** (por ejemplo `bun.sh/install`), la gravedad es **media**;
+  - si descarga un archivo **del mismo repositorio que se analiza** (`raw.githubusercontent.com/<dueño>/<repo>/<ref>/<ruta>` o `github.com/<dueño>/<repo>/raw/<ref>/<ruta>`, comparando `dueño/repo` sin distinguir mayúsculas), la gravedad es **baja** si `<ref>` es un commit fijo (SHA de 40 caracteres) y **media** si es una rama o una etiqueta, porque esas pueden cambiar después del análisis. GitHub sirve el mismo contenido a todo el mundo y lo deja en el historial público, así que no puede dar al worker un script distinto del que recibe la gente. Otro repositorio, aunque sea del mismo dueño, los gists y las descargas de releases no entran en esta excepción. `raw.githubusercontent.com` nunca entra entero en la lista de instaladores conocidos;
   - si va a **cualquier otro dominio**, la gravedad es **crítica**;
   - en los dos casos, lo que haga el script descargado cuenta por su cuenta: si dentro hay algo malo, ese hallazgo tiene su propia gravedad.
   - La lista de instaladores conocidos es corta y vive en el código del worker, así que cada cambio pasa por un PR y queda a la vista **[decisión de Claude]**.
@@ -305,10 +306,10 @@ El diff y sus explicaciones se calculan el día del análisis, cuando existen la
 
 | Gravedad | Ejemplos |
 |---|---|
-| Crítica | envía secretos o archivos del usuario fuera; ejecuta código descargado de un dominio que no es un instalador conocido (`curl … \| bash`); borra fuera de su carpeta; persistencia no declarada; ofuscación que esconde ejecución; instrucciones en el Markdown para robar datos |
+| Crítica | envía secretos o archivos del usuario fuera; ejecuta código descargado de un dominio que no es un instalador conocido ni el mismo repositorio (`curl … \| bash`); borra fuera de su carpeta; persistencia no declarada; ofuscación que esconde ejecución; instrucciones en el Markdown para robar datos |
 | Alta | red no declarada; instala dependencias no declaradas; binario no declarado; instrucciones ocultas (caracteres invisibles, comentarios); lee secretos aunque no los envíe |
-| Media | `curl … \| bash` del instalador oficial de una herramienta conocida (7.4); red declarada hacia terceros; dependencias sin versión fija; escribe fuera de su carpeta de forma declarada |
-| Baja | informativo, por ejemplo un `git fetch` declarado y desactivable |
+| Media | `curl … \| bash` del instalador oficial de una herramienta conocida, o de un script del mismo repositorio en una rama o etiqueta (7.4); red declarada hacia terceros; dependencias sin versión fija; escribe fuera de su carpeta de forma declarada |
+| Baja | informativo, por ejemplo un `git fetch` declarado y desactivable, o un `curl … \| bash` de un script del mismo repositorio en un commit fijo (7.4) |
 
 | Veredicto | Regla **[decisión de Claude; el constructor puede afinar los umbrales]** |
 |---|---|
@@ -531,6 +532,6 @@ Por qué este orden:
 
 ## 18. Pendientes abiertos
 
-1. **Scripts del propio repositorio descargados desde una rama que puede cambiar** (por ejemplo `raw.githubusercontent.com/<autor>/<repo>/main/install.sh`). Hoy cuentan como «cualquier otro dominio» (crítica). Queda por decidir si merecen otro nivel. Se decide antes de la fase 4.
+1. ~~**Scripts del propio repositorio descargados desde una rama que puede cambiar.**~~ Cerrado el 2026-10-26, antes de la fase 4: baja si se descargan de un commit fijo, media si se descargan de una rama o una etiqueta; todo lo demás sigue siendo crítico (sección 7.4).
 2. ~~**Cómo se crea el primer admin con solo GitHub.**~~ Cerrado en la fase 2: con GitHub desde `/auth/setup` (sección 3.1).
 3. ~~**Memoria de Engram compartida con la plantilla.**~~ Cerrado el 2026-10-26: el auditor tiene su propio proyecto en Engram, `auditor-skills`, y su propio `.forge614/project.json`.

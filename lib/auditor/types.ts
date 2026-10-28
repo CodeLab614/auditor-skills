@@ -29,6 +29,8 @@ export interface SkillFile {
   availability: "available" | "gone" | "sha-mismatch" | "binary";
   lines: string[];
   explanations: ExplanationRange[];
+  blobSha?: string;
+  commit?: string;
 }
 export interface NotExecutedScript {
   path: string;
@@ -45,7 +47,7 @@ export interface DoneStep {
   total: number;
 }
 export interface InstallStep {
-  method: "folder" | "plugin";
+  method: "folder" | "plugin" | "readme";
   command: string;
   touches: string;
   matchesDeclared: boolean;

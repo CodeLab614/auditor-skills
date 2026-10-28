@@ -13,7 +13,7 @@ export function InstallSection({ analysis }: { analysis: SkillAnalysis }) {
         {analysis.install.map((step, index) => (
           <Panel gridCell id={`install-${index}`} data-skill-block
             key={`${step.method}-${index}`} title={<>
-            {step.method === "plugin" ? "Como plugin" : "Copiando la carpeta"}
+            {step.method === "plugin" ? "Como plugin" : step.method === "readme" ? "Desde el README" : "Copiando la carpeta"}
             <Chip>{step.matchesDeclared ? "Declarado" : "No declarado"}</Chip>
           </>}>
             <pre className="auditor-code-panel"><code>{step.command}</code></pre>
@@ -22,7 +22,7 @@ export function InstallSection({ analysis }: { analysis: SkillAnalysis }) {
           </Panel>
         ))}
         <Panel gridCell className="md:col-span-2" id="packages" data-skill-block>
-        No se revisó el código de los {pluralize(analysis.dependencies.length, "paquete", "packages")}
+        No se revisó el código de los {pluralize(analysis.dependencies.length, "paquete", "paquetes")}
         que instala; solo se buscaron en la lista de problemas conocidos.
           {analysis.dependencies.length > 0 && <ul className="auditor-dependency-list">
             {analysis.dependencies.map((dependency) => <li key={dependency}>{dependency}</li>)}
