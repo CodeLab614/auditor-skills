@@ -10,6 +10,8 @@ const groups = [
   {
     title: "Catálogo y skills",
     links: [
+      ["Catálogo (maqueta, miles de skills)", "/mockups/catalogo"],
+      ["Ficha de la skill (maqueta)", "/mockups/ficha"],
       ["Catálogo", "/skills"],
       [
         "Explicar cambios · Resumen",

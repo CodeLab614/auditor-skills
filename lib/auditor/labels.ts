@@ -6,6 +6,10 @@ export const verdictLabel: Record<Verdict, string> = {
   "no-serious-findings": "Sin hallazgos graves",
 };
 
+export function isInstallable(verdict: Verdict): boolean {
+  return verdict === "no-serious-findings";
+}
+
 export const severityLabel: Record<Severity, string> = {
   critical: "Crítica",
   high: "Alta",
@@ -47,6 +51,28 @@ export const takedownStatusLabel: Record<TakedownRequest["status"], string> = {
 
 export function pluralize(count: number, singular: string, plural: string): string {
   return `${count} ${count === 1 ? singular : plural}`;
+}
+
+export function formatCount(value: number): string {
+  return new Intl.NumberFormat("es", { useGrouping: "always" }).format(value);
+}
+
+export function formatDay(value: string): string {
+  try {
+    const date = new Date(value.includes("T") ? value : `${value}T00:00:00Z`);
+    if (!Number.isFinite(date.getTime())) return value;
+
+    return new Intl.DateTimeFormat("es", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    })
+      .format(date)
+      .replaceAll(".", "");
+  } catch {
+    return value;
+  }
 }
 
 export function formatDate(value: string): string {
