@@ -17,10 +17,19 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { SkillHeader } from "./skill-header";
 import { formatCount, formatDay } from "@/lib/auditor/labels";
 import { analysisHref } from "@/lib/auditor/skill-links";
-import type { SkillAiDetails, SkillDetailsView } from "@/lib/auditor/skill-details";
+import {
+  skillSummary,
+  type SkillAiDetails,
+  type SkillDetailsView,
+} from "@/lib/auditor/skill-details";
 
 export interface SkillDetailsContentProps {
   details: SkillDetailsView;
@@ -33,6 +42,7 @@ export function SkillDetailsContent({
   ai,
   showCommentsPlaceholder = false,
 }: SkillDetailsContentProps) {
+  const [authorTextOpen, setAuthorTextOpen] = useState(false);
   const activeSections = useMemo(() => {
     const list: { id: string; category: string; title: string }[] = [];
     list.push({
@@ -258,14 +268,31 @@ export function SkillDetailsContent({
                   </p>
                 </>
               ) : (
-                <div>
-                  <span className="auditor-mono-label auditor-skill-details__author-label">
-                    Según el autor
-                  </span>
+                <>
                   <p className="auditor-skill-details__summary">
-                    {details.description}
+                    {skillSummary(details)}
                   </p>
-                </div>
+                  {details.description && (
+                    <Collapsible
+                      open={authorTextOpen}
+                      onOpenChange={setAuthorTextOpen}
+                      className="auditor-skill-details__author"
+                    >
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          {authorTextOpen
+                            ? "Ocultar la descripción original del autor"
+                            : "Ver la descripción original del autor"}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <p className="auditor-skill-details__author-text">
+                          {details.description}
+                        </p>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+                </>
               )}
             </div>
 

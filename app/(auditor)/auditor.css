@@ -3522,11 +3522,19 @@ body:has(.auditor-public-site) .auditor-public-sheet__close svg {
   font-weight: 500;
 }
 
-.auditor-skill-details__author-label {
-  display: block;
-  font-size: 11px;
+.auditor-skill-details__author {
+  margin-top: 16px;
+}
+
+.auditor-skill-details__author > button {
+  margin-left: -8px;
+}
+
+.auditor-skill-details__author-text {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--text-secondary);
-  margin-bottom: 8px;
 }
 
 /* Sección 2: Para qué sirve y para qué no */

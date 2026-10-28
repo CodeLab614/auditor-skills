@@ -238,3 +238,41 @@ export function toSkillDetailsView(input: SkillDetailsInput): SkillDetailsView {
     },
   };
 }
+
+const NEED_PHRASES: Record<NeedKey, string> = {
+  net: "usa internet",
+  install: "instala dependencias",
+  exec: "ejecuta comandos en tu equipo",
+  filesystem: "lee o escribe archivos de tu equipo",
+  secrets: "usa claves o variables de entorno",
+};
+
+function joinSpanish(items: string[]): string {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} y ${items.at(-1)}`;
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toLocaleUpperCase("es") + text.slice(1);
+}
+
+// Spanish summary built only from analysis data, shown until the AI summary exists.
+export function skillSummary(view: SkillDetailsView): string {
+  const { facts } = view;
+  const fileWord = facts.fileCount === 1 ? "archivo" : "archivos";
+  const languages = facts.languages.length > 0 ? ` en ${joinSpanish(facts.languages)}` : "";
+  const sentences = [`Skill de ${facts.repository} con ${facts.fileCount} ${fileWord}${languages}.`];
+
+  const does = view.needs.map((need) => NEED_PHRASES[need.key]);
+  if (does.length > 0) sentences.push(`${capitalize(joinSpanish(does))}.`);
+
+  if (!facts.usesInternet && !facts.installsDependencies) {
+    sentences.push("No usa internet ni instala dependencias.");
+  } else if (!facts.usesInternet) {
+    sentences.push("No usa internet.");
+  } else if (!facts.installsDependencies) {
+    sentences.push("No instala dependencias.");
+  }
+
+  return sentences.join(" ");
+}

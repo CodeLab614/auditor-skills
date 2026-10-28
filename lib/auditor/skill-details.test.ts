@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { analysisHref } from "./skill-links";
 import {
   displayLanguage,
+  skillSummary,
   languageFromPath,
   toSkillDetailsView,
   type SkillDetailsInput,
@@ -243,5 +244,41 @@ describe("displayLanguage", () => {
     expect(displayLanguage("deploy.ps1", "powershell")).toBe("PowerShell");
     expect(displayLanguage("setup.cfg", "config")).toBe("Configuración");
     expect(displayLanguage("README", null)).toBeNull();
+  });
+});
+
+describe("skillSummary", () => {
+  const base: SkillDetailsInput = {
+    skill: { slug: "x", name: "x", owner: "Acme", repo: "skills", path: "x", description: "English text" },
+    version: { verdict: "review", analyzedAt: "2026-10-27T10:00:00.000Z" },
+    files: [
+      { path: "a.py", language: "Python", lineCount: 10 },
+      { path: "SKILL.md", language: "Markdown", lineCount: 5 },
+      { path: "b.yaml", language: "YAML", lineCount: 2 },
+    ],
+    findings: [],
+  };
+  const finding = (category: string) => ({
+    ruleId: category, category, title: "t", evidence: category, filePath: "a.py", line: 1,
+  });
+
+  test("describes the skill in Spanish from the analysis data", () => {
+    const view = toSkillDetailsView({ ...base, findings: [finding("exec")] });
+    expect(skillSummary(view)).toBe(
+      "Skill de Acme/skills con 3 archivos en Python, Markdown y YAML. Ejecuta comandos en tu equipo. " +
+        "No usa internet ni instala dependencias.",
+    );
+  });
+
+  test("lists everything it does and only denies what it does not do", () => {
+    const view = toSkillDetailsView({
+      ...base,
+      files: [{ path: "a.py", language: "Python", lineCount: 1 }],
+      findings: [finding("net"), finding("secrets")],
+    });
+    expect(skillSummary(view)).toBe(
+      "Skill de Acme/skills con 1 archivo en Python. Usa internet y usa claves o variables de entorno. " +
+        "No instala dependencias.",
+    );
   });
 });
