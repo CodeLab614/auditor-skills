@@ -200,6 +200,7 @@ export function SkillDetailsContent({
           analyzedAt={details.analyzedAt}
           current="details"
           otherHref={analysisHref(details.slug)}
+          slug={details.slug}
         />
 
         <div className="auditor-skill-details__mobile-toc">

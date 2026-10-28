@@ -12,6 +12,7 @@ export { SkillEditor } from "./skill/skill-editor";
 export { EvidenceText } from "./skill/evidence-text";
 export { SkillHeader } from "./skill/skill-header";
 export { SkillDetailsContent } from "./skill/skill-details-content";
+export { ReportDialog } from "./skill/report-dialog";
 export { JobsContent } from "./admin/jobs-content";
 export { ModerationContent } from "./admin/moderation-content";
 export { TakedownsContent } from "./admin/takedowns-content";
