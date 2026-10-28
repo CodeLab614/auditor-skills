@@ -282,3 +282,23 @@ describe("skillSummary", () => {
     );
   });
 });
+
+describe("skill files", () => {
+  test("show paths from the skill folder and list repository files last", () => {
+    const view = toSkillDetailsView({
+      skill: { slug: "x", name: "x", owner: "acme", repo: "skills", path: "skills/x", description: "" },
+      version: { verdict: "review", analyzedAt: "2026-10-27T10:00:00.000Z" },
+      files: [
+        { path: "README.md", language: "Markdown", lineCount: 3 },
+        { path: "skills/x/SKILL.md", language: "Markdown", lineCount: 5 },
+        { path: "skills/x/scripts/run.py", language: "Python", lineCount: 9 },
+      ],
+      findings: [],
+    });
+    expect(view.files.map((file) => [file.displayPath, file.inSkillFolder, file.path])).toEqual([
+      ["SKILL.md", true, "skills/x/SKILL.md"],
+      ["scripts/run.py", true, "skills/x/scripts/run.py"],
+      ["README.md", false, "README.md"],
+    ]);
+  });
+});

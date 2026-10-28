@@ -10,7 +10,13 @@ export interface SkillDetailsView {
   verdict: Verdict;
   analyzedAt: string;
   description: string;
-  files: { path: string; language: string | null; lineCount: number }[];
+  files: {
+    path: string;
+    displayPath: string;
+    inSkillFolder: boolean;
+    language: string | null;
+    lineCount: number;
+  }[];
   needs: {
     key: "net" | "install" | "exec" | "filesystem" | "secrets";
     label: string;
@@ -82,6 +88,23 @@ const STORED_LANGUAGE_LABELS: Record<string, string> = {
 // The worker stores a coarse language family; the file extension names it better.
 export function displayLanguage(path: string, stored: string | null): string | null {
   return languageFromPath(path) ?? (stored ? STORED_LANGUAGE_LABELS[stored] ?? stored : null);
+}
+
+// Files are stored relative to the repository; inside the skill folder they read better without it.
+function skillFiles(
+  skillPath: string,
+  files: SkillDetailsInput["files"],
+): SkillDetailsView["files"] {
+  const prefix = skillPath.trim().replace(/\/+$/, "");
+  const mapped = files.map((file) => {
+    const inSkillFolder = !prefix || file.path.startsWith(`${prefix}/`);
+    return {
+      ...file,
+      displayPath: prefix && inSkillFolder ? file.path.slice(prefix.length + 1) : file.path,
+      inSkillFolder,
+    };
+  });
+  return [...mapped.filter((file) => file.inSkillFolder), ...mapped.filter((file) => !file.inSkillFolder)];
 }
 
 export function languageFromPath(path: string): string | null {
@@ -210,6 +233,8 @@ export function toSkillDetailsView(input: SkillDetailsInput): SkillDetailsView {
   const usesInternet = needs.some((n) => n.key === "net");
   const installsDependencies = needs.some((n) => n.key === "install");
 
+  const files = skillFiles(input.skill.path, input.files);
+
   const folder =
     input.skill.path && input.skill.path.trim().length > 0
       ? input.skill.path
@@ -224,7 +249,7 @@ export function toSkillDetailsView(input: SkillDetailsInput): SkillDetailsView {
     verdict,
     analyzedAt: input.version.analyzedAt,
     description: input.skill.description,
-    files: input.files,
+    files,
     needs,
     facts: {
       repository: `${input.skill.owner}/${input.skill.repo}`,

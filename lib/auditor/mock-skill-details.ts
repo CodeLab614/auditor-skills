@@ -45,13 +45,14 @@ export async function getMockSkillDetailsView(
     line: f.line,
   }));
 
-  return toSkillDetailsView({
+  // Mock file paths are already relative to the skill folder, so the folder is set after building the view.
+  const view = toSkillDetailsView({
     skill: {
       slug: analysis.slug,
       name: analysis.name,
       owner: analysis.owner,
       repo: analysis.repo,
-      path: analysis.path,
+      path: "",
       description:
         (analysis as { description?: string }).description ?? analysis.declares,
     },
@@ -62,6 +63,7 @@ export async function getMockSkillDetailsView(
     files,
     findings,
   });
+  return { ...view, path: analysis.path, facts: { ...view.facts, folder: analysis.path || view.facts.folder } };
 }
 
 export function getMockSkillAi(slug: string): SkillAiDetails | null {

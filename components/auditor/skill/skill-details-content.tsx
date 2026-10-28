@@ -478,11 +478,13 @@ export function SkillDetailsContent({
             />
             <ul className="auditor-skill-details__file-list">
               {details.files.map((file) => {
-                const lastSlash = file.path.lastIndexOf("/");
+                const lastSlash = file.displayPath.lastIndexOf("/");
                 const folder =
-                  lastSlash !== -1 ? file.path.slice(0, lastSlash + 1) : "";
+                  lastSlash !== -1 ? file.displayPath.slice(0, lastSlash + 1) : "";
                 const filename =
-                  lastSlash !== -1 ? file.path.slice(lastSlash + 1) : file.path;
+                  lastSlash !== -1
+                    ? file.displayPath.slice(lastSlash + 1)
+                    : file.displayPath;
                 const fileAi = ai?.files[file.path];
 
                 return (
@@ -510,6 +512,7 @@ export function SkillDetailsContent({
                               </span>
                             </span>
                             <span className="auditor-mono-label auditor-skill-details__file-meta">
+                              {file.inSkillFolder ? "" : "Del repositorio · "}
                               {file.language ? `${file.language} · ` : ""}
                               {formatCount(file.lineCount)}{" "}
                               {file.lineCount === 1 ? "línea" : "líneas"}
